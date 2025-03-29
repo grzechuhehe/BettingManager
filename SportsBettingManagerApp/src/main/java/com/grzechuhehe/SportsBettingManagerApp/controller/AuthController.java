@@ -18,10 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +28,12 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    
+    // Metoda GET dla testowania dostępności endpointu
+//    @GetMapping("/signup")
+//    public ResponseEntity<?> signupPage() {
+//        return ResponseEntity.ok("Endpoint rejestracji dostępny. Użyj metody POST z odpowiednimi danymi.");
+//    }
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;

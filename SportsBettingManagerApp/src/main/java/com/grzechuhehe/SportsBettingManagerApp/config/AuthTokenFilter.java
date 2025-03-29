@@ -32,6 +32,20 @@ public class AuthTokenFilter extends OncePerRequestFilter{
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        // Skip JWT processing for public endpoints
+        String path = request.getRequestURI();
+        // Skip for static resources and authentication endpoints
+        if (path.contains("/api/auth/") || 
+            path.contains("/static/") || 
+            path.contains("/templates/") || 
+            path.equals("/") || 
+            path.endsWith(".html") || 
+            path.endsWith(".js") || 
+            path.endsWith(".css")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String jwt = parseJwt(request);
         if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
             String username = jwtUtils.getUserNameFromJwtToken(jwt);

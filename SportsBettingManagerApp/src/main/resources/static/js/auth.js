@@ -1,6 +1,6 @@
 import { API_URL, API_ENDPOINTS } from './config.js';
-import { getState, setState } from './state.js';
-import { showNotification } from './utils.js';
+import { getState, setState, clearState } from './state.js';
+import { showNotification, parseJwt } from './utils.js';
 
 export async function handleLogin(e) {
     e.preventDefault();
@@ -97,6 +97,9 @@ export async function handlePasswordReset(e) {
 }
 
 export function handleLogout() {
-    clearState();
+    // Wyczyść stan i localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    setState({ token: null, userId: null });
     showNotification('Wylogowano pomyślnie!', 'success');
 } 

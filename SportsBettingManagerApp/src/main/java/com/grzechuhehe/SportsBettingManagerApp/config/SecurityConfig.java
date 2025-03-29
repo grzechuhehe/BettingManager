@@ -60,11 +60,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8080"
+                "http://localhost:8080",
+                "http://localhost:3000",
+                "http://127.0.0.1:8080",
+                "http://127.0.0.1:3000"
                 // Add specific production domains here
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
@@ -82,10 +85,19 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        // Publiczne endpointy - dostępne bez uwierzytelnienia
                         .requestMatchers(
                                 "/api/auth/signin",
                                 "/api/auth/signup",
-                                "/api/auth/reset-password/**"
+                                "/api/auth/reset-password/**",
+                                // Statyczne zasoby
+                                "/",
+                                "/index.html",
+                                "/templates/**",
+                                "/static/**",
+                                "/*.js",
+                                "/*.css",
+                                "/*.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
