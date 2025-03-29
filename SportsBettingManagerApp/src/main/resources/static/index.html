@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Betting Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" id="app">
+        <header class="app-header">
+            <h1>Menedżer Zakładów Sportowych</h1>
+            <nav id="navigation" class="hidden">
+                <ul>
+                    <li><a href="#" id="dashboard-link">Dashboard</a></li>
+                    <li><a href="#" id="add-bet-link">Dodaj zakład</a></li>
+                    <li><a href="#" id="stats-link">Statystyki</a></li>
+                    <li><a href="#" id="advanced-stats-link">Zaawansowane statystyki</a></li>
+                    <li><a href="#" id="logout-link">Wyloguj</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <div id="auth-forms" class="auth-container">
+                <div id="login-form" class="form-container">
+                    <h2>Logowanie</h2>
+                    <form id="login">
+                        <div class="form-group">
+                            <label for="username">Nazwa użytkownika</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Hasło</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Zaloguj</button>
+                            <p>Nie masz konta? <a href="#" id="show-register">Zarejestruj się</a></p>
+                            <p><a href="#" id="show-reset">Zapomniałeś hasła?</a></p>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="register-form" class="form-container hidden">
+                    <h2>Rejestracja</h2>
+                    <form id="register">
+                        <div class="form-group">
+                            <label for="register-username">Nazwa użytkownika</label>
+                            <input type="text" id="register-username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-email">Email</label>
+                            <input type="email" id="register-email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">Hasło</label>
+                            <input type="password" id="register-password" name="password" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Zarejestruj</button>
+                            <p>Masz już konto? <a href="#" id="show-login">Zaloguj się</a></p>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="reset-form" class="form-container hidden">
+                    <h2>Resetowanie hasła</h2>
+                    <form id="reset">
+                        <div class="form-group">
+                            <label for="reset-token">Token resetowania</label>
+                            <input type="text" id="reset-token" name="token" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reset-password">Nowe hasło</label>
+                            <input type="password" id="reset-password" name="password" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Resetuj hasło</button>
+                            <p><a href="#" id="back-to-login">Powrót do logowania</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="dashboard" class="content-container hidden">
+                <h2>Dashboard</h2>
+                <div class="dashboard-summary">
+                    <div class="summary-card">
+                        <h3>Całkowita wartość zakładów</h3>
+                        <div id="total-amount" class="summary-value">0.00 zł</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Zysk/Strata</h3>
+                        <div id="profit-loss" class="summary-value">0.00 zł</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>ROI</h3>
+                        <div id="roi" class="summary-value">0%</div>
+                    </div>
+                </div>
+                <div class="recent-bets">
+                    <h3>Ostatnie zakłady</h3>
+                    <table id="recent-bets-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Wydarzenie</th>
+                                <th>Typ</th>
+                                <th>Kwota</th>
+                                <th>Kurs</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-bets-body">
+                            <!-- Tu będą wstawiane dane z JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="add-bet" class="content-container hidden">
+                <h2>Dodaj nowy zakład</h2>
+                <form id="add-bet-form">
+                    <div class="form-group">
+                        <label for="event-team-home">Drużyna gospodarzy</label>
+                        <input type="text" id="event-team-home" name="teamHome" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-team-away">Drużyna gości</label>
+                        <input type="text" id="event-team-away" name="teamAway" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-date">Data wydarzenia</label>
+                        <input type="datetime-local" id="event-date" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-sport-type">Dyscyplina sportowa</label>
+                        <input type="text" id="event-sport-type" name="sportType" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-amount">Kwota zakładu</label>
+                        <input type="number" step="0.01" min="0.01" id="bet-amount" name="amount" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-odds">Kurs</label>
+                        <input type="number" step="0.01" min="1.01" id="bet-odds" name="odds" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-type">Typ zakładu</label>
+                        <select id="bet-type" name="type" required>
+                            <option value="WIN">Wygrana</option>
+                            <option value="DRAW">Remis</option>
+                            <option value="OVER">Powyżej</option>
+                            <option value="UNDER">Poniżej</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bet-status">Status zakładu</label>
+                        <select id="bet-status" name="status" required>
+                            <option value="PENDING">Oczekujący</option>
+                            <option value="WON">Wygrany</option>
+                            <option value="LOST">Przegrany</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Dodaj zakład</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="stats" class="content-container hidden">
+                <h2>Statystyki zakładów</h2>
+                <div class="stats-container">
+                    <div class="stats-card">
+                        <h3>Łączna liczba zakładów</h3>
+                        <div id="total-bets" class="stats-value">0</div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Wygrane zakłady</h3>
+                        <div id="successful-bets" class="stats-value">0</div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Zysk/Strata</h3>
+                        <div id="stats-profit-loss" class="stats-value">0.00 zł</div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>ROI</h3>
+                        <div id="stats-roi" class="stats-value">0%</div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Średnia krocząca (30d)</h3>
+                        <div id="rolling-average" class="stats-value">0.00 zł</div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Obecna seria</h3>
+                        <div id="current-streak" class="stats-value">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="advanced-stats" class="content-container hidden">
+                <h2>Zaawansowane statystyki</h2>
+                <div class="advanced-stats-container">
+                    <div class="stats-card wide">
+                        <h3>Wskaźnik Sharpe'a</h3>
+                        <div id="sharpe-ratio" class="stats-value">0.00</div>
+                    </div>
+                    <div class="stats-card wide">
+                        <h3>Współczynnik wygranych wg typu zakładu</h3>
+                        <div id="win-rates-by-type" class="stats-chart">
+                            <!-- Tu będzie wstawiony wykres -->
+                        </div>
+                    </div>
+                    <div class="stats-card full-width">
+                        <h3>Heatmapa zakładów</h3>
+                        <div id="heatmap-container" class="stats-chart">
+                            <!-- Tu będzie wstawiona heatmapa -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Sports Betting Manager App</p>
+        </footer>
+    </div>
+
+    <div id="notification" class="notification hidden"></div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

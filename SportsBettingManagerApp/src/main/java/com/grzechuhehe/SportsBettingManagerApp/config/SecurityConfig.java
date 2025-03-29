@@ -59,10 +59,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*")); // Dostosuj do swoich potrzeb
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:8080"
+                // Add specific production domains here
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -82,10 +88,7 @@ public class SecurityConfig {
                                 "/api/auth/reset-password/**"
                         ).permitAll()
                         .anyRequest().authenticated()
-                )
-                // Wymuszenie HTTPS
-                .requiresChannel(channel -> channel
-                        .anyRequest().requiresSecure());
+                );
 
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
