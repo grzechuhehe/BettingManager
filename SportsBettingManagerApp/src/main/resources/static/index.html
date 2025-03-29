@@ -36,51 +36,12 @@
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">Zaloguj</button>
-                            <p>Nie masz konta? <a href="#" id="show-register">Zarejestruj się</a></p>
-                            <p><a href="#" id="show-reset">Zapomniałeś hasła?</a></p>
+                            <p>Nie masz konta? <a href="register.html">Zarejestruj się</a></p>
+                            <p><a href="reset-password.html">Zapomniałeś hasła?</a></p>
                         </div>
                     </form>
                 </div>
 
-                <div id="register-form" class="form-container hidden">
-                    <h2>Rejestracja</h2>
-                    <form id="register">
-                        <div class="form-group">
-                            <label for="register-username">Nazwa użytkownika</label>
-                            <input type="text" id="register-username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="register-email">Email</label>
-                            <input type="email" id="register-email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="register-password">Hasło</label>
-                            <input type="password" id="register-password" name="password" required>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Zarejestruj</button>
-                            <p>Masz już konto? <a href="#" id="show-login">Zaloguj się</a></p>
-                        </div>
-                    </form>
-                </div>
-
-                <div id="reset-form" class="form-container hidden">
-                    <h2>Resetowanie hasła</h2>
-                    <form id="reset">
-                        <div class="form-group">
-                            <label for="reset-token">Token resetowania</label>
-                            <input type="text" id="reset-token" name="token" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="reset-password">Nowe hasło</label>
-                            <input type="password" id="reset-password" name="password" required>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Resetuj hasło</button>
-                            <p><a href="#" id="back-to-login">Powrót do logowania</a></p>
-                        </div>
-                    </form>
-                </div>
             </div>
 
             <div id="dashboard" class="content-container hidden">
