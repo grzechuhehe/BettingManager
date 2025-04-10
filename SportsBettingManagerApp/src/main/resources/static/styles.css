@@ -351,4 +351,85 @@ footer {
 
 .bet-status-lost {
     color: #e74c3c;
-} 
+}
+
+/* Style dla strony profilu */
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-info {
+    margin-bottom: 30px;
+}
+
+.info-group {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.info-group label {
+    font-weight: 600;
+    width: 150px;
+    color: #2c3e50;
+}
+
+.info-group p {
+    flex: 1;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s;
+}
+
+.stat-box:hover {
+    transform: translateY(-5px);
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: #3498db;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+.positive {
+    color: #2ecc71 !important;
+}
+
+.negative {
+    color: #e74c3c !important;
+}
+
+@media (max-width: 600px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .info-group {
+        flex-direction: column;
+    }
+    
+    .info-group label {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}
