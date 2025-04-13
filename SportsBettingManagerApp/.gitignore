@@ -5,8 +5,7 @@ target/
 !**/src/test/**/target/
 CLAUDE.md
 /src/main/
-mvnw
-mvnw.cmd
+
 
 
 ### STS ###
@@ -37,3 +36,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Maven config ###
+mvnw
+mvnw.cmd
+maven-wrapper.properties
