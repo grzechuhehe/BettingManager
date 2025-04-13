@@ -5,7 +5,11 @@ target/
 !**/src/test/**/target/
 CLAUDE.md
 /src/main/
-
+package-lock.json
+.gitattributes
+CLAUDE.md
+mvnw
+mvnw.cmd
 
 
 ### STS ###
@@ -18,7 +22,7 @@ CLAUDE.md
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -38,6 +42,6 @@ build/
 .vscode/
 
 ### Maven config ###
-mvnw
-mvnw.cmd
-maven-wrapper.properties
+.mvn/
+
+*.properties
