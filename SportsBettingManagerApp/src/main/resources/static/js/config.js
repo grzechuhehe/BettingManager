@@ -1,5 +1,5 @@
 // Konfiguracja API
-const API_URL = 'http://localhost:8080';
+const API_URL = ''; // Pusty, żeby używać relatywnych URLi (ten sam host)
 const API_ENDPOINTS = {
     auth: {
         login: '/api/auth/signin',
@@ -7,10 +7,10 @@ const API_ENDPOINTS = {
         resetPassword: '/api/auth/reset-password'
     },
     bets: {
-        create: '/bets',
-        getStats: '/bets/stats',
-        getAdvancedStats: '/bets/advanced-stats',
-        getHeatmapData: '/bets/heatmap'
+        create: '/api/bets',
+        getStats: '/api/bets/stats',
+        getAdvancedStats: '/api/bets/advanced-stats',
+        getHeatmapData: '/api/bets/heatmap'
     }
 };
 

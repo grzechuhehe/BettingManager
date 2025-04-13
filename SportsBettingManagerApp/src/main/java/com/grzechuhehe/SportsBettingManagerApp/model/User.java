@@ -41,18 +41,41 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        System.out.println("getAuthorities wywołane dla: " + this.username);
+        System.out.println("Role: " + this.roles);
+        
         return roles.stream()
-                .map(SimpleGrantedAuthority::new)
+                .map(role -> {
+                    // Upewnij się, że rola ma prefiks ROLE_
+                    String roleWithPrefix = !role.startsWith("ROLE_") ? "ROLE_" + role : role;
+                    System.out.println("Dodaję rolę: " + roleWithPrefix);
+                    return new SimpleGrantedAuthority(roleWithPrefix);
+                })
                 .collect(Collectors.toList());
     }
 
 
     @Override
-    public boolean isAccountNonExpired() { return true; }
+    public boolean isAccountNonExpired() { 
+        System.out.println("isAccountNonExpired: true"); 
+        return true; 
+    }
+    
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() { 
+        System.out.println("isAccountNonLocked: true"); 
+        return true; 
+    }
+    
     @Override
-    public boolean isCredentialsNonExpired() { return true; }
+    public boolean isCredentialsNonExpired() { 
+        System.out.println("isCredentialsNonExpired: true"); 
+        return true; 
+    }
+    
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() { 
+        System.out.println("isEnabled: true"); 
+        return true; 
+    }
 }

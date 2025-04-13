@@ -17,11 +17,25 @@ export async function handleLogin(e) {
             body: JSON.stringify({ username, password })
         });
         
+        // Sprawdź najpierw typ odpowiedzi
+        const contentType = response.headers.get("content-type");
+        
         if (!response.ok) {
-            throw new Error('Błąd logowania. Sprawdź dane i spróbuj ponownie.');
+            // Obsługa błędów w zależności od typu odpowiedzi
+            if (contentType && contentType.includes("application/json")) {
+                // Jeśli to JSON, pobierz obiekt błędu
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Błąd logowania. Sprawdź dane i spróbuj ponownie.');
+            } else {
+                // Jeśli to tekst, pobierz wiadomość tekstową
+                const errorText = await response.text();
+                throw new Error(errorText || 'Błąd logowania. Sprawdź dane i spróbuj ponownie.');
+            }
         }
         
+        // Tylko dla poprawnych odpowiedzi parsujemy JSON
         const data = await response.json();
+        console.log('Token otrzymany:', data);
         setState({ token: data.token });
         
         // Zapisz token w localStorage
@@ -29,12 +43,14 @@ export async function handleLogin(e) {
         
         // Dekoduj token JWT aby uzyskać ID użytkownika
         const payload = parseJwt(data.token);
+        console.log('JWT payload:', payload);
         setState({ userId: payload.sub });
         localStorage.setItem('userId', payload.sub);
         
         showNotification('Zalogowano pomyślnie!', 'success');
         return true;
     } catch (error) {
+        console.error('Błąd logowania:', error);
         showNotification(error.message, 'error');
         return false;
     }
@@ -56,14 +72,32 @@ export async function handleRegister(e) {
             body: JSON.stringify({ username, email, password })
         });
         
+        // Sprawdź typ odpowiedzi
+        const contentType = response.headers.get("content-type");
+        
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(Array.isArray(errorData) ? errorData.join(', ') : errorData);
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    throw new Error(errorData.error);
+                } else if (Array.isArray(errorData)) {
+                    throw new Error(errorData.join(', '));
+                } else {
+                    throw new Error("Błąd rejestracji");
+                }
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || "Błąd rejestracji");
+            }
         }
         
-        showNotification('Konto zostało utworzone. Możesz się teraz zalogować.', 'success');
+        const data = await response.json();
+        const message = data.message || 'Konto zostało utworzone. Możesz się teraz zalogować.';
+        
+        showNotification(message, 'success');
         return true;
     } catch (error) {
+        console.error('Błąd logowania:', error);
         showNotification(error.message, 'error');
         return false;
     }
@@ -84,13 +118,30 @@ export async function handlePasswordReset(e) {
             body: JSON.stringify({ token, password })
         });
         
+        // Sprawdź typ odpowiedzi
+        const contentType = response.headers.get("content-type");
+        
         if (!response.ok) {
-            throw new Error('Nie udało się zresetować hasła. Sprawdź token i spróbuj ponownie.');
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    throw new Error(errorData.error);
+                } else {
+                    throw new Error('Nie udało się zresetować hasła. Sprawdź token i spróbuj ponownie.');
+                }
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Nie udało się zresetować hasła. Sprawdź token i spróbuj ponownie.');
+            }
         }
         
-        showNotification('Hasło zostało zresetowane pomyślnie. Możesz się teraz zalogować.', 'success');
+        const data = await response.json();
+        const message = data.message || 'Hasło zostało zresetowane pomyślnie. Możesz się teraz zalogować.';
+        
+        showNotification(message, 'success');
         return true;
     } catch (error) {
+        console.error('Błąd logowania:', error);
         showNotification(error.message, 'error');
         return false;
     }

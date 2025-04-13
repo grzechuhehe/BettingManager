@@ -43,6 +43,10 @@ public class SecurityConfig {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
+        
+        // Dodaj dodatkowe informacje do logów
+        authProvider.setHideUserNotFoundExceptions(false);
+        
         return authProvider;
     }
 
@@ -53,7 +57,23 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder() {
+            @Override
+            public boolean matches(CharSequence rawPassword, String encodedPassword) {
+                boolean matches = super.matches(rawPassword, encodedPassword);
+                System.out.println("PasswordEncoder.matches: rawPassword.length=" + rawPassword.length() + 
+                    ", encodedPassword.length=" + encodedPassword.length() + ", wynik=" + matches);
+                return matches;
+            }
+            
+            @Override
+            public String encode(CharSequence rawPassword) {
+                String encoded = super.encode(rawPassword);
+                System.out.println("PasswordEncoder.encode: rawPassword.length=" + rawPassword.length() + 
+                    ", encodedPassword.length=" + encoded.length());
+                return encoded;
+            }
+        };
     }
 
     @Bean
@@ -89,12 +109,19 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/signin",
                                 "/api/auth/signup",
+                                "/api/auth/reset-password",
                                 "/api/auth/reset-password/**",
                                 // Statyczne zasoby
                                 "/",
                                 "/index.html",
+                                "/register.html",
+                                "/reset-password.html",
+                                "/user.html",
                                 "/templates/**",
                                 "/static/**",
+                                "/js/**",
+                                "/css/**",
+                                "/favicon.ico",
                                 "/*.js",
                                 "/*.css",
                                 "/*.html"

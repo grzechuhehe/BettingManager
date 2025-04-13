@@ -4,6 +4,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 CLAUDE.md
+/src/main/
 
 ### STS ###
 .apt_generated
@@ -19,6 +20,7 @@ CLAUDE.md
 *.iws
 *.iml
 *.ipr
+CLAUDE.md
 
 ### NetBeans ###
 /nbproject/private/

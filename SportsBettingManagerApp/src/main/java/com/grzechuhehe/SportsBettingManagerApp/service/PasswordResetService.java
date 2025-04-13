@@ -22,11 +22,11 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
 
     public String createPasswordResetTokenForUser(String email) {
-        User user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new RuntimeException("Nie znaleziono użytkownika z podanym adresem e-mail");
-        }
-
+        System.out.println("Szukam użytkownika z emailem: " + email);
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika z podanym adresem e-mail"));
+        
+        System.out.println("Znaleziono użytkownika: " + user.getUsername());
         String token = UUID.randomUUID().toString();
         createPasswordResetToken(user, token);
         return token;

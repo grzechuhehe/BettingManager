@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +24,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class AuthTokenFilter extends OncePerRequestFilter{
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
+    
     private final JwtUtils jwtUtils;
 
     private final UserDetailsService userDetailsService;
@@ -32,29 +36,45 @@ public class AuthTokenFilter extends OncePerRequestFilter{
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Skip JWT processing for public endpoints
         String path = request.getRequestURI();
-        // Skip for static resources and authentication endpoints
-        if (path.contains("/api/auth/") || 
-            path.contains("/static/") || 
-            path.contains("/templates/") || 
-            path.equals("/") || 
-            path.endsWith(".html") || 
-            path.endsWith(".js") || 
-            path.endsWith(".css")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        logger.info("Processing request: {}, method: {}", path, request.getMethod());
 
-        String jwt = parseJwt(request);
-        if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-            String username = jwtUtils.getUserNameFromJwtToken(jwt);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        try {
+            // Tylko próbujemy uwierzytelnić jeśli token jest obecny
+            String jwt = parseJwt(request);
+            
+            if (jwt != null) {
+                logger.info("JWT token found in request: {}", jwt);
+                if (jwtUtils.validateJwtToken(jwt)) {
+                    logger.info("JWT token is valid");
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    logger.info("Username from token: {}", username);
+                    
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    logger.info("User details loaded successfully");
+                    
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    logger.info("Authentication set in SecurityContext");
+                } else {
+                    logger.warn("JWT token validation failed");
+                }
+            } else {
+                logger.info("No JWT token found in request");
+            }
+        } catch (Exception e) {
+            logger.error("Cannot set user authentication: {}", e.getMessage(), e);
         }
+        
+        // Wyświetl status autentykacji przed kontynuowaniem łańcucha
+        logger.info("Authentication status before proceeding: {}", 
+                SecurityContextHolder.getContext().getAuthentication() != null ? 
+                "Authenticated as " + SecurityContextHolder.getContext().getAuthentication().getName() : 
+                "Not authenticated");
+        
+        // Zawsze kontynuujemy łańcuch filtrów
         filterChain.doFilter(request, response);
     }
 

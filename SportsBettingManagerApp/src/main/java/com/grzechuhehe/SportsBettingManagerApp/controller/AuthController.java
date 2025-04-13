@@ -43,13 +43,81 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        return ResponseEntity.ok(new JwtResponse(jwt));
+        try {
+            // Wyświetl wiadomość debugowania
+            System.out.println("Próba uwierzytelnienia użytkownika: " + loginRequest.getUsername());
+            System.out.println("Hasło: " + loginRequest.getPassword().length() + " znaków");
+            
+            // Sprawdź czy użytkownik istnieje przed uwierzytelnieniem
+            boolean userExists = userRepository.findByUsername(loginRequest.getUsername()).isPresent();
+            System.out.println("Użytkownik istnieje? " + userExists);
+            
+            if (!userExists) {
+                System.out.println("Użytkownik nie istnieje: " + loginRequest.getUsername());
+                return ResponseEntity.status(401).body(
+                    java.util.Map.of("error", "Użytkownik nie istnieje")
+                );
+            }
+            
+            try {
+                // Przed uwierzytelnieniem sprawdź czy hasło jest poprawne, aby lepiej zdiagnozować problem
+                User user = userRepository.findByUsername(loginRequest.getUsername()).orElseThrow();
+                String rawPassword = loginRequest.getPassword();
+                String encodedPassword = user.getPassword();
+                
+                System.out.println("Porównuję hasła:");
+                System.out.println("- Hasło podane: " + rawPassword.length() + " znaków");
+                System.out.println("- Hasło w bazie: " + encodedPassword);
+                
+                // Ręczne porównanie haseł
+                boolean passwordMatches = encoder.matches(rawPassword, encodedPassword);
+                System.out.println("Wynik porównania haseł: " + passwordMatches);
+                
+                if (!passwordMatches) {
+                    System.out.println("Hasło nie pasuje - rzucam wyjątek");
+                    throw new org.springframework.security.authentication.BadCredentialsException("Niepoprawne hasło");
+                }
+                
+                // Standardowe uwierzytelnianie
+                Authentication authentication = authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                
+                System.out.println("Uwierzytelnienie powiodło się");
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                String jwt = jwtUtils.generateJwtToken(authentication);
+                System.out.println("Wygenerowany token JWT: " + jwt);
+                
+                return ResponseEntity.ok(new JwtResponse(jwt));
+            } catch (Exception authEx) {
+                System.out.println("Błąd uwierzytelniania: " + authEx.getClass().getName());
+                System.out.println("Komunikat: " + authEx.getMessage());
+                
+                // Zapasowe logowanie (w razie problemów ze Spring Security)
+                try {
+                    // Jeśli zawiedzie standardowe uwierzytelnianie, spróbuj ręcznie zalogować
+                    if (authEx instanceof org.springframework.security.authentication.BadCredentialsException) {
+                        System.out.println("Próba zapasowego logowania");
+                        return ResponseEntity.status(401).body(
+                            java.util.Map.of("error", "Nieprawidłowe hasło")
+                        );
+                    }
+                    
+                    throw authEx;
+                } catch (Exception fallbackEx) {
+                    System.out.println("Błąd zapasowego logowania: " + fallbackEx.getMessage());
+                    throw fallbackEx;
+                }
+            }
+        } catch (Exception e) {
+            // Dodaj log, aby zobaczyć dokładny błąd
+            System.out.println("Wyjątek podczas logowania: " + e.getClass().getName());
+            System.out.println("Komunikat: " + e.getMessage());
+            e.printStackTrace();
+            // Zwracamy odpowiedź JSON zamiast zwykłego tekstu
+            return ResponseEntity.status(401).body(
+                java.util.Map.of("error", "Nieprawidłowa nazwa użytkownika lub hasło")
+            );
+        }
     }
 
     @PostMapping("/signup")
@@ -60,22 +128,40 @@ public class AuthController {
             return ResponseEntity.badRequest().body(getValidationErrors(bindingResult));
         }
 
-        if (userRepository.findByUsername(signUpRequest.getUsername()) != null) {
-            return ResponseEntity.badRequest().body("Error: Username is already taken!");
+        if (userRepository.findByUsername(signUpRequest.getUsername()).isPresent()) {
+            return ResponseEntity.badRequest().body(
+                java.util.Map.of("error", "Nazwa użytkownika jest już zajęta!")
+            );
         }
 
-        if (userRepository.findByEmail(signUpRequest.getEmail()) != null) {
-            return ResponseEntity.badRequest().body("Error: Email is already in use!");
+        if (userRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body(
+                java.util.Map.of("error", "Email jest już w użyciu!")
+            );
         }
 
+        // Loguj informacje o rejestrowaniu użytkownika
+        System.out.println("Rejestracja nowego użytkownika: " + signUpRequest.getUsername());
+        System.out.println("Email: " + signUpRequest.getEmail());
+        
+        // Kodowanie hasła
+        String rawPassword = signUpRequest.getPassword();
+        String encodedPassword = encoder.encode(rawPassword);
+        
+        System.out.println("Hasło przed kodowaniem: " + rawPassword.length() + " znaków");
+        System.out.println("Hasło po kodowaniu: " + encodedPassword);
+        
+        // Tworzenie nowego użytkownika
         User user = new User();
         user.setUsername(signUpRequest.getUsername());
         user.setEmail(signUpRequest.getEmail());
-        user.setPassword(encoder.encode(signUpRequest.getPassword()));
-        user.setRoles(Collections.singletonList("ROLE_USER"));
+        user.setPassword(encodedPassword);
+        user.setRoles(Collections.singletonList("USER"));
 
         userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully!");
+        return ResponseEntity.ok(
+            java.util.Map.of("message", "Użytkownik zarejestrowany pomyślnie!")
+        );
     }
 
     @PostMapping("/reset-password")
@@ -89,9 +175,13 @@ public class AuthController {
 
         try {
             passwordResetService.resetPassword(request);
-            return ResponseEntity.ok("Hasło zostało zmienione pomyślnie");
+            return ResponseEntity.ok(
+                java.util.Map.of("message", "Hasło zostało zmienione pomyślnie")
+            );
         } catch (RuntimeException e) {
-            return ResponseEntity.status(401).body(e.getMessage());
+            return ResponseEntity.status(401).body(
+                java.util.Map.of("error", e.getMessage())
+            );
         }
     }
 
