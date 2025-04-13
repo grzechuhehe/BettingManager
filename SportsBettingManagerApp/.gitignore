@@ -1,47 +1,63 @@
-HELP.md
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Visual Studio Code
+.vscode/
+
+# Maven
+.mvn/
 target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-CLAUDE.md
-/src/main/
-package-lock.json
-.gitattributes
-CLAUDE.md
+*.jar
+*.war
+*.ear
+*.class
 mvnw
 mvnw.cmd
 
+# Pliki kompilacji
+*.class
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Logi
+*.log
 
-### IntelliJ IDEA ###
-.idea/
-*.iws
-*.iml
-*.ipr
+# BlueJ
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Pliki pakietów
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logi awarii JVM
+hs_err_pid*
+replay_pid*
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# Pliki projektowe specyficzne dla tego projektu
 CLAUDE.md
+HELP.md
+application.properties
+sportsbetting.p12
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Zachowaj pom.xml
+!pom.xml
 
-### VS Code ###
-.vscode/
+# Zachowaj README.md
+!README.md
 
-### Maven config ###
-.mvn/
-
-*.properties
+# Zachowaj pliki aplikacji
+!src/
