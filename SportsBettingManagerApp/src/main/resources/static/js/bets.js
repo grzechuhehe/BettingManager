@@ -116,10 +116,15 @@ export async function loadDashboardData() {
         
         const statsData = await statsResponse.json();
         
-        // Aktualizuj dane na dashboardzie
-        document.getElementById('total-amount').textContent = `${statsData.totalAmount.toFixed(2)} zł`;
-        document.getElementById('profit-loss').textContent = `${statsData.profitLoss.toFixed(2)} zł`;
-        document.getElementById('roi').textContent = `${(statsData.roi * 100).toFixed(2)}%`;
+        // Aktualizuj dane na dashboardzie z zabezpieczeniem przed undefined
+        document.getElementById('total-amount').textContent = statsData.totalAmount ? 
+            `${statsData.totalAmount.toFixed(2)} zł` : '0.00 zł';
+        
+        document.getElementById('profit-loss').textContent = statsData.profitLoss ? 
+            `${statsData.profitLoss.toFixed(2)} zł` : '0.00 zł';
+        
+        document.getElementById('roi').textContent = statsData.roi ? 
+            `${(statsData.roi * 100).toFixed(2)}%` : '0.00%';
         
         // Pobierz ostatnie zakłady
         const recentBets = statsData.recentBets || [];
@@ -149,13 +154,20 @@ export async function loadStatsData() {
         
         const statsData = await response.json();
         
-        // Aktualizuj wartości w widoku statystyk
-        document.getElementById('total-bets').textContent = statsData.totalBets;
-        document.getElementById('successful-bets').textContent = statsData.successfulBets;
-        document.getElementById('stats-profit-loss').textContent = `${statsData.profitLoss.toFixed(2)} zł`;
-        document.getElementById('stats-roi').textContent = `${statsData.roiPercentage.toFixed(2)}%`;
-        document.getElementById('rolling-average').textContent = `${statsData.rollingAverage30d.toFixed(2)} zł`;
-        document.getElementById('current-streak').textContent = statsData.currentStreak;
+        // Aktualizuj wartości w widoku statystyk z zabezpieczeniem
+        document.getElementById('total-bets').textContent = statsData.totalBets || 0;
+        document.getElementById('successful-bets').textContent = statsData.successfulBets || 0;
+        
+        document.getElementById('stats-profit-loss').textContent = statsData.profitLoss ? 
+            `${statsData.profitLoss.toFixed(2)} zł` : '0.00 zł';
+            
+        document.getElementById('stats-roi').textContent = statsData.roiPercentage ? 
+            `${statsData.roiPercentage.toFixed(2)}%` : '0.00%';
+            
+        document.getElementById('rolling-average').textContent = statsData.rollingAverage30d ? 
+            `${statsData.rollingAverage30d.toFixed(2)} zł` : '0.00 zł';
+            
+        document.getElementById('current-streak').textContent = statsData.currentStreak || 'Brak';
         
     } catch (error) {
         showNotification(error.message, 'error');
@@ -182,8 +194,9 @@ export async function loadAdvancedStatsData() {
         
         const statsData = await statsResponse.json();
         
-        // Aktualizuj wartość wskaźnika Sharpe'a
-        document.getElementById('sharpe-ratio').textContent = statsData.sharpeRatio.toFixed(2);
+        // Aktualizuj wartość wskaźnika Sharpe'a z zabezpieczeniem
+        document.getElementById('sharpe-ratio').textContent = statsData.sharpeRatio ? 
+            statsData.sharpeRatio.toFixed(2) : '0.00';
         
         // Renderuj wykres współczynników wygranych wg typu zakładu
         renderWinRatesChart(statsData.winRatesByType);

@@ -43,16 +43,33 @@ public class BettingService {
     public Map<String, Object> getStatistics(User user) {
         List<Bet> bets = betRepository.findByUser(user);
 
-        BigDecimal profit = bets.stream()
-                .map(b -> b.getStatus() == Bet.BetStatus.WON ?
-                        b.getAmount().multiply(b.getOdds()) :
-                        b.getAmount().negate())
+        BigDecimal totalAmount = bets.stream()
+                .map(Bet::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal profitLoss = bets.stream()
+                .map(b -> b.getStatus() == Bet.BetStatus.WON ?
+                        b.getAmount().multiply(b.getOdds().subtract(BigDecimal.ONE)) :
+                        b.getStatus() == Bet.BetStatus.LOST ? b.getAmount().negate() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Oblicz ROI tylko jeśli totalAmount > 0
+        BigDecimal roi = totalAmount.compareTo(BigDecimal.ZERO) > 0 ?
+                profitLoss.divide(totalAmount, 4, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+
+        // Ostatnie zakłady
+        List<Bet> recentBets = bets.stream()
+                .sorted((b1, b2) -> b2.getPlacedAt().compareTo(b1.getPlacedAt()))
+                .limit(5)
+                .collect(Collectors.toList());
 
         return Map.of(
                 "totalBets", bets.size(),
                 "wonBets", betRepository.countByUserAndStatus(user, Bet.BetStatus.WON),
-                "profit", profit
+                "totalAmount", totalAmount,
+                "profitLoss", profitLoss,
+                "roi", roi,
+                "recentBets", recentBets
         );
     }
 

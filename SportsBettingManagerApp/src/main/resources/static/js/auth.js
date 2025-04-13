@@ -50,6 +50,20 @@ export async function handleLogin(e) {
         console.log('Zapisane userId:', data.id);
         
         showNotification('Zalogowano pomyślnie!', 'success');
+        
+        // Zaktualizuj nawigację i pokaż dashboard
+        import('./ui.js').then(ui => {
+            ui.updateNavigation();
+            // Opóźnij wczytanie danych dashboardu, aby dać czas na inicjalizację
+            setTimeout(() => {
+                import('./bets.js').then(bets => {
+                    if (bets.loadDashboardData) {
+                        bets.loadDashboardData();
+                    }
+                });
+            }, 100);
+        });
+        
         return true;
     } catch (error) {
         console.error('Błąd logowania:', error);
