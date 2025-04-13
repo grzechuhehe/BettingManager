@@ -4,6 +4,13 @@ export function showNotification(message, type = 'success') {
     notification.textContent = message;
     notification.className = `notification ${type} visible`;
     
+    // Jeśli to komunikat o wygaśnięciu sesji, przekieruj na stronę logowania
+    if (message.includes('Sesja wygasła')) {
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 2000);
+    }
+    
     setTimeout(() => {
         notification.classList.remove('visible');
     }, 5000);

@@ -100,9 +100,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // Wyłączamy CSRF, ponieważ używamy tokenów JWT
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
+                .exceptionHandling(exception -> {
+                    exception.authenticationEntryPoint(unauthorizedHandler);
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         // Publiczne endpointy - dostępne bez uwierzytelnienia
@@ -126,6 +129,7 @@ public class SecurityConfig {
                                 "/*.css",
                                 "/*.html"
                         ).permitAll()
+                        // Wszystkie pozostałe zapytania wymagają uwierzytelnienia
                         .anyRequest().authenticated()
                 );
 

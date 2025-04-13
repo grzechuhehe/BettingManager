@@ -217,26 +217,65 @@ function setupNavigationHandlers() {
 // Funkcja do weryfikacji tokena JWT
 async function verifyToken(token) {
     try {
-        // Proste sprawdzenie, czy token nie wygasł
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('Sprawdzam token JWT:', payload);
+        if (!token) {
+            console.error('Brak tokena do weryfikacji');
+            return false;
+        }
+        
+        // Sprawdź format tokena JWT (powinien mieć 3 części oddzielone kropką)
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            console.error('Token ma nieprawidłowy format. Powinien składać się z 3 części:', parts.length);
+            return false;
+        }
+        
+        let payload;
+        try {
+            // Zdekoduj część payloadu tokena (druga część)
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            
+            payload = JSON.parse(jsonPayload);
+            console.log('Zdekodowany payload tokena JWT:', payload);
+        } catch (e) {
+            console.error('Nie udało się zdekodować payloadu tokena:', e);
+            return false;
+        }
         
         // Sprawdź, czy token zawiera pole exp (czas wygaśnięcia)
         if (!payload.exp) {
-            console.log('Token nie zawiera informacji o czasie wygaśnięcia');
-            return true; // Zakładamy, że token jest ważny, jeśli nie ma czasu wygaśnięcia
+            console.log('Token nie zawiera informacji o czasie wygaśnięcia (exp)');
+            // Dla bezpieczeństwa zakładamy, że token bez czasu wygaśnięcia jest nieważny
+            return false;
         }
         
-        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+        // Sprawdź czas wygaśnięcia
+        const expirationTime = payload.exp * 1000; // Konwersja na milisekundy
+        const currentTime = Date.now();
         
-        if (Date.now() >= expirationTime) {
+        console.log('Czas wygaśnięcia tokena:', new Date(expirationTime).toLocaleString());
+        console.log('Aktualny czas:', new Date(currentTime).toLocaleString());
+        
+        if (currentTime >= expirationTime) {
             console.log('Token wygasł');
             return false;
         }
         
+        // Dodatkowe logowanie dla innych ważnych pól w tokenie
+        if (payload.sub) {
+            console.log('Subject tokena (username):', payload.sub);
+        }
+        
+        if (payload.iss) {
+            console.log('Wydawca tokena:', payload.iss);
+        }
+        
         return true;
     } catch (error) {
-        console.error('Błąd weryfikacji tokena:', error);
+        console.error('Nieoczekiwany błąd podczas weryfikacji tokena:', error);
         return false;
     }
 }

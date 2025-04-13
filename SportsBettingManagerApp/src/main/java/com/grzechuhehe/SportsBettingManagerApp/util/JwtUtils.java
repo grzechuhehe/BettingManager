@@ -29,6 +29,8 @@ public class JwtUtils {
 
     public String generateJwtToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+        
+        // Utwórz claim z dodatkową informacją o userId
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
                 .setIssuedAt(new Date())
@@ -49,24 +51,28 @@ public class JwtUtils {
     }
 
     public boolean validateJwtToken(String authToken) {
+        logger.info("Validating token: {}", authToken);
         try {
             Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(authToken);
+            logger.info("Token validated successfully");
             return true;
         } catch (SignatureException e) {
             logger.error("Invalid JWT signature: {}", e.getMessage());
         } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
+            logger.error("Invalid JWT token format: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
+            logger.error("JWT token is expired. Expiration: {}, Current time: {}", 
+                    e.getClaims().getExpiration(), new Date());
         } catch (UnsupportedJwtException e) {
             logger.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
             logger.error("JWT claims string is empty: {}", e.getMessage());
         } catch (Exception e) {
             logger.error("JWT validation error: {}", e.getMessage());
+            e.printStackTrace();
         }
         return false;
     }

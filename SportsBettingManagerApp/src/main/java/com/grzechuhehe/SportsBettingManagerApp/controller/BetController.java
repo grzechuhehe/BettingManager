@@ -22,10 +22,37 @@ public class BetController {
 
     @PostMapping
     public ResponseEntity<?> createBet(@Valid @RequestBody Bet bet, BindingResult result) {
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
+        
+        logger.info("Otrzymano żądanie utworzenia zakładu: {}", bet);
+        
+        // Sprawdź, czy użytkownik jest ustawiony
+        if (bet.getUser() == null || bet.getUser().getId() == null) {
+            logger.error("Brak informacji o użytkowniku w żądaniu");
+            return ResponseEntity.badRequest().body("Brak informacji o użytkowniku");
+        }
+        
+        // Sprawdź, czy wydarzenie jest ustawione
+        if (bet.getEvent() == null) {
+            logger.error("Brak informacji o wydarzeniu w żądaniu");
+            return ResponseEntity.badRequest().body("Brak informacji o wydarzeniu");
+        }
+        
+        // Sprawdź błędy walidacji
         if (result.hasErrors()) {
+            logger.error("Błędy walidacji: {}", result.getFieldErrors());
             return ResponseEntity.badRequest().body(result.getFieldErrors());
         }
-        return ResponseEntity.ok(bettingService.placeBet(bet));
+        
+        try {
+            logger.info("Zapisuję zakład dla użytkownika o ID: {}", bet.getUser().getId());
+            Bet savedBet = bettingService.placeBet(bet);
+            logger.info("Zakład zapisany pomyślnie, ID: {}", savedBet.getId());
+            return ResponseEntity.ok(savedBet);
+        } catch (Exception e) {
+            logger.error("Błąd podczas zapisywania zakładu: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Błąd podczas zapisywania zakładu: " + e.getMessage());
+        }
     }
 
     @GetMapping("/stats")

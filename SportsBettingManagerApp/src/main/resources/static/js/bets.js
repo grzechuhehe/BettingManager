@@ -13,17 +13,55 @@ export async function handleAddBet(e) {
         sportType: document.getElementById('event-sport-type').value
     };
     
-    // Tworzymy obiekt zakładu
+    // Sprawdź, czy token i userId są dostępne
+    const userId = getState().userId;
+    const token = getState().token;
+    
+    if (!userId || !token) {
+        showNotification('Sesja wygasła. Zaloguj się ponownie.', 'error');
+        return false;
+    }
+    
+    console.log('Aktualne userId przed utworzeniem zakładu:', userId);
+    console.log('Aktualny token:', token.substring(0, 10) + '...');
+    
+    // Sprawdź poprawność ID użytkownika
+    let userIdNumber;
+    try {
+        userIdNumber = parseInt(userId);
+        if (isNaN(userIdNumber) || userIdNumber <= 0) {
+            throw new Error('Nieprawidłowy identyfikator użytkownika');
+        }
+    } catch (error) {
+        console.error('Błąd parsowania ID użytkownika:', error);
+        showNotification('Błąd identyfikatora użytkownika. Zaloguj się ponownie.', 'error');
+        return false;
+    }
+    
+    // Tworzymy obiekt zakładu z poprawnie skonwertowanymi wartościami liczbowymi
     const bet = {
-        amount: document.getElementById('bet-amount').value,
-        odds: document.getElementById('bet-odds').value,
+        amount: parseFloat(document.getElementById('bet-amount').value),
+        odds: parseFloat(document.getElementById('bet-odds').value),
         type: document.getElementById('bet-type').value,
         status: document.getElementById('bet-status').value,
         event: sportEvent,
-        user: { id: getState().userId }
+        user: { id: userIdNumber }
     };
     
     try {
+        // Upewnij się, że data jest w formacie ISO string
+        if (bet.event && bet.event.date) {
+            console.log('Data przed konwersją:', bet.event.date);
+            // Konwertuj datę na format ISO string jeśli to nie jest już string
+            if (!(typeof bet.event.date === 'string')) {
+                bet.event.date = new Date(bet.event.date).toISOString();
+            }
+            console.log('Data po konwersji:', bet.event.date);
+        }
+        
+        console.log('Wysyłam zakład do API:', JSON.stringify(bet));
+        console.log('Token używany do autoryzacji:', getState().token);
+        
         const response = await fetch(`${API_URL}${API_ENDPOINTS.bets.create}`, {
             method: 'POST',
             headers: {
@@ -34,8 +72,17 @@ export async function handleAddBet(e) {
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(Array.isArray(errorData) ? errorData.map(err => `${err.field}: ${err.defaultMessage}`).join(', ') : 'Nie udało się dodać zakładu.');
+            try {
+                const errorData = await response.json();
+                throw new Error(Array.isArray(errorData) ? errorData.map(err => `${err.field}: ${err.defaultMessage}`).join(', ') : 'Nie udało się dodać zakładu.');
+            } catch (jsonError) {
+                // Handle case when response is not valid JSON
+                if (response.status === 401) {
+                    throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+                } else {
+                    throw new Error(`Nie udało się dodać zakładu: ${response.status} ${response.statusText}`);
+                }
+            }
         }
         
         // Resetuj formularz
@@ -61,6 +108,9 @@ export async function loadDashboardData() {
         });
         
         if (!statsResponse.ok) {
+            if (statsResponse.status === 401) {
+                throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+            }
             throw new Error('Nie udało się pobrać danych statystycznych.');
         }
         
@@ -91,6 +141,9 @@ export async function loadStatsData() {
         });
         
         if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+            }
             throw new Error('Nie udało się pobrać danych statystycznych.');
         }
         
@@ -121,6 +174,9 @@ export async function loadAdvancedStatsData() {
         });
         
         if (!statsResponse.ok) {
+            if (statsResponse.status === 401) {
+                throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+            }
             throw new Error('Nie udało się pobrać zaawansowanych statystyk.');
         }
         
@@ -140,6 +196,9 @@ export async function loadAdvancedStatsData() {
         });
         
         if (!heatmapResponse.ok) {
+            if (heatmapResponse.status === 401) {
+                throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+            }
             throw new Error('Nie udało się pobrać danych heatmapy.');
         }
         

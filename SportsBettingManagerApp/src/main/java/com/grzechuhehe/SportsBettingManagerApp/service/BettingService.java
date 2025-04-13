@@ -2,8 +2,10 @@ package com.grzechuhehe.SportsBettingManagerApp.service;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.model.SportEvent;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.repository.SportEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +20,23 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BettingService {
     private final BetRepository betRepository;
+    private final com.grzechuhehe.SportsBettingManagerApp.repository.SportEventRepository sportEventRepository;
 
     public Bet placeBet(Bet bet) {
+        // Najpierw zapisujemy obiekt SportEvent, aby otrzymał identyfikator
+        if (bet.getEvent() != null && bet.getEvent().getId() == null) {
+            // Debugowanie
+            org.slf4j.LoggerFactory.getLogger(BettingService.class).info(
+                "Zapisuję wydarzenie sportowe: {}", bet.getEvent());
+            
+            SportEvent savedEvent = sportEventRepository.save(bet.getEvent());
+            bet.setEvent(savedEvent);
+            
+            org.slf4j.LoggerFactory.getLogger(BettingService.class).info(
+                "Wydarzenie zapisane z ID: {}", savedEvent.getId());
+        }
+        
+        // Teraz możemy zapisać zakład
         return betRepository.save(bet);
     }
 

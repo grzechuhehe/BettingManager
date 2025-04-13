@@ -87,7 +87,13 @@ public class AuthController {
                 String jwt = jwtUtils.generateJwtToken(authentication);
                 System.out.println("Wygenerowany token JWT: " + jwt);
                 
-                return ResponseEntity.ok(new JwtResponse(jwt));
+
+                
+                // Utwórz pełną odpowiedź z tokenem i ID użytkownika
+                JwtResponse response = new JwtResponse(jwt, user.getId(), user.getUsername());
+                System.out.println("Zwracam odpowiedź z ID: " + user.getId());
+                
+                return ResponseEntity.ok(response);
             } catch (Exception authEx) {
                 System.out.println("Błąd uwierzytelniania: " + authEx.getClass().getName());
                 System.out.println("Komunikat: " + authEx.getMessage());

@@ -44,8 +44,10 @@ export async function handleLogin(e) {
         // Dekoduj token JWT aby uzyskać ID użytkownika
         const payload = parseJwt(data.token);
         console.log('JWT payload:', payload);
-        setState({ userId: payload.sub });
-        localStorage.setItem('userId', payload.sub);
+        // Zapisujemy userId z odpowiedzi zamiast z payloadu
+        setState({ userId: data.id });
+        localStorage.setItem('userId', data.id);
+        console.log('Zapisane userId:', data.id);
         
         showNotification('Zalogowano pomyślnie!', 'success');
         return true;
