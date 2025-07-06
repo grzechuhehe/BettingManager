@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import API from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
+    const { login } = useAuth();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -19,7 +21,7 @@ const Login = () => {
             });
 
             if (response.data.token) {
-                localStorage.setItem('user', JSON.stringify(response.data));
+                login(response.data); // Use the login function from AuthContext
                 setMessage('Login successful!');
                 setUsername('');
                 setPassword('');
