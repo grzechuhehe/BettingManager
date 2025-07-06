@@ -51,7 +51,7 @@ Thumbs.db
 CLAUDE.md
 HELP.md
 application.properties
-sportsbetting.p12
+src/main/resources/sportsbetting.p12
 
 # Zachowaj pom.xml
 !pom.xml
