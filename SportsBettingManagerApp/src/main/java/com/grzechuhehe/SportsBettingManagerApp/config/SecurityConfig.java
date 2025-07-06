@@ -1,7 +1,9 @@
 package com.grzechuhehe.SportsBettingManagerApp.config;
 
+import com.grzechuhehe.SportsBettingManagerApp.service.UserDetailsServiceImpl;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,16 +14,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @EnableWebSecurity
@@ -29,9 +27,12 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt unauthorizedHandler;
     private final JwtUtils jwtUtils;
+
+    @Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -43,10 +44,7 @@ public class SecurityConfig {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
-        
-        // Dodaj dodatkowe informacje do logów
         authProvider.setHideUserNotFoundExceptions(false);
-        
         return authProvider;
     }
 
@@ -57,64 +55,32 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
             @Override
-            public boolean matches(CharSequence rawPassword, String encodedPassword) {
-                boolean matches = super.matches(rawPassword, encodedPassword);
-                System.out.println("PasswordEncoder.matches: rawPassword.length=" + rawPassword.length() + 
-                    ", encodedPassword.length=" + encodedPassword.length() + ", wynik=" + matches);
-                return matches;
-            }
-            
-            @Override
-            public String encode(CharSequence rawPassword) {
-                String encoded = super.encode(rawPassword);
-                System.out.println("PasswordEncoder.encode: rawPassword.length=" + rawPassword.length() + 
-                    ", encodedPassword.length=" + encoded.length());
-                return encoded;
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins(allowedOrigins)
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
             }
         };
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8080",
-                "http://localhost:3000",
-                "http://127.0.0.1:8080",
-                "http://127.0.0.1:3000"
-                // Add specific production domains here
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // Wyłączamy CSRF, ponieważ używamy tokenów JWT
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exception -> {
-                    exception.authenticationEntryPoint(unauthorizedHandler);
-                })
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        // Publiczne endpointy - dostępne bez uwierzytelnienia
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(
-                                "/api/auth/signin",
-                                "/api/auth/signup",
-                                "/api/auth/reset-password",
-                                "/api/auth/reset-password/**",
-                                // Statyczne zasoby
                                 "/",
                                 "/index.html",
                                 "/register.html",
@@ -129,7 +95,6 @@ public class SecurityConfig {
                                 "/*.css",
                                 "/*.html"
                         ).permitAll()
-                        // Wszystkie pozostałe zapytania wymagają uwierzytelnienia
                         .anyRequest().authenticated()
                 );
 
