@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import API from '../api';
+import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
     const [username, setUsername] = useState('');
@@ -7,6 +8,7 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
+    const navigate = useNavigate();
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -19,15 +21,16 @@ const Register = () => {
                 email,
                 password
             });
+
             setMessage(response.data.message || 'User registered successfully!');
-            // Clear form on success
             setUsername('');
             setEmail('');
             setPassword('');
+            // Redirect to login page after successful registration
+            navigate('/login');
         } catch (error) {
             setIsError(true);
             if (error.response && error.response.data) {
-                // Use the 'error' field from the backend response
                 setMessage(error.response.data.error || 'An unknown error occurred.');
             } else {
                 setMessage('An error occurred while connecting to the server.');
