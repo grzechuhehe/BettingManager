@@ -15,11 +15,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SportEvent {
+    public enum SportType {FOOTBALL, TENIS, ICEHOKEY, FORMULA1, HANDBALL, AMERICANFOOTBALL, VOLLEYBALL, BASKETBALL, MMA, BOXING, CS, LOL, POLITICS, SHOWBIZNES }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String teamHome;
     private String teamAway;
     private LocalDateTime date;
-    private String sportType;
+    private SportType sportType;
 }
+

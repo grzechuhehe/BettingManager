@@ -61,3 +61,4 @@ sportsbetting.p12
 
 # Zachowaj pliki aplikacji
 !src/
+/target
