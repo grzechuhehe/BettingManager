@@ -1,5 +1,6 @@
 import React from 'react';
 import Register from './components/Register';
+import Login from './components/Login';
 
 function App() {
   return (
@@ -9,6 +10,8 @@ function App() {
       </header>
       <main>
         <Register />
+        <hr /> {/* Separator for clarity */}
+        <Login />
       </main>
     </div>
   );
