@@ -24,5 +24,6 @@ public class SportEvent {
     private String teamAway;
     private LocalDateTime date;
     private SportType sportType;
+    private int betCount = 0;
 }
 

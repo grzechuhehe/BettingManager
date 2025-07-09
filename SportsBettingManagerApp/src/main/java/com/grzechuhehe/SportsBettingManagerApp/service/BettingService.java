@@ -23,18 +23,32 @@ public class BettingService {
     private final com.grzechuhehe.SportsBettingManagerApp.repository.SportEventRepository sportEventRepository;
 
     public Bet placeBet(Bet bet) {
-        // Najpierw zapisujemy obiekt SportEvent, aby otrzymał identyfikator
-        if (bet.getEvent() != null && bet.getEvent().getId() == null) {
-            // Debugowanie
+        SportEvent eventToSave = bet.getEvent();
+        SportEvent savedEvent;
+
+        if (eventToSave != null && eventToSave.getId() == null) {
+            // Nowe wydarzenie sportowe - zapisz je
             org.slf4j.LoggerFactory.getLogger(BettingService.class).info(
-                "Zapisuję wydarzenie sportowe: {}", bet.getEvent());
-            
-            SportEvent savedEvent = sportEventRepository.save(bet.getEvent());
-            bet.setEvent(savedEvent);
-            
-            org.slf4j.LoggerFactory.getLogger(BettingService.class).info(
-                "Wydarzenie zapisane z ID: {}", savedEvent.getId());
+                "Zapisuję nowe wydarzenie sportowe: {}", eventToSave);
+            savedEvent = sportEventRepository.save(eventToSave);
+        } else if (eventToSave != null && eventToSave.getId() != null) {
+            // Istniejące wydarzenie sportowe - pobierz je z bazy danych, aby upewnić się, że jest aktualne
+            savedEvent = sportEventRepository.findById(eventToSave.getId())
+                    .orElseThrow(() -> new RuntimeException("SportEvent not found with ID: " + eventToSave.getId()));
+        } else {
+            throw new IllegalArgumentException("Bet must be associated with a SportEvent.");
         }
+
+        // Zaktualizuj licznik zakładów dla wydarzenia
+        savedEvent.setBetCount(savedEvent.getBetCount() + 1);
+        sportEventRepository.save(savedEvent); // Zapisz zaktualizowane wydarzenie
+
+        // Ustaw zaktualizowane wydarzenie w zakładzie
+        bet.setEvent(savedEvent);
+
+        // Skopiuj nazwy drużyn z wydarzenia do zakładu
+        bet.setTeamHome(savedEvent.getTeamHome());
+        bet.setTeamAway(savedEvent.getTeamAway());
         
         // Teraz możemy zapisać zakład
         return betRepository.save(bet);

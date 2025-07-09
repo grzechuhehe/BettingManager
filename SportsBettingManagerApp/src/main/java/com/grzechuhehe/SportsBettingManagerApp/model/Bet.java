@@ -41,5 +41,8 @@ public class Bet {
     @JoinColumn(name = "event_id")
     private SportEvent event;
 
+    private String teamHome;
+    private String teamAway;
+
 }
 
