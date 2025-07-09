@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 import com.grzechuhehe.SportsBettingManagerApp.dto.JwtResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.LoginRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.SignupRequest;
+import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.service.AuthService;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import jakarta.validation.Valid;
@@ -34,10 +35,10 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        User userDetails = (User) authentication.getPrincipal();
 
         return ResponseEntity.ok(new JwtResponse(jwt,
-                null, // You might want to fetch the user ID here
+                userDetails.getId(),
                 userDetails.getUsername()));
     }
 

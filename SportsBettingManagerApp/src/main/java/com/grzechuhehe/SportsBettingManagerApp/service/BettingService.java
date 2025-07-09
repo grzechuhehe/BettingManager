@@ -40,6 +40,10 @@ public class BettingService {
         return betRepository.save(bet);
     }
 
+    public List<Bet> getUserBets(User user) {
+        return betRepository.findByUser(user);
+    }
+
     public Map<String, Object> getStatistics(User user) {
         List<Bet> bets = betRepository.findByUser(user);
 

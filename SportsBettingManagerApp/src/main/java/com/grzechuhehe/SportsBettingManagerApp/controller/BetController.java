@@ -55,6 +55,22 @@ public class BetController {
         }
     }
 
+    @GetMapping
+    public ResponseEntity<java.util.List<Bet>> getAllBetsForCurrentUser() {
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
+        try {
+            // Pobierz aktualnie uwierzytelnionego użytkownika
+            User currentUser = (User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+            java.util.List<Bet> bets = bettingService.getUserBets(currentUser);
+            logger.info("Pobrano {} zakładów dla użytkownika: {}", bets.size(), currentUser.getUsername());
+            return ResponseEntity.ok(bets);
+        } catch (Exception e) {
+            logger.error("Błąd podczas pobierania zakładów dla bieżącego użytkownika: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(java.util.Collections.emptyList());
+        }
+    }
+
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats(@RequestParam Long userId) {
         try {
