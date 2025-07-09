@@ -33,6 +33,7 @@ build/
 .vscode/
 
 ### Maven config ###
+.mvn/
 mvnw
 mvnw.cmd
 maven-wrapper.properties
@@ -43,3 +44,5 @@ maven-wrapper.properties
 ### Log files ###
 *.log
 logs/*
+
+package-lock.json
