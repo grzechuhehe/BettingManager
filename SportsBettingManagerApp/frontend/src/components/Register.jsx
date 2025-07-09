@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import API from '../api';
+import { register as apiRegister } from '../api';
 import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
@@ -16,7 +16,7 @@ const Register = () => {
         setMessage('');
 
         try {
-            const response = await API.post('/auth/signup', {
+            const response = await apiRegister({
                 username,
                 email,
                 password

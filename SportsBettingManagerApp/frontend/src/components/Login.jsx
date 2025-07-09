@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import API from '../api';
+import { login as apiLogin } from '../api';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -15,7 +15,7 @@ const Login = () => {
         setMessage('');
 
         try {
-            const response = await API.post('/auth/signin', {
+            const response = await apiLogin({
                 username,
                 password
             });
