@@ -1,67 +1,45 @@
-# IntelliJ IDEA
-.idea/
-*.iml
-*.iws
-*.ipr
-out/
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-# Visual Studio Code
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
 .vscode/
 
-# Maven
-.mvn/
-target/
-*.jar
-*.war
-*.ear
-*.class
+### Maven config ###
 mvnw
 mvnw.cmd
+maven-wrapper.properties
 
-# Pliki kompilacji
-*.class
+### Application properties ###
+*.properties
 
-# Logi
+### Log files ###
 *.log
-
-# BlueJ
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Pliki pakietów
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# Logi awarii JVM
-hs_err_pid*
-replay_pid*
-
-# Pliki systemowe
-.DS_Store
-Thumbs.db
-
-# Pliki projektowe specyficzne dla tego projektu
-CLAUDE.md
-HELP.md
-application.properties
-src/main/resources/sportsbetting.p12
-
-# Zachowaj pom.xml
-!pom.xml
-
-# Zachowaj README.md
-!README.md
-
-# Zachowaj pliki aplikacji
-!src/
-/target
-.idea
-.vscode
-
+logs/*
