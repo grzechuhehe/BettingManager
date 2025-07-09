@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class Bet {
     public enum BetType { WIN, DRAW, OVER, UNDER, }
-    public enum BetStatus { PENDING, WON, LOST }
+    public enum BetStatus { PENDING, WON, LOST, OVERTURN }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

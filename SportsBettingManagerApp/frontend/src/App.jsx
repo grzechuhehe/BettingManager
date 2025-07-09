@@ -3,6 +3,7 @@ import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import Register from './components/Register';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import AddBetForm from './components/AddBetForm';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -27,6 +28,7 @@ const Navigation = () => {
       {isAuthenticated ? (
         <>
           <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
+          <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
           <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
         </>
       ) : (
@@ -58,6 +60,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/add-bet"
+            element={
+              <ProtectedRoute>
+                <AddBetForm />
               </ProtectedRoute>
             }
           />

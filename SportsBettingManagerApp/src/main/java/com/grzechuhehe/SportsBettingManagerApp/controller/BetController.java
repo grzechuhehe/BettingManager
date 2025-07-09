@@ -26,12 +26,10 @@ public class BetController {
         
         logger.info("Otrzymano żądanie utworzenia zakładu: {}", bet);
         
-        // Sprawdź, czy użytkownik jest ustawiony
-        if (bet.getUser() == null || bet.getUser().getId() == null) {
-            logger.error("Brak informacji o użytkowniku w żądaniu");
-            return ResponseEntity.badRequest().body("Brak informacji o użytkowniku");
-        }
-        
+        // Pobierz aktualnie uwierzytelnionego użytkownika
+        User currentUser = (User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        bet.setUser(currentUser); // Ustaw użytkownika dla zakładu
+
         // Sprawdź, czy wydarzenie jest ustawione
         if (bet.getEvent() == null) {
             logger.error("Brak informacji o wydarzeniu w żądaniu");
