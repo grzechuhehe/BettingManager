@@ -62,3 +62,6 @@ src/main/resources/sportsbetting.p12
 # Zachowaj pliki aplikacji
 !src/
 /target
+.idea
+.vscode
+
