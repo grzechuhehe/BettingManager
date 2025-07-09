@@ -23,23 +23,31 @@ public class BettingService {
     private final com.grzechuhehe.SportsBettingManagerApp.repository.SportEventRepository sportEventRepository;
 
     public Bet placeBet(Bet bet) {
-        SportEvent eventToSave = bet.getEvent();
+        SportEvent incomingEvent = bet.getEvent();
         SportEvent savedEvent;
 
-        if (eventToSave != null && eventToSave.getId() == null) {
-            // Nowe wydarzenie sportowe - zapisz je
-            org.slf4j.LoggerFactory.getLogger(BettingService.class).info(
-                "Zapisuję nowe wydarzenie sportowe: {}", eventToSave);
-            savedEvent = sportEventRepository.save(eventToSave);
-        } else if (eventToSave != null && eventToSave.getId() != null) {
-            // Istniejące wydarzenie sportowe - pobierz je z bazy danych, aby upewnić się, że jest aktualne
-            savedEvent = sportEventRepository.findById(eventToSave.getId())
-                    .orElseThrow(() -> new RuntimeException("SportEvent not found with ID: " + eventToSave.getId()));
-        } else {
+        if (incomingEvent == null) {
             throw new IllegalArgumentException("Bet must be associated with a SportEvent.");
         }
 
-        // Zaktualizuj licznik zakładów dla wydarzenia
+        // Spróbuj znaleźć istniejące wydarzenie sportowe
+        java.util.Optional<SportEvent> existingEvent = sportEventRepository.findByTeamHomeAndTeamAwayAndDateAndSportType(
+                incomingEvent.getTeamHome(),
+                incomingEvent.getTeamAway(),
+                incomingEvent.getDate(),
+                incomingEvent.getSportType()
+        );
+
+        if (existingEvent.isPresent()) {
+            savedEvent = existingEvent.get();
+            org.slf4j.LoggerFactory.getLogger(BettingService.class).info("Znaleziono istniejące wydarzenie sportowe: {}", savedEvent.getId());
+        } else {
+            // Nowe wydarzenie sportowe - zapisz je
+            org.slf4j.LoggerFactory.getLogger(BettingService.class).info("Zapisuję nowe wydarzenie sportowe: {}", incomingEvent);
+            savedEvent = sportEventRepository.save(incomingEvent);
+        }
+
+        // Zwiększ licznik zakładów dla wydarzenia
         savedEvent.setBetCount(savedEvent.getBetCount() + 1);
         sportEventRepository.save(savedEvent); // Zapisz zaktualizowane wydarzenie
 
