@@ -4,6 +4,7 @@ import Register from './components/Register';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AddBetForm from './components/AddBetForm';
+import Home from './components/Home';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -25,16 +26,11 @@ const Navigation = () => {
 
   return (
     <nav className="space-x-4">
-      {isAuthenticated ? (
+      {isAuthenticated && (
         <>
           <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
           <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
           <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
-        </>
-      ) : (
-        <>
-          <Link to="/register" className="text-blue-500 hover:text-blue-700">Register</Link>
-          <Link to="/login" className="text-blue-500 hover:text-blue-700">Login</Link>
         </>
       )}
     </nav>
@@ -43,6 +39,8 @@ const Navigation = () => {
 
 // Główny layout aplikacji
 const AppLayout = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center p-4">
       <header className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6 mb-6">
@@ -51,8 +49,9 @@ const AppLayout = () => {
           <Navigation />
         </div>
       </header>
-      <main className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6">
+      <main className="w-full max-w-4xl">
         <Routes>
+          <Route path="/" element={!isAuthenticated ? <Home /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route 
@@ -71,7 +70,7 @@ const AppLayout = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
     </div>
