@@ -4,6 +4,7 @@ import Register from './components/Register';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AddBetForm from './components/AddBetForm';
+import BetList from './components/BetList';
 import Home from './components/Home';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -30,6 +31,7 @@ const Navigation = () => {
         <>
           <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
           <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
+          <Link to="/bets" className="text-blue-500 hover:text-blue-700">My Bets</Link>
           <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
         </>
       )}
@@ -67,6 +69,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <AddBetForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/bets"
+            element={
+              <ProtectedRoute>
+                <BetList />
               </ProtectedRoute>
             }
           />
