@@ -1,10 +1,11 @@
 package com.grzechuhehe.SportsBettingManagerApp.dto;
 
-import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -15,13 +16,13 @@ public class BetStatistics {
     private int successfulBets;
     private BigDecimal profitLoss;
     private BigDecimal roiPercentage;
-    private Map<Bet.BetType, BigDecimal> winRatesByType;
+    private Map<String, BigDecimal> winRatesByType; // Zmieniono klucz na String
     private BigDecimal rollingAverage30d;
     private String currentStreak;
     private BigDecimal sharpeRatio;
 
     public BetStatistics(int totalBets, int successfulBets, BigDecimal profitLoss, BigDecimal roiPercentage,
-                         Map<Bet.BetType, BigDecimal> winRatesByType, BigDecimal rollingAverage30d, String currentStreak) {
+                         Map<String, BigDecimal> winRatesByType, BigDecimal rollingAverage30d, String currentStreak) {
         this.totalBets = totalBets;
         this.successfulBets = successfulBets;
         this.profitLoss = profitLoss;

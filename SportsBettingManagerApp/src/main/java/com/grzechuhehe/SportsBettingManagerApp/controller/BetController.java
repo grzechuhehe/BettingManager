@@ -1,17 +1,23 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
-import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.dto.BetResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
+import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
+import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/bets")
@@ -19,34 +25,32 @@ import java.util.Map;
 public class BetController {
     private final BettingService bettingService;
     private final UserRepository userRepository;
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
 
     @PostMapping
-    public ResponseEntity<?> createBet(@Valid @RequestBody Bet bet, BindingResult result) {
-        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
-        
-        logger.info("Otrzymano żądanie utworzenia zakładu: {}", bet);
-        
-        // Pobierz aktualnie uwierzytelnionego użytkownika
-        User currentUser = (User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        bet.setUser(currentUser); // Ustaw użytkownika dla zakładu
+    public ResponseEntity<?> createBet(@Valid @RequestBody CreateBetRequest createBetRequest, BindingResult result) {
+        logger.info("Otrzymano żądanie utworzenia zakładu: {}", createBetRequest);
 
-        // Sprawdź, czy wydarzenie jest ustawione
-        if (bet.getEvent() == null) {
-            logger.error("Brak informacji o wydarzeniu w żądaniu");
-            return ResponseEntity.badRequest().body("Brak informacji o wydarzeniu");
-        }
-        
-        // Sprawdź błędy walidacji
         if (result.hasErrors()) {
             logger.error("Błędy walidacji: {}", result.getFieldErrors());
             return ResponseEntity.badRequest().body(result.getFieldErrors());
         }
-        
+
         try {
-            logger.info("Zapisuję zakład dla użytkownika o ID: {}", bet.getUser().getId());
-            Bet savedBet = bettingService.placeBet(bet);
-            logger.info("Zakład zapisany pomyślnie, ID: {}", savedBet.getId());
-            return ResponseEntity.ok(savedBet);
+            // Pobierz aktualnie uwierzytelnionego użytkownika
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            logger.info("Zapisuję zakład dla użytkownika: {}", username);
+
+            List<Bet> placedBets = bettingService.placeBet(createBetRequest, username);
+            List<BetResponse> betResponses = placedBets.stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+
+            logger.info("Zakład(y) zapisane pomyślnie. Liczba zakładów: {}", placedBets.size());
+            return ResponseEntity.ok(betResponses);
+        } catch (IllegalArgumentException e) {
+            logger.error("Błąd walidacji lub brak użytkownika: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             logger.error("Błąd podczas zapisywania zakładu: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body("Błąd podczas zapisywania zakładu: " + e.getMessage());
@@ -54,15 +58,19 @@ public class BetController {
     }
 
     @GetMapping
-    public ResponseEntity<java.util.List<Bet>> getAllBetsForCurrentUser() {
-        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
+    public ResponseEntity<List<BetResponse>> getAllBetsForCurrentUser() {
         try {
-            // Pobierz aktualnie uwierzytelnionego użytkownika
-            User currentUser = (User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            java.util.List<Bet> bets = bettingService.getUserBets(currentUser);
-            logger.info("Pobrano {} zakładów dla użytkownika: {}", bets.size(), currentUser.getUsername());
-            return ResponseEntity.ok(bets);
+            List<Bet> bets = bettingService.getUserBets(currentUser);
+            List<BetResponse> betResponses = bets.stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+
+            logger.info("Pobrano {} zakładów dla użytkownika: {}", betResponses.size(), username);
+            return ResponseEntity.ok(betResponses);
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania zakładów dla bieżącego użytkownika: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(java.util.Collections.emptyList());
@@ -70,46 +78,84 @@ public class BetController {
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getStats(@RequestParam Long userId) {
+    public ResponseEntity<Map<String, Object>> getStats() {
         try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            return ResponseEntity.ok(bettingService.getStatistics(user));
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            return ResponseEntity.ok(bettingService.getStatistics(currentUser));
         } catch (Exception e) {
-            // Obsługa błędu, żeby zapobiec rzucaniu nieprzechwyconych wyjątków
-            // Możemy zwrócić częściowe dane lub dane puste
-            return ResponseEntity.ok(Map.of(
-                "totalAmount", 0.0,
-                "profitLoss", 0.0,
-                "roi", 0.0,
+            logger.error("Błąd podczas pobierania statystyk: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                "totalStake", BigDecimal.ZERO,
+                "profitLoss", BigDecimal.ZERO,
+                "roi", BigDecimal.ZERO,
                 "recentBets", java.util.Collections.emptyList()
             ));
         }
     }
 
-    @GetMapping("/advanced-stats/{userId}")
-    public ResponseEntity<BetStatistics> getAdvancedStats(@PathVariable Long userId) {
+    @GetMapping("/advanced-stats")
+    public ResponseEntity<BetStatistics> getAdvancedStats() {
         try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            return ResponseEntity.ok(bettingService.getAdvancedStatistics(user));
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            return ResponseEntity.ok(bettingService.getAdvancedStatistics(currentUser));
         } catch (Exception e) {
+            logger.error("Błąd podczas pobierania zaawansowanych statystyk: {}", e.getMessage(), e);
             // Zwróć pusty obiekt statystyk
             BetStatistics emptyStats = new BetStatistics();
-            return ResponseEntity.ok(emptyStats);
+            return ResponseEntity.status(500).body(emptyStats);
         }
     }
 
-    @GetMapping("/heatmap/{userId}")
-    public ResponseEntity<Map<String, Map<String, Double>>> getHeatmapData(@PathVariable Long userId) {
+    @GetMapping("/heatmap")
+    public ResponseEntity<Map<String, Map<String, Double>>> getHeatmapData() {
         try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            return ResponseEntity.ok(bettingService.getHeatmapData(user));
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
         } catch (Exception e) {
+            logger.error("Błąd podczas pobierania danych heatmap: {}", e.getMessage(), e);
             // Zwróć pustą mapę
-            return ResponseEntity.ok(java.util.Collections.emptyMap());
+            return ResponseEntity.status(500).body(java.util.Collections.emptyMap());
         }
+    }
+
+    // Metoda pomocnicza do konwersji Bet na BetResponse
+    private BetResponse convertToDto(Bet bet) {
+        BetResponse dto = new BetResponse();
+        dto.setId(bet.getId());
+        dto.setBetType(bet.getBetType());
+        dto.setStatus(bet.getStatus());
+        dto.setStake(bet.getStake());
+        dto.setOdds(bet.getOdds());
+        dto.setOddsType(bet.getOddsType());
+        dto.setPotentialWinnings(bet.getPotentialWinnings());
+        dto.setFinalProfit(bet.getFinalProfit());
+        dto.setSport(bet.getSport());
+        dto.setEventName(bet.getEventName());
+        dto.setEventDate(bet.getEventDate());
+        dto.setMarketType(bet.getMarketType());
+        dto.setSelection(bet.getSelection());
+        dto.setLine(bet.getLine());
+        dto.setBookmaker(bet.getBookmaker());
+        dto.setExternalBetId(bet.getExternalBetId());
+        dto.setExternalApiName(bet.getExternalApiName());
+        dto.setPlacedAt(bet.getPlacedAt());
+        dto.setSettledAt(bet.getSettledAt());
+        dto.setNotes(bet.getNotes());
+        if (bet.getUser() != null) {
+            dto.setUserId(bet.getUser().getId());
+        }
+        if (bet.getChildBets() != null && !bet.getChildBets().isEmpty()) {
+            dto.setChildBets(bet.getChildBets().stream()
+                                .map(this::convertToDto)
+                                .collect(Collectors.toList()));
+        }
+        return dto;
     }
 }
 
