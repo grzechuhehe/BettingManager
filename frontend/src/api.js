@@ -42,7 +42,11 @@ export const getBets = () => {
 };
 
 export const addBet = (betData) => {
-  return apiClient.post('/bets', betData);
+  return apiClient.post('/bets/add-bet', betData);
+};
+
+export const settleBet = (id, status) => {
+  return apiClient.patch(`/bets/${id}/settle`, { status });
 };
 
 // Można tu dodawać kolejne funkcje, np. updateBet, deleteBet

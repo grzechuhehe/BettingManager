@@ -289,6 +289,45 @@ public class BettingService {
                         )
                 ));
     }
+
+    @Transactional
+    public Bet settleBet(Long betId, BetStatus newStatus, User user) {
+        Bet bet = betRepository.findById(betId)
+                .orElseThrow(() -> new IllegalArgumentException("Bet not found with id: " + betId));
+
+        if (!bet.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You are not authorized to settle this bet.");
+        }
+
+        if (bet.getStatus() != BetStatus.PENDING) {
+            throw new IllegalArgumentException("Bet is already settled.");
+        }
+
+        bet.setStatus(newStatus);
+        bet.setSettledAt(LocalDateTime.now());
+
+        // Obliczanie finalProfit
+        if (newStatus == BetStatus.WON) {
+            // Zysk netto = (stawka * kurs) - stawka
+            bet.setFinalProfit(bet.getPotentialWinnings().subtract(bet.getStake()));
+        } else if (newStatus == BetStatus.LOST) {
+            // Strata = -stawka
+            bet.setFinalProfit(bet.getStake().negate());
+        } else if (newStatus == BetStatus.VOID) {
+            // Zwrot = 0
+            bet.setFinalProfit(BigDecimal.ZERO);
+        }
+
+        // Propagacja statusu na "nogi" (legs) dla Parlay
+        if (bet.getBetType() == BetType.PARLAY && bet.getChildBets() != null) {
+            for (Bet child : bet.getChildBets()) {
+                child.setStatus(newStatus);
+                child.setSettledAt(bet.getSettledAt());
+            }
+        }
+
+        return betRepository.save(bet);
+    }
 }
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getBets } from '../api';
+import { getBets, settleBet } from '../api';
 
 const BetStatusBadge = ({ status }) => {
     const statusClasses = {
@@ -19,26 +19,57 @@ const BetStatusBadge = ({ status }) => {
     );
 };
 
-const BetRow = ({ bet, isChild = false }) => (
-    <tr className={isChild ? 'bg-gray-50' : 'bg-white'}>
+const BetRow = ({ bet, onSettle, isChild = false }) => (
+    <tr className={isChild ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 transition-colors'}>
         <td className={`px-6 py-4 whitespace-nowrap text-sm ${isChild ? 'pl-10' : ''}`}>
             <div className="font-medium text-gray-900">{bet.eventName}</div>
-            <div className="text-gray-500">{bet.sport} - {bet.marketType}</div>
+            <div className="text-gray-500 text-xs">{bet.sport} - {bet.marketType}</div>
             <div className="text-blue-600 font-semibold">{bet.selection}</div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bet.bookmaker}</td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bet.stake ? `$${bet.stake.toFixed(2)}` : 'N/A'}</td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bet.odds ? bet.odds.toFixed(2) : 'N/A'}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bet.stake ? `$${bet.stake.toFixed(2)}` : ''}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bet.odds ? bet.odds.toFixed(2) : ''}</td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-            {bet.potentialWinnings ? `$${bet.potentialWinnings.toFixed(2)}` : 'N/A'}
+            {bet.potentialWinnings ? `$${bet.potentialWinnings.toFixed(2)}` : ''}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm">
-            <BetStatusBadge status={bet.status} />
+            <div className="flex flex-col space-y-2">
+                <BetStatusBadge status={bet.status} />
+                {!isChild && bet.status === 'PENDING' && (
+                    <div className="flex space-x-1">
+                        <button 
+                            onClick={() => onSettle(bet.id, 'WON')}
+                            title="Mark as Won"
+                            className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                        >
+                            ✅
+                        </button>
+                        <button 
+                            onClick={() => onSettle(bet.id, 'LOST')}
+                            title="Mark as Lost"
+                            className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                        >
+                            ❌
+                        </button>
+                        <button 
+                            onClick={() => onSettle(bet.id, 'VOID')}
+                            title="Mark as Void"
+                            className="p-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        >
+                            🔄
+                        </button>
+                    </div>
+                )}
+            </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
-            <span className={bet.finalProfit > 0 ? 'text-green-600' : bet.finalProfit < 0 ? 'text-red-600' : 'text-gray-600'}>
-                {bet.finalProfit !== null ? `$${bet.finalProfit.toFixed(2)}` : 'N/A'}
-            </span>
+            {bet.status !== 'PENDING' ? (
+                <span className={bet.finalProfit > 0 ? 'text-green-600' : bet.finalProfit < 0 ? 'text-red-600' : 'text-gray-600'}>
+                    {bet.finalProfit !== null ? (bet.finalProfit >= 0 ? `+$${bet.finalProfit.toFixed(2)}` : `-$${Math.abs(bet.finalProfit).toFixed(2)}`) : 'N/A'}
+                </span>
+            ) : (
+                <span className="text-gray-400">---</span>
+            )}
         </td>
     </tr>
 );
@@ -49,23 +80,34 @@ const BetList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchBets = async () => {
-            try {
-                setLoading(true);
-                const response = await getBets();
-                setBets(response.data);
-                setError(null);
-            } catch (err) {
-                setError('Could not fetch bets. Please try again later.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchBets = async () => {
+        try {
+            setLoading(true);
+            const response = await getBets();
+            setBets(response.data);
+            setError(null);
+        } catch (err) {
+            setError('Could not fetch bets. Please try again later.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchBets();
     }, []);
+
+    const handleSettle = async (id, status) => {
+        try {
+            await settleBet(id, status);
+            // Re-fetch or update locally
+            fetchBets();
+        } catch (err) {
+            alert('Failed to settle bet. Please try again.');
+            console.error(err);
+        }
+    };
     
     // Filter out child bets to only show parent (PARLAY) and single bets
     const topLevelBets = useMemo(() => {
@@ -103,9 +145,9 @@ const BetList = () => {
                         <tbody className="divide-y divide-gray-200">
                             {topLevelBets.map((bet) => (
                                 <React.Fragment key={bet.id}>
-                                    <BetRow bet={bet} />
+                                    <BetRow bet={bet} onSettle={handleSettle} />
                                     {bet.betType === 'PARLAY' && bet.childBets && bet.childBets.map(childBet => (
-                                        <BetRow bet={childBet} key={childBet.id} isChild={true} />
+                                        <BetRow bet={childBet} key={childBet.id} isChild={true} onSettle={handleSettle} />
                                     ))}
                                 </React.Fragment>
                             ))}

@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
+import com.grzechuhehe.SportsBettingManagerApp.dto.SettleBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
@@ -121,6 +122,23 @@ public class BetController {
             logger.error("Błąd podczas pobierania danych heatmap: {}", e.getMessage(), e);
             // Zwróć pustą mapę
             return ResponseEntity.status(500).body(java.util.Collections.emptyMap());
+        }
+    }
+
+    @PatchMapping("/{id}/settle")
+    public ResponseEntity<?> settleBet(@PathVariable Long id, @Valid @RequestBody SettleBetRequest request) {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            Bet settledBet = bettingService.settleBet(id, request.status(), currentUser);
+            return ResponseEntity.ok(convertToDto(settledBet));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error settling bet: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error settling bet: " + e.getMessage());
         }
     }
 
