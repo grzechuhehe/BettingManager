@@ -1,7 +1,7 @@
 HELP.md
 GEMINI.md
 TODO.md
-target/
+SportsBettingManagerApp/target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -48,3 +48,8 @@ maven-wrapper.properties
 logs/*
 
 package-lock.json
+/.idea/
+sportsbetting.p12
+/target/
+
+SportsBettingManagerApp/.gitattributes
