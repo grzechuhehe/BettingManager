@@ -27,7 +27,7 @@ public class BetController {
     private final UserRepository userRepository;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
 
-    @PostMapping
+    @PostMapping("/add-bet")
     public ResponseEntity<?> createBet(@Valid @RequestBody CreateBetRequest createBetRequest, BindingResult result) {
         logger.info("Otrzymano żądanie utworzenia zakładu: {}", createBetRequest);
 

@@ -48,7 +48,7 @@ const AppLayout = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center p-4">
+    <div className="min-h-screen w-full bg-gray-100 flex flex-col items-center p-4">
       <header className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6 mb-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-800">Sports Betting Manager</h1>

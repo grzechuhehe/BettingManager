@@ -152,7 +152,7 @@ const AddBetForm = () => {
                     </div>
                 ))}
 
-                <button type="button" onClick={addLeg} className="w-full py-2 px-4 border border-dashed border-gray-400 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                <button type="button" onClick={addLeg} className="w-full py-3 px-4 border-2 border-dashed border-blue-400 rounded-md text-base font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
                     + Add Another Leg (for Parlay)
                 </button>
 
