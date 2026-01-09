@@ -10,8 +10,12 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+
+  if (isLoading) {
+    return <div className="text-center p-4">Loading...</div>; // Or a spinner component
+  }
 
   if (!isAuthenticated) {
     // Przekieruj na stronę logowania, zapamiętując, skąd przyszedł użytkownik

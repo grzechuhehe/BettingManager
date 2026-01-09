@@ -51,5 +51,4 @@ package-lock.json
 /.idea/
 sportsbetting.p12
 /target/
-
-SportsBettingManagerApp/.gitattributes
+.gitattributes

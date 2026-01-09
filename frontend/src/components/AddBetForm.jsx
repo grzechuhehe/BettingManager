@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { addBet } from '../api';
-import { useNavigate } from 'react-router-dom';
 
-const initialLegState = {
+let nextId = 1;
+const createInitialLeg = () => ({
+    id: nextId++,
     sport: 'Football',
     eventName: '',
     eventDate: '',
@@ -10,32 +11,31 @@ const initialLegState = {
     selection: '',
     odds: '',
     bookmaker: 'STS',
-};
+});
 
 const marketTypes = ['MONEYLINE_1X2', 'MONEYLINE_12', 'TOTALS_OVER_UNDER', 'HANDICAP', 'ASIAN_HANDICAP', 'CORRECT_SCORE', 'PLAYER_PROPS', 'BOTH_TEAMS_TO_SCORE', 'OUTRIGHT', 'OTHER'];
 const bookmakers = ['STS', 'Fortuna', 'Betclic', 'Superbet', 'forBET', 'eTOTO', 'LVBET', 'Totalbet', 'Betfan', 'Fuksiarz', 'Betters', 'GoBet'];
 const sports = ['Football', 'Basketball', 'Tennis', 'Ice Hockey', 'MMA', 'Boxing', 'F1', 'CS:GO', 'LoL', 'Valorant', 'Other'];
 
 const AddBetForm = () => {
-    const navigate = useNavigate();
-    const [legs, setLegs] = useState([initialLegState]);
+    const [legs, setLegs] = useState([createInitialLeg()]);
     const [stake, setStake] = useState('');
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
 
-    const handleLegChange = (index, e) => {
+    const handleLegChange = (id, e) => {
         const { name, value } = e.target;
-        const newLegs = [...legs];
-        newLegs[index] = { ...newLegs[index], [name]: value };
-        setLegs(newLegs);
+        setLegs(legs.map(leg => 
+            leg.id === id ? { ...leg, [name]: value } : leg
+        ));
     };
 
     const addLeg = () => {
-        setLegs([...legs, initialLegState]);
+        setLegs([...legs, createInitialLeg()]);
     };
 
-    const removeLeg = (index) => {
-        const newLegs = legs.filter((_, i) => i !== index);
+    const removeLeg = (id) => {
+        const newLegs = legs.filter(leg => leg.id !== id);
         setLegs(newLegs);
     };
 
@@ -62,10 +62,13 @@ const AddBetForm = () => {
 
         try {
             const betRequests = legs.map(leg => ({
-                ...leg,
+                sport: leg.sport,
+                eventName: leg.eventName,
+                eventDate: leg.eventDate,
+                marketType: leg.marketType,
+                selection: leg.selection,
                 odds: parseFloat(leg.odds),
-                // For a parlay, the backend uses the stake from the first leg,
-                // so we ensure each leg has the stake value.
+                bookmaker: leg.bookmaker,
                 stake: parseFloat(stake)
             }));
 
@@ -76,7 +79,13 @@ const AddBetForm = () => {
             await addBet(createBetRequest);
 
             setMessage('Bet placed successfully!');
-            setTimeout(() => navigate('/dashboard'), 1500); // Redirect after a short delay
+            setIsError(false);
+            setLegs([createInitialLeg()]);
+            setStake('');
+
+            setTimeout(() => {
+                setMessage('');
+            }, 3000);
 
         } catch (error) {
             setIsError(true);
@@ -92,51 +101,51 @@ const AddBetForm = () => {
             
             <form onSubmit={handleSubmit} className="space-y-6">
                 {legs.map((leg, index) => (
-                    <div key={index} className="p-4 border rounded-lg relative space-y-4 bg-gray-50">
+                    <div key={leg.id} className="p-4 border rounded-lg relative space-y-4 bg-gray-50">
                         <h3 className="text-lg font-semibold text-gray-700">Leg #{index + 1}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Left Column */}
                             <div>
-                                <label htmlFor={`bookmaker-${index}`} className="block text-sm font-medium text-gray-700">Bookmaker</label>
-                                <select name="bookmaker" value={leg.bookmaker} onChange={e => handleLegChange(index, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
+                                <label htmlFor={`bookmaker-${leg.id}`} className="block text-sm font-medium text-gray-700">Bookmaker</label>
+                                <select name="bookmaker" value={leg.bookmaker} onChange={e => handleLegChange(leg.id, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
                                     {bookmakers.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor={`sport-${index}`} className="block text-sm font-medium text-gray-700">Sport</label>
-                                <select name="sport" value={leg.sport} onChange={e => handleLegChange(index, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
+                                <label htmlFor={`sport-${leg.id}`} className="block text-sm font-medium text-gray-700">Sport</label>
+                                <select name="sport" value={leg.sport} onChange={e => handleLegChange(leg.id, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
                                     {sports.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor={`eventName-${index}`} className="block text-sm font-medium text-gray-700">Event Name</label>
-                                <input type="text" name="eventName" placeholder="e.g., Real Madrid vs Barcelona" value={leg.eventName} onChange={e => handleLegChange(index, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
+                                <label htmlFor={`eventName-${leg.id}`} className="block text-sm font-medium text-gray-700">Event Name</label>
+                                <input type="text" name="eventName" placeholder="e.g., Real Madrid vs Barcelona" value={leg.eventName} onChange={e => handleLegChange(leg.id, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
                             </div>
                             <div>
-                                <label htmlFor={`eventDate-${index}`} className="block text-sm font-medium text-gray-700">Event Date</label>
-                                <input type="datetime-local" name="eventDate" value={leg.eventDate} onChange={e => handleLegChange(index, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
+                                <label htmlFor={`eventDate-${leg.id}`} className="block text-sm font-medium text-gray-700">Event Date</label>
+                                <input type="datetime-local" name="eventDate" value={leg.eventDate} onChange={e => handleLegChange(leg.id, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Right Column */}
                             <div>
-                                <label htmlFor={`marketType-${index}`} className="block text-sm font-medium text-gray-700">Market</label>
-                                <select name="marketType" value={leg.marketType} onChange={e => handleLegChange(index, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
+                                <label htmlFor={`marketType-${leg.id}`} className="block text-sm font-medium text-gray-700">Market</label>
+                                <select name="marketType" value={leg.marketType} onChange={e => handleLegChange(leg.id, e)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900">
                                     {marketTypes.map(mt => <option key={mt} value={mt}>{mt}</option>)}
                                 </select>
                             </div>
                              <div>
-                                <label htmlFor={`selection-${index}`} className="block text-sm font-medium text-gray-700">Selection</label>
-                                <input type="text" name="selection" placeholder="e.g., Real Madrid to win" value={leg.selection} onChange={e => handleLegChange(index, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
+                                <label htmlFor={`selection-${leg.id}`} className="block text-sm font-medium text-gray-700">Selection</label>
+                                <input type="text" name="selection" placeholder="e.g., Real Madrid to win" value={leg.selection} onChange={e => handleLegChange(leg.id, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
                             </div>
                             <div>
-                                <label htmlFor={`odds-${index}`} className="block text-sm font-medium text-gray-700">Odds</label>
-                                <input type="number" name="odds" placeholder="1.85" step="0.01" min="1.01" value={leg.odds} onChange={e => handleLegChange(index, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
+                                <label htmlFor={`odds-${leg.id}`} className="block text-sm font-medium text-gray-700">Odds</label>
+                                <input type="number" name="odds" placeholder="1.85" step="0.01" min="1.01" value={leg.odds} onChange={e => handleLegChange(leg.id, e)} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"/>
                             </div>
                         </div>
 
                         {legs.length > 1 && (
-                            <button type="button" onClick={() => removeLeg(index)} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full text-xs">
+                            <button type="button" onClick={() => removeLeg(leg.id)} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full text-xs">
                                 &#x2715;
                             </button>
                         )}

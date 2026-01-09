@@ -8,17 +8,26 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const userData = JSON.parse(storedUser);
-            setUser(userData.username);
-            setToken(userData.token);
-            setIsAuthenticated(true);
-            // Set default Authorization header for Axios
-            API.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+        try {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                const userData = JSON.parse(storedUser);
+                setUser(userData.username);
+                setToken(userData.token);
+                setIsAuthenticated(true);
+                // Set default Authorization header for Axios
+                API.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+            }
+        } catch (error) {
+            console.error("Failed to parse user from localStorage", error);
+            // In case of corrupted data, clear it
+            localStorage.removeItem('user');
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -41,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, isAuthenticated, login, logout }}>
+        <AuthContext.Provider value={{ user, token, isAuthenticated, isLoading, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

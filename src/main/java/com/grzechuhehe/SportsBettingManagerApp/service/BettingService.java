@@ -34,14 +34,30 @@ public class BettingService {
         List<Bet> placedBets = new ArrayList<>();
         List<BetRequest> betRequests = createBetRequest.getBets();
 
+        if (betRequests == null || betRequests.isEmpty()) {
+            throw new IllegalArgumentException("Bet requests cannot be empty.");
+        }
+
         if (betRequests.size() == 1) {
-            // Pojedynczy zakład
+            // Single Bet
             BetRequest betRequest = betRequests.get(0);
+            if (betRequest.getStake() == null || betRequest.getStake().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Stake must be positive for a single bet.");
+            }
             Bet singleBet = buildBetFromRequest(betRequest, user, BetType.SINGLE, null, betRequest.getStake());
             placedBets.add(betRepository.save(singleBet));
         } else {
-            // Zakład PARLAY (akumulowany)
-            BigDecimal parlayStake = betRequests.get(0).getStake(); // Użyj stawki z pierwszego żądania jako stawki całego kuponu
+            // Parlay Bet
+            BigDecimal parlayStake = betRequests.stream()
+                    .map(BetRequest::getStake)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Stake is required for a parlay bet."));
+
+            if (parlayStake.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Stake must be positive for a parlay bet.");
+            }
+            
             Bet parlayBet = Bet.builder()
                     .betType(BetType.PARLAY)
                     .status(BetStatus.PENDING)
@@ -50,19 +66,19 @@ public class BettingService {
                     .user(user)
                     .placedAt(LocalDateTime.now())
                     .sport("Multi-Sport")
-                    .eventName("Parlay Bet")
+                    .eventName("Parlay Bet (" + betRequests.size() + " legs)")
                     .build();
-
-            parlayBet.calculatePotentialWinnings();
-            Bet savedParlayBet = betRepository.save(parlayBet);
 
             Set<Bet> childBets = new HashSet<>();
             for (BetRequest betRequest : betRequests) {
-                // Dla "nóg" kuponu stawka jest zerowa, bo jest już uwzględniona w zakładzie nadrzędnym
-                Bet childBet = buildBetFromRequest(betRequest, user, BetType.SINGLE, savedParlayBet, BigDecimal.ZERO);
-                childBets.add(betRepository.save(childBet));
+                // Child bets have a null stake as it's owned by the parent parlay bet
+                Bet childBet = buildBetFromRequest(betRequest, user, BetType.SINGLE, parlayBet, null);
+                childBets.add(childBet);
             }
-            savedParlayBet.setChildBets(childBets);
+            parlayBet.setChildBets(childBets);
+
+            // Save the parent bet, which cascades to save the child bets
+            Bet savedParlayBet = betRepository.save(parlayBet);
             placedBets.add(savedParlayBet);
         }
         return placedBets;

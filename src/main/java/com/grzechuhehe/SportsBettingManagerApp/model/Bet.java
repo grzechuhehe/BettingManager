@@ -36,7 +36,6 @@ public class Bet {
     @Enumerated(EnumType.STRING)
     private BetStatus status; // PENDING, WON, LOST, etc.
 
-    @NotNull
     @Positive(message = "Stake must be positive")
     @Column(precision = 10, scale = 2)
     private BigDecimal stake; // Stawka
