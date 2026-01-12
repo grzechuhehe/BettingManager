@@ -41,6 +41,10 @@ export const getBets = () => {
   return apiClient.get('/bets');
 };
 
+export const getDashboardStats = () => {
+  return apiClient.get('/bets/dashboard-stats');
+};
+
 export const addBet = (betData) => {
   return apiClient.post('/bets/add-bet', betData);
 };

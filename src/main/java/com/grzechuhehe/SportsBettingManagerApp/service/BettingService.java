@@ -20,12 +20,45 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+
+// ... existing imports
+
 @Service
 @RequiredArgsConstructor
 public class BettingService {
-    private final BetRepository betRepository;
-    private final UserRepository userRepository;
+    // ... existing fields
 
+    public DashboardStatsDTO getDashboardStats(User user) {
+        List<Bet> allBets = betRepository.findByUser(user).stream()
+                .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
+                .collect(Collectors.toList());
+
+        BigDecimal totalProfitLoss = allBets.stream()
+                .filter(b -> b.getStatus() != BetStatus.PENDING)
+                .map(b -> b.getFinalProfit() != null ? b.getFinalProfit() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int totalBets = allBets.size();
+        
+        int activeBetsCount = (int) allBets.stream()
+                .filter(b -> b.getStatus() == BetStatus.PENDING)
+                .count();
+
+        long wonBets = allBets.stream().filter(b -> b.getStatus() == BetStatus.WON).count();
+        long lostBets = allBets.stream().filter(b -> b.getStatus() == BetStatus.LOST).count();
+        long settledForWinRate = wonBets + lostBets;
+
+        BigDecimal winRate = BigDecimal.ZERO;
+        if (settledForWinRate > 0) {
+            winRate = BigDecimal.valueOf(wonBets)
+                    .divide(BigDecimal.valueOf(settledForWinRate), 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+        }
+
+        return new DashboardStatsDTO(totalProfitLoss, totalBets, winRate, activeBetsCount);
+    }
+    
     @Transactional
     public List<Bet> placeBet(CreateBetRequest createBetRequest, String username) {
         User user = userRepository.findByUsername(username)

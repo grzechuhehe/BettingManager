@@ -78,6 +78,23 @@ public class BetController {
         }
     }
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+
+// ... existing imports
+
+    @GetMapping("/dashboard-stats")
+    public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            return ResponseEntity.ok(bettingService.getDashboardStats(currentUser));
+        } catch (Exception e) {
+            logger.error("Błąd podczas pobierania statystyk dashboardu: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         try {
