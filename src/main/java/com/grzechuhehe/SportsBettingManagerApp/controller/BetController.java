@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.BetRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -78,9 +80,6 @@ public class BetController {
         }
     }
 
-import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
-
-// ... existing imports
 
     @GetMapping("/dashboard-stats")
     public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
@@ -142,6 +141,7 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
         }
     }
 
+
     @PatchMapping("/{id}/settle")
     public ResponseEntity<?> settleBet(@PathVariable Long id, @Valid @RequestBody SettleBetRequest request) {
         try {
@@ -156,6 +156,40 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
         } catch (Exception e) {
             logger.error("Error settling bet: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body("Error settling bet: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateBet(@PathVariable Long id, @Valid @RequestBody BetRequest betRequest) {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            Bet updatedBet = bettingService.updateBet(id, betRequest, currentUser);
+            return ResponseEntity.ok(convertToDto(updatedBet));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error updating bet: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error updating bet: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteBet(@PathVariable Long id) {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            bettingService.deleteBet(id, currentUser);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error deleting bet: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error deleting bet: " + e.getMessage());
         }
     }
 

@@ -22,14 +22,41 @@ import java.util.stream.Collectors;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 
-// ... existing imports
+
 
 @Service
+
+
+
 @RequiredArgsConstructor
+
+
+
 public class BettingService {
-    // ... existing fields
+
+
+
+
+
+
+
+    private final BetRepository betRepository;
+
+
+
+    private final UserRepository userRepository;
+
+
+
+
+
+
 
     public DashboardStatsDTO getDashboardStats(User user) {
+
+
+
+
         List<Bet> allBets = betRepository.findByUser(user).stream()
                 .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
                 .collect(Collectors.toList());
@@ -360,6 +387,45 @@ public class BettingService {
         }
 
         return betRepository.save(bet);
+    }
+
+    @Transactional
+    public Bet updateBet(Long betId, BetRequest betRequest, User user) {
+        Bet bet = betRepository.findById(betId)
+                .orElseThrow(() -> new IllegalArgumentException("Bet not found with id: " + betId));
+
+        if (!bet.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You are not authorized to update this bet.");
+        }
+
+        // Allow updates mostly for PENDING bets, but let's allow flexibility as requested
+        // Mapping fields from request to entity
+        bet.setSport(betRequest.getSport());
+        bet.setEventName(betRequest.getEventName());
+        bet.setEventDate(betRequest.getEventDate());
+        bet.setMarketType(betRequest.getMarketType());
+        bet.setSelection(betRequest.getSelection());
+        bet.setOdds(betRequest.getOdds());
+        bet.setBookmaker(betRequest.getBookmaker());
+        bet.setStake(betRequest.getStake()); // Important: Stake change affects potential winnings
+        bet.setNotes(betRequest.getNotes());
+        
+        // Recalculate potential winnings if stake or odds changed
+        bet.calculatePotentialWinnings();
+
+        return betRepository.save(bet);
+    }
+
+    @Transactional
+    public void deleteBet(Long betId, User user) {
+        Bet bet = betRepository.findById(betId)
+                .orElseThrow(() -> new IllegalArgumentException("Bet not found with id: " + betId));
+
+        if (!bet.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You are not authorized to delete this bet.");
+        }
+        
+        betRepository.delete(bet);
     }
 }
 

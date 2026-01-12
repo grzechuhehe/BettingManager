@@ -54,7 +54,7 @@ const Dashboard = () => {
     return (
         <div className="p-4 max-w-6xl mx-auto">
             <header className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">Hello, {user?.username || 'Bettor'}! 👋</h2>
+                <h2 className="text-3xl font-bold text-gray-800">Hello, {user || 'Bettor'}! 👋</h2>
                 <p className="text-gray-500 mt-1">Here is what's happening with your bets today.</p>
             </header>
             

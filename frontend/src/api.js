@@ -50,9 +50,27 @@ export const addBet = (betData) => {
 };
 
 export const settleBet = (id, status) => {
+
   return apiClient.patch(`/bets/${id}/settle`, { status });
+
 };
 
-// Można tu dodawać kolejne funkcje, np. updateBet, deleteBet
+
+
+export const updateBet = (id, betData) => {
+
+  return apiClient.put(`/bets/${id}`, betData);
+
+};
+
+
+
+export const deleteBet = (id) => {
+
+  return apiClient.delete(`/bets/${id}`);
+
+};
+
+
 
 export default apiClient;
