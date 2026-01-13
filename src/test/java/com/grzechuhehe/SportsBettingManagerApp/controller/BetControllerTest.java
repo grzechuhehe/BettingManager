@@ -1,6 +1,7 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grzechuhehe.SportsBettingManagerApp.config.AuthEntryPointJwt;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
@@ -11,6 +12,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -47,10 +49,10 @@ class BetControllerTest {
     private UserRepository userRepository;
 
     @MockBean
-    private com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils jwtUtils;
+    private JwtUtils jwtUtils;
 
     @MockBean
-    private com.grzechuhehe.SportsBettingManagerApp.config.AuthEntryPointJwt authEntryPointJwt;
+    private AuthEntryPointJwt authEntryPointJwt;
 
     @MockBean
     private UserDetailsService userDetailsService;
@@ -84,10 +86,8 @@ class BetControllerTest {
         betRequest.setEventDate(LocalDateTime.now().plusDays(1));
         betRequest.setMarketType(MarketType.MONEYLINE_1X2);
         betRequest.setBookmaker("TestBookmaker");
-
         CreateBetRequest createRequest = new CreateBetRequest();
         createRequest.setBets(List.of(betRequest));
-
         Bet savedBet = new Bet();
         savedBet.setId(1L);
         savedBet.setBetType(BetType.SINGLE);
