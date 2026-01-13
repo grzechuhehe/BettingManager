@@ -1,0 +1,41 @@
+  Database Configuration
+  ==========================
+  spring.datasource.url=jdbc:mysql://localhost:3306/sports_betting_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+  spring.datasource.username=YOUR_DATABASE_USERNAME
+  spring.datasource.password=YOUR_DATABASE_PASSWORD
+  spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+  JPA / Hibernate
+  spring.jpa.hibernate.ddl-auto=update
+  spring.jpa.show-sql=false
+  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+
+  ==========================
+  Security Configuration (JWT)
+  ==========================
+  Generate a secure random string (at least 64 characters)
+  grzechuhehe.app.jwtSecret=YOUR_VERY_LONG_SECRET_KEY_FOR_JWT_SIGNING_MIN_64_CHARS
+  grzechuhehe.app.jwtExpirationMs=86400000
+
+  ==========================
+  Server Configuration
+  ==========================
+  server.port=8443
+
+  SSL Configuration (Optional but recommended)
+  server.ssl.key-store=classpath:keystore.p12
+  server.ssl.key-store-password=your_keystore_password
+  server.ssl.key-store-type=PKCS12
+  server.ssl.key-alias=tomcat
+
+  ==========================
+  Logging
+  ==========================
+  logging.level.org.springframework.security=INFO
+  logging.level.com.grzechuhehe.SportsBettingManagerApp=DEBUG
+
+  ==========================
+  File Uploads (If applicable)
+  ==========================
+  spring.servlet.multipart.max-file-size=2MB
+  spring.servlet.multipart.max-request-size=2MB
