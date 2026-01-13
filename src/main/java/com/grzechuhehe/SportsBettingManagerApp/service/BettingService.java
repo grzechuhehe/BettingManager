@@ -22,41 +22,16 @@ import java.util.stream.Collectors;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 
-
-
 @Service
-
-
-
 @RequiredArgsConstructor
-
-
-
 public class BettingService {
 
-
-
-
-
-
-
     private final BetRepository betRepository;
-
-
-
     private final UserRepository userRepository;
 
 
-
-
-
-
-
     public DashboardStatsDTO getDashboardStats(User user) {
-
-
-
-
+        
         List<Bet> allBets = betRepository.findByUser(user).stream()
                 .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
                 .collect(Collectors.toList());
