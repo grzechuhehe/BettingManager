@@ -8,10 +8,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+
+// ... imports
 
 @Entity
 @Getter
@@ -24,7 +28,12 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime joinedAt;
+
     @NotBlank(message = "Username is required")
+// ... rest of the class
     @Size(min = 3, max = 20)
     private String username;
 

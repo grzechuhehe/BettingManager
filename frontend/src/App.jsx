@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import AddBetForm from './components/AddBetForm';
 import BetList from './components/BetList';
 import Home from './components/Home';
+import UserProfile from './components/UserProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -14,18 +15,17 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="text-center p-4">Loading...</div>; // Or a spinner component
+    return <div className="text-center p-4">Loading...</div>;
   }
 
   if (!isAuthenticated) {
-    // Przekieruj na stronę logowania, zapamiętując, skąd przyszedł użytkownik
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
 };
 
-// Komponent nawigacji, który zmienia się w zależności od stanu logowania
+// Komponent nawigacji
 const Navigation = () => {
   const { isAuthenticated, logout } = useAuth();
 
@@ -36,6 +36,7 @@ const Navigation = () => {
           <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
           <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
           <Link to="/bets" className="text-blue-500 hover:text-blue-700">My Bets</Link>
+          <Link to="/profile" className="text-blue-500 hover:text-blue-700">Profile</Link>
           <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
         </>
       )}
@@ -84,6 +85,14 @@ const AppLayout = () => {
               </ProtectedRoute>
             }
           />
+          <Route 
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
@@ -91,7 +100,6 @@ const AppLayout = () => {
   );
 }
 
-// Główny komponent App, który dostarcza kontekst autoryzacji
 function App() {
   return (
     <AuthProvider>
