@@ -54,11 +54,20 @@ const AdvancedStats = () => {
         value={`${stats.winRatesByType?.SINGLE ? stats.winRatesByType.SINGLE.toFixed(1) : '0.0'}%`}
         color="text-blue-600"
       />
-      <StatCard 
-        title="Current Streak" 
-        value={stats.currentStreak || "None"}
-        color="text-yellow-600"
-      />
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center text-center justify-center">
+        <h4 className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">Streak Analysis</h4>
+        <div className="text-base font-bold text-yellow-600 flex flex-col gap-1">
+          {stats.currentStreak ? (
+            stats.currentStreak.split('|').map((part, index) => (
+              <span key={index} className="whitespace-nowrap">
+                {part.trim()}
+              </span>
+            ))
+          ) : (
+            "None"
+          )}
+        </div>
+      </div>
     </div>
   );
 };

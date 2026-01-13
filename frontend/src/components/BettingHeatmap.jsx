@@ -20,8 +20,12 @@ const BettingHeatmap = () => {
     }
   };
 
+  const [hoveredDay, setHoveredDay] = useState(null);
+
+  // ... fetchHeatmapData (unchanged)
+
   const getColor = (profit) => {
-    if (!profit) return 'bg-gray-200'; // Pusty dzień (jasnoszary)
+    if (!profit) return 'bg-gray-200'; // Pusty dzień
     if (profit > 0) {
       if (profit > 100) return 'bg-green-500';
       if (profit > 50) return 'bg-green-400';
@@ -33,11 +37,9 @@ const BettingHeatmap = () => {
     }
   };
 
-  // Generowanie ostatnich 30 dni do wyświetlenia (lub więcej)
   const renderHeatmap = () => {
     const days = [];
     const today = new Date();
-    // Pokaż ostatnie 90 dni
     for (let i = 89; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
@@ -47,9 +49,20 @@ const BettingHeatmap = () => {
       days.push(
         <div 
           key={dateStr} 
-          className={`w-4 h-4 rounded-sm ${getColor(profit)} cursor-pointer transition-colors duration-200 hover:ring-2 hover:ring-gray-400`}
-          title={`${dateStr}: ${profit ? profit + ' PLN' : 'No Activity'}`}
-        ></div>
+          onMouseEnter={() => setHoveredDay({ date: dateStr, profit })}
+          onMouseLeave={() => setHoveredDay(null)}
+          className={`w-4 h-4 rounded-sm ${getColor(profit)} cursor-pointer transition-all duration-200 hover:scale-125 relative`}
+        >
+          {hoveredDay?.date === dateStr && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-gray-900 text-white text-[10px] p-2 rounded shadow-xl z-50 pointer-events-none">
+              <div className="font-bold border-b border-gray-700 pb-1 mb-1">{dateStr}</div>
+              <div className={profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-gray-400'}>
+                {profit !== undefined ? `${profit > 0 ? '+' : ''}${profit.toFixed(2)} PLN` : 'No activity'}
+              </div>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
+            </div>
+          )}
+        </div>
       );
     }
     return days;
