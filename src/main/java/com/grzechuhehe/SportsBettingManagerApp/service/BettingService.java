@@ -204,8 +204,39 @@ public class BettingService {
                 roi,
                 calculateWinRatesByType(bets),
                 calculateRollingAverage(bets, 30),
-                analyzeStreaks(bets)
+                analyzeStreaks(bets),
+                calculateSharpeRatio(bets)
         );
+    }
+
+    private BigDecimal calculateSharpeRatio(List<Bet> bets) {
+        List<BigDecimal> profits = bets.stream()
+                .filter(b -> b.getStatus() != BetStatus.PENDING && b.getFinalProfit() != null)
+                .map(Bet::getFinalProfit)
+                .collect(Collectors.toList());
+
+        if (profits.size() < 2) return BigDecimal.ZERO;
+
+        // 1. Średni zysk (Mean Return)
+        BigDecimal sum = profits.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal mean = sum.divide(BigDecimal.valueOf(profits.size()), 4, RoundingMode.HALF_UP);
+
+        // 2. Odchylenie standardowe (Standard Deviation)
+        BigDecimal varianceSum = BigDecimal.ZERO;
+        for (BigDecimal profit : profits) {
+            BigDecimal diff = profit.subtract(mean);
+            varianceSum = varianceSum.add(diff.pow(2));
+        }
+        
+        // Dzielimy przez N (dla populacji) lub N-1 (dla próbki). Tutaj N dla uproszczenia.
+        BigDecimal variance = varianceSum.divide(BigDecimal.valueOf(profits.size()), 4, RoundingMode.HALF_UP);
+        double stdDevDouble = Math.sqrt(variance.doubleValue());
+        BigDecimal stdDev = BigDecimal.valueOf(stdDevDouble);
+
+        if (stdDev.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
+
+        // 3. Sharpe Ratio = Mean / StdDev (zakładając Risk Free Rate = 0)
+        return mean.divide(stdDev, 4, RoundingMode.HALF_UP);
     }
 
     private int countSuccessfulBets(List<Bet> bets) {
@@ -216,13 +247,13 @@ public class BettingService {
 
     private BigDecimal calculateNetProfit(List<Bet> bets) {
         return bets.stream()
-                .filter(bet -> bet.getStatus() != BetStatus.PENDING) // Uwzględnij tylko rozliczone zakłady
+                .filter(bet -> bet.getStatus() != BetStatus.PENDING)
                 .map(bet -> Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private BigDecimal calculateROI(BigDecimal profit, BigDecimal investment) {
-        if (investment.compareTo(BigDecimal.ZERO) == 0) {
+        if (investment == null || investment.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
         return profit.divide(investment, 4, RoundingMode.HALF_UP)
@@ -232,7 +263,7 @@ public class BettingService {
     private Map<String, BigDecimal> calculateWinRatesByType(List<Bet> bets) {
         return bets.stream()
                 .collect(Collectors.groupingBy(
-                        bet -> bet.getBetType().name(), // Użyj .name() aby uzyskać String z enuma
+                        bet -> bet.getBetType().name(),
                         Collectors.collectingAndThen(
                                 Collectors.toList(),
                                 list -> {
@@ -248,28 +279,29 @@ public class BettingService {
                         )
                 ));
     }
-    
+
     private BigDecimal calculateRollingAverage(List<Bet> bets, int days) {
-        LocalDate cutoff = LocalDate.now().minusDays(days);
-    
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+
         BigDecimal periodProfit = bets.stream()
-                .filter(b -> b.getPlacedAt().isAfter(cutoff.atStartOfDay()))
+                .filter(b -> b.getPlacedAt().isAfter(cutoff))
                 .filter(bet -> bet.getStatus() != BetStatus.PENDING)
                 .map(bet -> Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-    
+
         return periodProfit.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
     }
 
     private String analyzeStreaks(List<Bet> bets) {
-        int currentStreak = 0;
         int maxWinStreak = 0;
         int maxLossStreak = 0;
         BetStatus lastStatus = null;
         int streakCounter = 0;
 
+        // Sortujemy po dacie rozliczenia, żeby analiza miała sens chronologiczny
         List<Bet> settledBets = bets.stream()
                 .filter(b -> b.getStatus() == BetStatus.WON || b.getStatus() == BetStatus.LOST)
+                .filter(b -> b.getSettledAt() != null)
                 .sorted(Comparator.comparing(Bet::getSettledAt))
                 .collect(Collectors.toList());
 
@@ -287,40 +319,44 @@ public class BettingService {
             }
         }
         
-        BetStatus currentStatus = settledBets.isEmpty() ? null : settledBets.get(settledBets.size()-1).getStatus();
-        if(currentStatus != null){
-             long reversedStreak = 0;
-             for(int i = settledBets.size()-1; i>=0; i--){
-                if(settledBets.get(i).getStatus() == currentStatus) reversedStreak++;
-                else break;
-             }
-             return String.format("Current: %d %s, Max Win: %d, Max Loss: %d", reversedStreak, currentStatus, maxWinStreak, maxLossStreak);
+        // Obliczanie bieżącej serii (od tyłu)
+        int currentStreakCount = 0;
+        String currentStreakType = "None";
+        
+        if (!settledBets.isEmpty()) {
+            Bet lastBet = settledBets.get(settledBets.size() - 1);
+            BetStatus currentStatus = lastBet.getStatus();
+            currentStreakType = currentStatus == BetStatus.WON ? "Win" : "Loss";
+            
+            for (int i = settledBets.size() - 1; i >= 0; i--) {
+                if (settledBets.get(i).getStatus() == currentStatus) {
+                    currentStreakCount++;
+                } else {
+                    break;
+                }
+            }
         }
         
-        return "No active streak";
+        return String.format("Current: %d %s | Max Win: %d | Max Loss: %d", 
+                currentStreakCount, currentStreakType, maxWinStreak, maxLossStreak);
     }
 
-    // ... reszta metod statystycznych, jeśli wymagają poprawek ...
-    // Zakładam, że sharpeRatio i heatmapData są bardziej złożone i na razie skupiamy się na podstawowych statystykach
-
-    public Map<String, Map<String, Double>> getHeatmapData(User user) {
-        List<Bet> bets = betRepository.findByUser(user);
-
-        return bets.stream()
+    // Zmieniona sygnatura i logika: Data (String YYYY-MM-DD) -> Zysk (BigDecimal)
+    public Map<String, BigDecimal> getHeatmapData(User user) {
+        List<Bet> bets = betRepository.findByUser(user).stream()
                 .filter(b -> b.getParentBet() == null)
+                .filter(b -> b.getStatus() != BetStatus.PENDING) // Tylko rozliczone
+                .collect(Collectors.toList());
+
+        // Grupujemy po dacie rozliczenia (SettledAt) lub postawienia (PlacedAt). 
+        // Dla heatmapy zysków lepiej użyć daty rozliczenia (kiedy zysk faktycznie powstał).
+        return bets.stream()
+                .filter(b -> b.getSettledAt() != null)
                 .collect(Collectors.groupingBy(
-                        b -> b.getPlacedAt().getDayOfWeek().toString(),
-                        Collectors.groupingBy(
-                                b -> b.getBetType().toString(),
-                                Collectors.collectingAndThen(
-                                        Collectors.toList(),
-                                        list -> {
-                                            long total = list.size();
-                                            if (total == 0) return 0.0;
-                                            long won = list.stream().filter(b -> b.getStatus() == BetStatus.WON).count();
-                                            return (double) won / total * 100;
-                                        }
-                                )
+                        b -> b.getSettledAt().toLocalDate().toString(),
+                        Collectors.mapping(
+                                b -> Optional.ofNullable(b.getFinalProfit()).orElse(BigDecimal.ZERO),
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
     }

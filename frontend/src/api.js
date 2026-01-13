@@ -45,6 +45,14 @@ export const getDashboardStats = () => {
   return apiClient.get('/bets/dashboard-stats');
 };
 
+export const getAdvancedStats = () => {
+  return apiClient.get('/bets/advanced-stats');
+};
+
+export const getHeatmapData = () => {
+  return apiClient.get('/bets/heatmap');
+};
+
 export const addBet = (betData) => {
   return apiClient.post('/bets/add-bet', betData);
 };

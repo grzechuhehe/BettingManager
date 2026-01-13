@@ -128,7 +128,7 @@ public class BetController {
     }
 
     @GetMapping("/heatmap")
-    public ResponseEntity<Map<String, Map<String, Double>>> getHeatmapData() {
+    public ResponseEntity<Map<String, BigDecimal>> getHeatmapData() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
             User currentUser = userRepository.findByUsername(username)

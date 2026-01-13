@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardStats } from '../api';
+import AdvancedStats from './AdvancedStats';
+import BettingHeatmap from './BettingHeatmap';
 
 const StatCard = ({ title, value, subtext, colorClass = "text-gray-900" }) => (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center justify-center text-center">
@@ -91,6 +93,15 @@ const Dashboard = () => {
                         />
                     </div>
                 )}
+            </section>
+
+            {/* Advanced Analytics Section */}
+            <section className="mb-10">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 px-1">Detailed Analytics</h3>
+                <AdvancedStats />
+                <div className="mt-6">
+                    <BettingHeatmap />
+                </div>
             </section>
 
             {/* Quick Actions */}
