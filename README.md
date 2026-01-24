@@ -6,24 +6,28 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql)
 
-A full-stack web application designed to track, manage, and analyze sports betting activities. Built with performance and scalability in mind, using the latest **Java Spring Boot** ecosystem for the backend and **React (Vite)** for a modern, responsive frontend.
+A professional-grade analytics platform for sports traders. This full-stack application goes beyond simple tracking, offering **Bloomberg-style analytics**, performance metrics, and portfolio visualization. Built with performance and scalability in mind using **Java Spring Boot 3** and **React 19**.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-- **User Authentication:** Secure registration and login system based on **JWT (JSON Web Tokens)**.
-- **Dashboard & Analytics:** Real-time overview of performance including:
-    - Total Profit/Loss
-    - Win Rate (%)
-    - Active Bets count
-    - Heatmaps & Advanced Charts (Soon)
-- **Bet Management (CRUD):**
-    - Place **Single** and **Parlay** (Accumulator) bets.
-    - Automatic odds calculation for Parlays.
-    - Edit and Delete existing bets.
-- **Settlement System:** easy status updates for bets (WON, LOST, VOID) with automatic profit calculation.
-- **Responsive UI:** Modern interface built with **Tailwind CSS**, fully responsive for desktop and mobile.
+### 📈 Professional Analytics Dashboard
+- **Equity Curve:** Interactive line chart visualizing cumulative profit over time (Lifetime Performance).
+- **Profit by Sport:** Breakdown of net profit across different sports disciplines to identify strengths.
+- **Key Metrics:** Real-time calculation of **ROI (Return on Investment)** and **Yield**.
+- **Activity Heatmap:** Calendar view of trading activity and daily P/L.
+
+### 💼 Portfolio Management
+- **Bet Tracking:** Support for **Single** and **Parlay** (Accumulator) bets.
+- **Auto-Calculation:** Automatic potential winnings and parlay odds aggregation.
+- **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates.
+
+### 🔐 Security & Architecture
+- **User Authentication:** Secure registration and login system based on **JWT**.
+- **Responsive UI:** Modern interface built with **Tailwind CSS v4**, fully responsive for desktop and mobile.
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -40,8 +44,9 @@ A full-stack web application designed to track, manage, and analyze sports betti
 - **Framework:** React 19
 - **Build Tool:** Vite
 - **Styling:** Tailwind CSS v4
+- **Visualization:** **Recharts**
 - **HTTP Client:** Axios
-- **Routing:** React Router DOM
+- **Routing:** React Router DOM v7
 
 ---
 
@@ -80,6 +85,3 @@ npm install
 npm run dev
 ```
 The frontend will run on `http://localhost:5173`.
-
----
-
