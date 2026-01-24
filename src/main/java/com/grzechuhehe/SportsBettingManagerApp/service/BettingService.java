@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.EquityCurvePoint;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,7 @@ public class BettingService {
                 .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
                 .collect(Collectors.toList());
 
+        // Podstawowe statystyki
         BigDecimal totalProfitLoss = allBets.stream()
                 .filter(b -> b.getStatus() != BetStatus.PENDING)
                 .map(b -> b.getFinalProfit() != null ? b.getFinalProfit() : BigDecimal.ZERO)
@@ -58,7 +60,69 @@ public class BettingService {
                     .multiply(BigDecimal.valueOf(100));
         }
 
-        return new DashboardStatsDTO(totalProfitLoss, totalBets, winRate, activeBetsCount);
+        // Zaawansowane statystyki (Bloomberg style)
+        BigDecimal totalStaked = allBets.stream()
+                .map(Bet::getStake)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal roi = BigDecimal.ZERO;
+        BigDecimal yield = BigDecimal.ZERO;
+
+        if (totalStaked.compareTo(BigDecimal.ZERO) > 0) {
+            roi = totalProfitLoss.divide(totalStaked, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+            // Yield w bukmacherce to często to samo co ROI (zysk/obrót), ale czasem liczone inaczej. Przyjmijmy definicję Zysk Netto / Obrót.
+            yield = roi; 
+        }
+
+        // Profit by Sport
+        Map<String, BigDecimal> profitBySport = allBets.stream()
+                .filter(b -> b.getStatus() != BetStatus.PENDING && b.getSport() != null)
+                .collect(Collectors.groupingBy(
+                        Bet::getSport,
+                        Collectors.mapping(
+                                b -> Optional.ofNullable(b.getFinalProfit()).orElse(BigDecimal.ZERO),
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
+                        )
+                ));
+
+        // Equity Curve (Skumulowany zysk w czasie)
+        List<Bet> sortedSettledBets = allBets.stream()
+                .filter(b -> b.getStatus() != BetStatus.PENDING && b.getSettledAt() != null)
+                .sorted(Comparator.comparing(Bet::getSettledAt))
+                .collect(Collectors.toList());
+
+        List<EquityCurvePoint> equityCurve = new ArrayList<>();
+        BigDecimal currentEquity = BigDecimal.ZERO;
+
+        // Dodajemy punkt startowy (0, 0) - opcjonalne, ale ładnie wygląda na wykresie
+        // equityCurve.add(new EquityCurvePoint(LocalDate.now(), BigDecimal.ZERO)); 
+
+        // Grupowanie dzienne dla czytelności wykresu
+        Map<LocalDate, BigDecimal> dailyProfits = new TreeMap<>(); // TreeMap trzyma kolejność dat
+
+        for (Bet bet : sortedSettledBets) {
+            LocalDate date = bet.getSettledAt().toLocalDate();
+            BigDecimal profit = Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO);
+            dailyProfits.merge(date, profit, BigDecimal::add);
+        }
+
+        for (Map.Entry<LocalDate, BigDecimal> entry : dailyProfits.entrySet()) {
+            currentEquity = currentEquity.add(entry.getValue());
+            equityCurve.add(new EquityCurvePoint(entry.getKey(), currentEquity));
+        }
+
+        return new DashboardStatsDTO(
+                totalProfitLoss, 
+                totalBets, 
+                winRate, 
+                activeBetsCount,
+                roi,
+                yield,
+                totalStaked,
+                profitBySport,
+                equityCurve
+        );
     }
     
     @Transactional

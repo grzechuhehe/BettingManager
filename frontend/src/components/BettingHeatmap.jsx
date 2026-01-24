@@ -57,7 +57,7 @@ const BettingHeatmap = () => {
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-gray-900 text-white text-[10px] p-2 rounded shadow-xl z-50 pointer-events-none">
               <div className="font-bold border-b border-gray-700 pb-1 mb-1">{dateStr}</div>
               <div className={profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-gray-400'}>
-                {profit !== undefined ? `${profit > 0 ? '+' : ''}${profit.toFixed(2)} PLN` : 'No activity'}
+                {profit !== undefined ? `${profit >= 0 ? '+' : '-'}$${Math.abs(profit).toFixed(2)}` : 'No activity'}
               </div>
               <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
             </div>

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardStats } from '../api';
-import AdvancedStats from './AdvancedStats';
+import AdvancedAnalytics from './AdvancedAnalytics';
 import BettingHeatmap from './BettingHeatmap';
 
 const StatCard = ({ title, value, subtext, colorClass = "text-gray-900" }) => (
-    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center justify-center text-center">
+    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-lg transition-shadow duration-300">
         <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">{title}</h3>
         <p className={`text-3xl font-bold ${colorClass}`}>{value}</p>
         {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
@@ -29,6 +29,7 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
+                // Pobieramy teraz WSZYSTKIE dane (podstawowe + zaawansowane) jednym strzałem
                 const response = await getDashboardStats();
                 setStats(response.data);
             } catch (error) {
@@ -44,8 +45,12 @@ const Dashboard = () => {
     const formatCurrency = (val) => {
         if (val === null || val === undefined) return "$0.00";
         const num = parseFloat(val);
-        const sign = num >= 0 ? "+" : "-";
-        return `${sign}$${Math.abs(num).toFixed(2)}`;
+        const sign = num >= 0 ? "+" : "-"; // Plus explicit tylko dla dodatnich
+        const displaySign = num < 0 ? "-" : ""; 
+        // Mała poprawka formatowania: -$100.00 wygląda lepiej niż -$-100.00
+        return num < 0 
+            ? `-$${Math.abs(num).toFixed(2)}` 
+            : `+$${Math.abs(num).toFixed(2)}`;
     };
 
     const getProfitColor = (val) => {
@@ -54,15 +59,21 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="p-4 max-w-6xl mx-auto">
-            <header className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">Hello, {user || 'Bettor'}! 👋</h2>
-                <p className="text-gray-500 mt-1">Here is what's happening with your bets today.</p>
+        <div className="p-4 max-w-7xl mx-auto space-y-10">
+            {/* Header */}
+            <header className="flex justify-between items-end pb-6 border-b border-gray-200">
+                <div>
+                    <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
+                    <p className="text-gray-500 mt-1">Welcome back, {user?.username || 'Trader'}! Here is your market overview.</p>
+                </div>
+                <div className="text-right hidden sm:block">
+                    <p className="text-sm text-gray-400">Current Session</p>
+                    <p className="font-mono text-gray-700">{new Date().toLocaleDateString()}</p>
+                </div>
             </header>
             
-            {/* Stats Grid */}
-            <section className="mb-10">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 px-1">Performance Overview</h3>
+            {/* KPI Cards */}
+            <section>
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
                         {[...Array(4)].map((_, i) => (
@@ -70,9 +81,9 @@ const Dashboard = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard 
-                            title="Total Profit/Loss" 
+                            title="Total P/L" 
                             value={formatCurrency(stats?.totalProfitLoss)} 
                             colorClass={getProfitColor(stats?.totalProfitLoss)}
                         />
@@ -84,47 +95,55 @@ const Dashboard = () => {
                         <StatCard 
                             title="Active Bets" 
                             value={stats?.activeBetsCount || 0} 
-                            subtext="Pending Settlement"
+                            subtext="Open Positions"
                         />
                         <StatCard 
-                            title="Total Bets" 
-                            value={stats?.totalBets || 0} 
-                            subtext="Lifetime"
+                            title="Total Volume" 
+                            value={formatCurrency(stats?.totalStaked || 0).replace('+', '')} // Bez plusa dla wolumenu
+                            subtext={`${stats?.totalBets || 0} Trades`}
                         />
                     </div>
                 )}
             </section>
 
-            {/* Advanced Analytics Section */}
-            <section className="mb-10">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 px-1">Detailed Analytics</h3>
-                <AdvancedStats />
-                <div className="mt-6">
-                    <BettingHeatmap />
-                </div>
+            {/* Advanced Analytics (Graphs & Charts) */}
+            <section>
+                <h3 className="text-xl font-semibold text-gray-800 mb-6 px-1 flex items-center gap-2">
+                    <span>📊</span> Market Analysis
+                </h3>
+                {loading ? (
+                    <div className="h-80 bg-gray-100 rounded-lg animate-pulse"></div>
+                ) : (
+                    <>
+                        <AdvancedAnalytics stats={stats} />
+                        <div className="mt-8">
+                            <h4 className="text-lg font-medium text-gray-700 mb-4 px-1">Activity Heatmap</h4>
+                            <BettingHeatmap />
+                        </div>
+                    </>
+                )}
             </section>
 
             {/* Quick Actions */}
-            <section>
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 px-1">Quick Actions</h3>
+            <section className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 px-1">Quick Execution</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <ActionCard 
                         to="/add-bet"
-                        title="Place New Bet"
-                        description="Record a new wager quickly."
+                        title="Place Order"
+                        description="Log a new bet manually."
                         icon="📝"
                     />
                     <ActionCard 
                         to="/bets"
-                        title="My Bets"
-                        description="View history and settle pending bets."
-                        icon="📊"
+                        title="Trade History"
+                        description="View and settle open positions."
+                        icon="📋"
                     />
-                    {/* Placeholder for future features like 'Analysis' or 'Profile' */}
-                    <div className="flex flex-col items-center p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg justify-center text-center opacity-70">
-                         <div className="text-4xl mb-4 grayscale">👤</div>
-                         <h5 className="mb-1 text-lg font-semibold text-gray-500">User Profile</h5>
-                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Coming Soon</span>
+                    <div className="flex flex-col items-center p-6 bg-white border border-dashed border-gray-300 rounded-lg justify-center text-center opacity-60 hover:opacity-100 transition-opacity cursor-pointer">
+                         <div className="text-4xl mb-4">⚙️</div>
+                         <h5 className="mb-1 text-lg font-semibold text-gray-600">Settings</h5>
+                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">Coming Soon</span>
                     </div>
                 </div>
             </section>
