@@ -117,7 +117,12 @@ class BetControllerTest {
                 new BigDecimal("150.50"), // totalProfitLoss
                 100,                      // totalBets
                 new BigDecimal("65.5"),   // winRate
-                5                         // activeBetsCount
+                5,                        // activeBetsCount
+                new BigDecimal("15.5"),   // roi
+                new BigDecimal("15.5"),   // yield
+                new BigDecimal("1000.00"),// totalStaked
+                java.util.Collections.emptyMap(), // profitBySport
+                java.util.Collections.emptyList() // equityCurve
         );
 
         Mockito.when(bettingService.getDashboardStats(any(User.class))).thenReturn(stats);
@@ -127,7 +132,9 @@ class BetControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalProfitLoss").value(150.50))
                 .andExpect(jsonPath("$.winRate").value(65.5))
-                .andExpect(jsonPath("$.activeBetsCount").value(5));
+                .andExpect(jsonPath("$.activeBetsCount").value(5))
+                .andExpect(jsonPath("$.roi").value(15.5))
+                .andExpect(jsonPath("$.totalStaked").value(1000.00));
     }
 
     @Test

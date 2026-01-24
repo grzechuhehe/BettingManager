@@ -226,15 +226,21 @@ class BettingServiceTest {
         // Given
         Bet win1 = new Bet();
         win1.setStatus(BetStatus.WON);
+        win1.setStake(new BigDecimal("100"));
         win1.setFinalProfit(new BigDecimal("100"));
+        win1.setSport("Football");
 
         Bet win2 = new Bet();
         win2.setStatus(BetStatus.WON);
+        win2.setStake(new BigDecimal("100"));
         win2.setFinalProfit(new BigDecimal("50"));
+        win2.setSport("Tennis");
 
         Bet loss = new Bet();
         loss.setStatus(BetStatus.LOST);
+        loss.setStake(new BigDecimal("100"));
         loss.setFinalProfit(new BigDecimal("-100"));
+        loss.setSport("Football");
 
         when(betRepository.findByUser(testUser)).thenReturn(Arrays.asList(win1, win2, loss));
 
@@ -243,8 +249,63 @@ class BettingServiceTest {
 
         // Then
         assertThat(stats.totalBets()).isEqualTo(3);
-        assertThat(stats.winRate()).isEqualByComparingTo("66.67"); // Approx
+        assertThat(stats.winRate()).isEqualByComparingTo("66.67");
         assertThat(stats.totalProfitLoss()).isEqualByComparingTo("50.00");
+        assertThat(stats.totalStaked()).isEqualByComparingTo("300.00");
+        assertThat(stats.roi()).isEqualByComparingTo("16.67"); // 50 / 300 * 100
+        assertThat(stats.profitBySport().get("Football")).isEqualByComparingTo("0.00"); // 100 - 100
+        assertThat(stats.profitBySport().get("Tennis")).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void getDashboardStats_ShouldCalculateAdvancedAnalytics() {
+        // Given
+        Bet bet1 = new Bet();
+        bet1.setStatus(BetStatus.WON);
+        bet1.setStake(new BigDecimal("100"));
+        bet1.setFinalProfit(new BigDecimal("50"));
+        bet1.setSettledAt(LocalDate.of(2023, 1, 1).atStartOfDay());
+
+        Bet bet2 = new Bet();
+        bet2.setStatus(BetStatus.WON);
+        bet2.setStake(new BigDecimal("100"));
+        bet2.setFinalProfit(new BigDecimal("30"));
+        bet2.setSettledAt(LocalDate.of(2023, 1, 1).atTime(12, 0)); // Ta sama data, inna godzina
+
+        Bet bet3 = new Bet();
+        bet3.setStatus(BetStatus.LOST);
+        bet3.setStake(new BigDecimal("100"));
+        bet3.setFinalProfit(new BigDecimal("-40"));
+        bet3.setSettledAt(LocalDate.of(2023, 1, 2).atStartOfDay());
+
+        when(betRepository.findByUser(testUser)).thenReturn(Arrays.asList(bet1, bet2, bet3));
+
+        // When
+        DashboardStatsDTO stats = bettingService.getDashboardStats(testUser);
+
+        // Then
+        assertThat(stats.equityCurve()).hasSize(2); // Dwa dni: Jan 1 i Jan 2
+        
+        // Jan 1: 50 + 30 = 80
+        assertThat(stats.equityCurve().get(0).date()).isEqualTo(LocalDate.of(2023, 1, 1));
+        assertThat(stats.equityCurve().get(0).cumulativeProfit()).isEqualByComparingTo("80.00");
+        
+        // Jan 2: 80 - 40 = 40
+        assertThat(stats.equityCurve().get(1).date()).isEqualTo(LocalDate.of(2023, 1, 2));
+        assertThat(stats.equityCurve().get(1).cumulativeProfit()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    void getDashboardStats_ShouldReturnZeroROI_WhenNoBets() {
+        // Given
+        when(betRepository.findByUser(testUser)).thenReturn(Arrays.asList());
+
+        // When
+        DashboardStatsDTO stats = bettingService.getDashboardStats(testUser);
+
+        // Then
+        assertThat(stats.roi()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(stats.equityCurve()).isEmpty();
     }
 
     @Test
