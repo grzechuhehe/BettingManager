@@ -54,3 +54,4 @@ sportsbetting.p12
 .gitattributes
 /docs/
 /.dockerignore
+.env
