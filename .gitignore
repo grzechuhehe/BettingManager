@@ -52,3 +52,5 @@ package-lock.json
 sportsbetting.p12
 /target/
 .gitattributes
+/docs/
+/.dockerignore

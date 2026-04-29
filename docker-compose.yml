@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: sportsbetting_db
+    environment:
+      MYSQL_DATABASE: sportsbetting
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build: .
+    container_name: sportsbetting_backend
+    ports:
+      - "8443:8443"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/sportsbetting?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      - db
+
+  frontend:
+    build: 
+      context: ./frontend
+    container_name: sportsbetting_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
