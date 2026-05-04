@@ -44,13 +44,13 @@ jobs:
           # Zmienne dla Springa
           DB_USERNAME: testuser
           DB_PASSWORD: testpassword
-          KEYSTORE_PASSWORD: dummy_password
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           
           # Wyłączamy SSL
           SERVER_SSL_ENABLED: false
           SERVER_PORT: 8080
-        # Flaga -D wymusza wartość właściwości bezpośrednio w JVM
-        run: mvn -B test -Dapp.jwtSecret=bezpiecznyKluczTestowyJWT1234567890bezSpacjiISpecjalnychZnakow
+        run: mvn -B test
 
   frontend-build:
     name: Frontend Build Check
