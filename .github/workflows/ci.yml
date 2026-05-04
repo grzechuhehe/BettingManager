@@ -11,7 +11,6 @@ jobs:
     name: Backend Build & Test
     runs-on: ubuntu-latest
     
-    # Skonfigurujemy środowisko, aby MySQL był dostępny dla testów
     services:
       mysql:
         image: mysql:8.0
@@ -31,19 +30,20 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven' # Cache maven dependencies to speed up subsequent builds
+          cache: 'maven'
 
       - name: Run Maven Tests
         env:
-          # Przekazujemy zmienne środowiskowe, których wymaga nasza konfiguracja
-          DB_USERNAME: root
-          DB_PASSWORD: testpassword
-          JWT_SECRET: DummMySecretForGitHubActionsTestingEnvironment123
-          KEYSTORE_PASSWORD: dummy_password
-          # Te zmienne nadpiszą ustawienia z application.properties na potrzeby CI
+          # Natywne zmienne Spring Boota do połączenia z testową bazą w CI
           SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/sportsbetting?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: testpassword
+          # Wyłączamy SSL dla testów CI
           SERVER_SSL_ENABLED: false
           SERVER_PORT: 8080
+          # Wrażliwe dane pobierane z GitHub Secrets
+          APP_JWTSECRET: ${{ secrets.JWT_SECRET }}
+          SERVER_SSL_KEYSTOREPASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: mvn -B test
 
   frontend-build:
