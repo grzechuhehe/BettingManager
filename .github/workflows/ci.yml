@@ -36,16 +36,20 @@ jobs:
 
       - name: Run Maven Tests
         env:
-          # Dane do bazy testowej w CI
+          # Dane do bazy testowej w CI (Spring Boot odczyta te standardowe)
           SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/sportsbetting?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
           SPRING_DATASOURCE_USERNAME: testuser
           SPRING_DATASOURCE_PASSWORD: testpassword
+          
+          # Zmienne, na które czeka application.properties
+          DB_USERNAME: testuser
+          DB_PASSWORD: testpassword
+          JWT_SECRET: bezpiecznyKluczTestowyJWT1234567890bezSpacjiISpecjalnychZnakow
+          KEYSTORE_PASSWORD: dummy_password
+          
           # Wyłączamy SSL dla testów CI
           SERVER_SSL_ENABLED: false
           SERVER_PORT: 8080
-          # Wrażliwe dane z GitHub Secrets
-          APP_JWTSECRET: ${{ secrets.JWT_SECRET }}
-          SERVER_SSL_KEYSTOREPASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: mvn -B test
 
   frontend-build:
