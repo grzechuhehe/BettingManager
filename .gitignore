@@ -41,6 +41,9 @@ mvnw.cmd
 maven-wrapper.properties
 
 ### Application properties ###
+# Do not ignore properties in src - they are core app config
+!**/src/**/*.properties
+# But keep ignoring other properties (like in root or target)
 *.properties
 
 ### Log files ###
