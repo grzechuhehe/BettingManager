@@ -16,7 +16,9 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_DATABASE: sportsbetting
-          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpassword
+          MYSQL_ROOT_PASSWORD: rootpassword
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -34,14 +36,14 @@ jobs:
 
       - name: Run Maven Tests
         env:
-          # Natywne zmienne Spring Boota do połączenia z testową bazą w CI
+          # Dane do bazy testowej w CI
           SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/sportsbetting?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_USERNAME: testuser
           SPRING_DATASOURCE_PASSWORD: testpassword
           # Wyłączamy SSL dla testów CI
           SERVER_SSL_ENABLED: false
           SERVER_PORT: 8080
-          # Wrażliwe dane pobierane z GitHub Secrets
+          # Wrażliwe dane z GitHub Secrets
           APP_JWTSECRET: ${{ secrets.JWT_SECRET }}
           SERVER_SSL_KEYSTOREPASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: mvn -B test
