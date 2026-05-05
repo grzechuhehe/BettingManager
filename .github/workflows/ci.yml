@@ -42,8 +42,8 @@ jobs:
           DB_PASSWORD: testpassword
           
           # App configuration from Secrets
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-key-1234567890-test-only' }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'dummy-password' }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           
           # Overrides for CI environment
