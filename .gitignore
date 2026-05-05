@@ -42,7 +42,7 @@ maven-wrapper.properties
 
 ### Application properties ###
 # Do not ignore properties in src - they are core app config
-*.properties
+
 
 ### Log files ###
 *.log
