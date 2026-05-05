@@ -44,7 +44,6 @@ public class AuthTokenFilter extends OncePerRequestFilter{
             String jwt = parseJwt(request);
             
             if (jwt != null) {
-                logger.info("JWT token found in request: {}", jwt);
                 logger.info("Request URI: {}", request.getRequestURI());
                 logger.info("Request method: {}", request.getMethod());
                 

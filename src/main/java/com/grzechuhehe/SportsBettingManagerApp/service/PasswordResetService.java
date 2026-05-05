@@ -38,8 +38,8 @@ public class PasswordResetService {
         myToken.setToken(token);
         tokenRepository.save(myToken);
 
-        // Logowanie tokenu zamiast wysyłania e-mailem
-        log.info("Token resetowania hasła dla użytkownika {}: {}", user.getEmail(), token);
+        // Logowanie faktu utworzenia tokenu bez ujawniania jego wartości
+        log.info("Utworzono token resetowania hasła dla użytkownika {}", user.getEmail());
     }
 
     public void validateResetToken(String token) {

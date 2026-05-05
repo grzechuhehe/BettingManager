@@ -30,6 +30,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}
+      - ODDS_API_KEY=${ODDS_API_KEY}
       - APP_CORS_ALLOWED_ORIGINS=http://localhost:3000
     volumes:
       - ./sportsbetting.p12:/app/sportsbetting.p12

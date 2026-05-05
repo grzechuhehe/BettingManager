@@ -51,7 +51,6 @@ public class JwtUtils {
     }
 
     public boolean validateJwtToken(String authToken) {
-        logger.info("Validating token: {}", authToken);
         try {
             Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
