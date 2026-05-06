@@ -83,11 +83,16 @@ export const updateBet = (id, betData) => {
 
 
 export const deleteBet = (id) => {
-
   return apiClient.delete(`/bets/${id}`);
-
 };
 
+// --- Funkcje API dla kursów (Odds) ---
+export const getAvailableSports = () => {
+  return apiClient.get('/odds/sports');
+};
 
+export const getLiveOdds = (sportKey) => {
+  return apiClient.get(`/odds/markets/${sportKey}`);
+};
 
 export default apiClient;

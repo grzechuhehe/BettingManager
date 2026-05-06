@@ -7,6 +7,7 @@ import AddBetForm from './components/AddBetForm';
 import BetList from './components/BetList';
 import Home from './components/Home';
 import UserProfile from './components/UserProfile';
+import LiveMarkets from './components/LiveMarkets';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -36,6 +37,7 @@ const Navigation = () => {
           <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
           <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
           <Link to="/bets" className="text-blue-500 hover:text-blue-700">My Bets</Link>
+          <Link to="/live-odds" className="text-blue-500 hover:text-blue-700">Live Odds</Link>
           <Link to="/profile" className="text-blue-500 hover:text-blue-700">Profile</Link>
           <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
         </>
@@ -90,6 +92,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/live-odds"
+            element={
+              <ProtectedRoute>
+                <LiveMarkets />
               </ProtectedRoute>
             }
           />
