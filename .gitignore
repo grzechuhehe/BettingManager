@@ -57,3 +57,6 @@ sportsbetting.p12
 /.dockerignore
 .env
 /ROADMAP.md
+/.superpowers/
+.gemini/
+gha-creds-*.json

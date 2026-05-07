@@ -25,16 +25,17 @@ const BettingHeatmap = () => {
   // ... fetchHeatmapData (unchanged)
 
   const getColor = (profit) => {
-    if (!profit) return 'bg-gray-200'; // Pusty dzień
+    if (profit === undefined) return 'bg-hairline/50';
     if (profit > 0) {
-      if (profit > 100) return 'bg-green-500';
-      if (profit > 50) return 'bg-green-400';
-      return 'bg-green-300';
-    } else {
-      if (profit < -100) return 'bg-red-500';
-      if (profit < -50) return 'bg-red-400';
-      return 'bg-red-300';
+      if (profit > 100) return 'bg-emerald-400';
+      if (profit > 50) return 'bg-emerald-500';
+      return 'bg-emerald-600/40';
+    } else if (profit < 0) {
+      if (profit < -100) return 'bg-rose-400';
+      if (profit < -50) return 'bg-rose-500';
+      return 'bg-rose-600/40';
     }
+    return 'bg-hairline/50';
   };
 
   const renderHeatmap = () => {
@@ -51,15 +52,15 @@ const BettingHeatmap = () => {
           key={dateStr} 
           onMouseEnter={() => setHoveredDay({ date: dateStr, profit })}
           onMouseLeave={() => setHoveredDay(null)}
-          className={`w-4 h-4 rounded-sm ${getColor(profit)} cursor-pointer transition-all duration-200 hover:scale-125 relative`}
+          className={`w-3.5 h-3.5 rounded-[2px] ${getColor(profit)} cursor-crosshair transition-all duration-200 hover:scale-125 hover:z-10 relative`}
         >
           {hoveredDay?.date === dateStr && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-gray-900 text-white text-[10px] p-2 rounded shadow-xl z-50 pointer-events-none">
-              <div className="font-bold border-b border-gray-700 pb-1 mb-1">{dateStr}</div>
-              <div className={profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-gray-400'}>
-                {profit !== undefined ? `${profit >= 0 ? '+' : '-'}$${Math.abs(profit).toFixed(2)}` : 'No activity'}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-surface-elevated border border-hairline text-[10px] p-3 rounded-lg shadow-2xl z-50 pointer-events-none">
+              <div className="font-black border-b border-hairline pb-2 mb-2 uppercase tracking-widest text-muted">{dateStr}</div>
+              <div className={`text-xs font-bold ${profit > 0 ? 'text-emerald-400' : profit < 0 ? 'text-rose-400' : 'text-on-dark'}`}>
+                {profit !== undefined ? `${profit >= 0 ? 'PROFIT: +' : 'LOSS: -'}$${Math.abs(profit).toFixed(2)}` : 'IDLE SESSION'}
               </div>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-surface-elevated"></div>
             </div>
           )}
         </div>
@@ -68,18 +69,17 @@ const BettingHeatmap = () => {
     return days;
   };
 
-  if (loading) return <div className="text-gray-400">Loading Heatmap...</div>;
+  if (loading) return <div className="text-muted font-bold text-xs uppercase tracking-widest animate-pulse">Initializing Grid...</div>;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Activity Heatmap (Last 90 Days)</h3>
-      <div className="flex flex-wrap gap-1 max-w-full">
+    <div>
+      <div className="flex flex-wrap gap-1.5 max-w-full">
         {renderHeatmap()}
       </div>
-      <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded-sm"></div> Loss</div>
-        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-200 rounded-sm"></div> No Bet</div>
-        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-sm"></div> Profit</div>
+      <div className="mt-8 flex items-center gap-6 text-[10px] font-bold text-muted uppercase tracking-widest">
+        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-rose-500 rounded-[2px]"></div> Negative Yield</div>
+        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-hairline rounded-[2px]"></div> No Session</div>
+        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-[2px]"></div> Positive Yield</div>
       </div>
     </div>
   );

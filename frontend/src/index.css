@@ -1,13 +1,78 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --color-canvas: #0a0a0a;
+  --color-primary: #faff69;
+  --color-primary-active: #e6eb52;
+  --color-surface-soft: #121212;
+  --color-surface-card: #1a1a1a;
+  --color-surface-elevated: #242424;
+  --color-hairline: #2a2a2a;
+  --color-hairline-strong: #3a3a3a;
+  --color-on-dark: #ffffff;
+  --color-body: #cccccc;
+  --color-body-strong: #e6e6e6;
+  --color-muted: #888888;
+  --color-on-primary: #0a0a0a;
+  
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  
+  --spacing-section: 96px;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-canvas);
+  color: var(--color-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-on-dark);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ClickHouse specific negative letter spacing for display titles */
+.display-xl { @apply text-7xl font-bold tracking-[-2.5px] leading-[1.05]; }
+.display-lg { @apply text-5xl font-bold tracking-[-2px] leading-[1.1]; }
+.display-md { @apply text-4xl font-bold tracking-[-1.5px] leading-[1.15]; }
+.display-sm { @apply text-3xl font-bold tracking-[-1px] leading-[1.2]; }
+
+.stat-display { @apply text-5xl font-bold text-primary tracking-[-1.5px] leading-none font-mono; }
+
+.button-primary {
+  @apply bg-primary text-on-primary font-semibold px-5 py-2.5 rounded-md hover:bg-primary-active transition-colors h-11 flex items-center justify-center min-w-[44px];
+}
+
+.button-secondary {
+  @apply bg-surface-card text-on-dark font-semibold px-5 py-2.5 rounded-md hover:bg-surface-elevated transition-colors h-11 flex items-center justify-center border border-hairline min-w-[44px];
+}
+
+.surface-card {
+  @apply bg-surface-card border border-hairline rounded-lg p-10;
+}
+
+.input-field {
+  @apply bg-surface-card border border-hairline text-on-dark rounded-md px-4 py-2 w-full focus:outline-hidden focus:border-primary transition-colors h-11 font-mono text-sm;
+}
+
+.section-spacing {
+  margin-top: var(--spacing-section);
+  margin-bottom: var(--spacing-section);
+}
+
+.font-numeric {
+  @apply font-mono tracking-tight;
 }

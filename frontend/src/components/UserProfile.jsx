@@ -33,11 +33,11 @@ const UserProfile = () => {
         setMessage({ text: '', type: '' });
 
         if (passwords.newPassword !== passwords.confirmPassword) {
-            setMessage({ text: "New passwords do not match!", type: 'error' });
+            setMessage({ text: "Passwords mismatch in security confirmation.", type: 'error' });
             return;
         }
         if (passwords.newPassword.length < 6) {
-            setMessage({ text: "Password must be at least 6 characters.", type: 'error' });
+            setMessage({ text: "Security key must be at least 6 characters.", type: 'error' });
             return;
         }
 
@@ -46,10 +46,10 @@ const UserProfile = () => {
                 oldPassword: passwords.oldPassword, 
                 newPassword: passwords.newPassword 
             });
-            setMessage({ text: "Password changed successfully!", type: 'success' });
+            setMessage({ text: "Security key updated successfully.", type: 'success' });
             setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
         } catch (error) {
-            setMessage({ text: error.response?.data || "Failed to change password", type: 'error' });
+            setMessage({ text: error.response?.data || "Failed to update security key", type: 'error' });
         }
     };
 
@@ -60,50 +60,64 @@ const UserProfile = () => {
         });
     };
 
-    if (loading) return <div className="text-center mt-10 text-gray-500">Loading Profile...</div>;
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center py-40 gap-6">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-muted font-bold uppercase tracking-[0.2em] animate-pulse">Syncing User Data...</p>
+        </div>
+    );
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <h2 className="text-3xl font-bold text-gray-800 mb-8">User Profile</h2>
+        <div className="max-w-7xl mx-auto space-y-12">
+            <header className="pb-8 border-b border-hairline">
+                <h2 className="display-md">User Settings</h2>
+                <p className="text-body mt-2">Manage your institutional identity and security parameters.</p>
+            </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 {/* Left Column: User Info & Stats */}
-                <div className="md:col-span-1 space-y-6">
+                <div className="md:col-span-1 space-y-8">
                     {/* Profile Card */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
-                        <div className="w-24 h-24 bg-indigo-100 rounded-full mx-auto flex items-center justify-center text-indigo-600 text-3xl font-bold mb-4">
+                    <div className="bg-surface-card p-10 rounded-lg border border-hairline text-center shadow-sm">
+                        <div className="w-24 h-24 bg-primary text-canvas rounded-full mx-auto flex items-center justify-center text-4xl font-black mb-6">
                             {profile?.username?.charAt(0).toUpperCase()}
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900">{profile?.username}</h3>
-                        <p className="text-gray-500 text-sm mb-4">{profile?.email}</p>
+                        <h3 className="text-2xl font-bold text-on-dark mb-1">{profile?.username}</h3>
+                        <p className="text-muted text-sm mb-8">{profile?.email}</p>
                         
-                        <div className="border-t border-gray-100 pt-4 mt-4 text-left">
-                            <p className="text-xs text-gray-400 uppercase font-semibold">Joined</p>
-                            <p className="text-gray-700 font-medium">{formatDate(profile?.joinedAt)}</p>
-                        </div>
-                        <div className="mt-2 text-left">
-                            <p className="text-xs text-gray-400 uppercase font-semibold">Role</p>
-                            <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded mt-1">
-                                {profile?.roles?.join(', ') || 'User'}
-                            </span>
+                        <div className="border-t border-hairline pt-6 mt-6 text-left space-y-4">
+                            <div>
+                                <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Provisioned</p>
+                                <p className="text-body-strong font-bold text-sm font-numeric">{formatDate(profile?.joinedAt)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Authorization</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {profile?.roles?.map(role => (
+                                        <span key={role} className="inline-block bg-primary/10 text-primary border border-primary/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                            {role}
+                                        </span>
+                                    )) || <span className="bg-hairline text-muted text-[10px] px-2 py-0.5 rounded">User</span>}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Mini Stats Summary */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h4 className="text-sm font-bold text-gray-500 uppercase mb-4">Quick Stats</h4>
-                        <div className="space-y-3">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Total Bets</span>
-                                <span className="font-bold text-gray-900">{stats?.totalBets || 0}</span>
+                    <div className="bg-surface-card p-10 rounded-lg border border-hairline">
+                        <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-8">Performance Snapshot</h4>
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-end border-b border-hairline pb-4">
+                                <span className="text-xs font-bold text-muted uppercase tracking-widest">Total Positions</span>
+                                <span className="text-xl font-bold text-on-dark leading-none font-numeric">{stats?.totalBets || 0}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Win Rate</span>
-                                <span className="font-bold text-blue-600">{stats?.winRate?.toFixed(1) || 0}%</span>
+                            <div className="flex justify-between items-end border-b border-hairline pb-4">
+                                <span className="text-xs font-bold text-muted uppercase tracking-widest">Success Rate</span>
+                                <span className="text-xl font-bold text-primary leading-none font-numeric">{stats?.winRate?.toFixed(1) || 0}%</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Profit</span>
-                                <span className={`font-bold ${stats?.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <div className="flex justify-between items-end">
+                                <span className="text-xs font-bold text-muted uppercase tracking-widest">Net Yield</span>
+                                <span className={`text-xl font-bold leading-none font-numeric ${stats?.totalProfitLoss >= 0 ? 'text-primary' : 'text-rose-500'}`}>
                                     ${stats?.totalProfitLoss?.toFixed(2) || '0.00'}
                                 </span>
                             </div>
@@ -113,54 +127,57 @@ const UserProfile = () => {
 
                 {/* Right Column: Change Password (Collapsible) */}
                 <div className="md:col-span-2">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-surface-card rounded-lg border border-hairline overflow-hidden">
                         <button 
                             onClick={() => setIsPasswordExpanded(!isPasswordExpanded)}
-                            className="w-full flex justify-between items-center p-6 bg-white hover:bg-gray-50 transition-colors text-left"
+                            className="w-full flex justify-between items-center p-8 bg-surface-card hover:bg-surface-soft transition-colors text-left"
                         >
-                            <div className="flex items-center gap-3">
-                                <span className="text-xl bg-gray-100 p-2 rounded-full">🔒</span>
+                            <div className="flex items-center gap-6">
+                                <span className="text-2xl w-12 h-12 bg-surface-elevated flex items-center justify-center rounded-lg border border-hairline">🔒</span>
                                 <div>
-                                    <h3 className="text-xl font-bold text-gray-800">Change Password</h3>
-                                    <p className="text-sm text-gray-500">Update your security credentials</p>
+                                    <h3 className="text-xl font-bold text-on-dark">Security Protocol</h3>
+                                    <p className="text-sm text-muted mt-1 font-medium">Rotate access keys and update security credentials.</p>
                                 </div>
                             </div>
-                            <span className={`transform transition-transform duration-300 text-gray-400 ${isPasswordExpanded ? 'rotate-180' : ''}`}>
-                                ▼
+                            <span className={`transform transition-transform duration-300 text-primary font-bold ${isPasswordExpanded ? 'rotate-180' : ''}`}>
+                                ↓
                             </span>
                         </button>
                         
                         {isPasswordExpanded && (
-                            <div className="p-8 border-t border-gray-100">
-                                <form onSubmit={handlePasswordChange} className="space-y-5">
+                            <div className="p-10 border-t border-hairline bg-surface-soft/30">
+                                <form onSubmit={handlePasswordChange} className="space-y-8 max-w-2xl">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Current Access Key</label>
                                         <input
                                             type="password"
                                             required
-                                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                            placeholder="••••••••"
+                                            className="input-field"
                                             value={passwords.oldPassword}
                                             onChange={(e) => setPasswords({...passwords, oldPassword: e.target.value})}
                                         />
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">New Security Key</label>
                                             <input
                                                 type="password"
                                                 required
-                                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                                placeholder="••••••••"
+                                                className="input-field"
                                                 value={passwords.newPassword}
                                                 onChange={(e) => setPasswords({...passwords, newPassword: e.target.value})}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Confirm New Key</label>
                                             <input
                                                 type="password"
                                                 required
-                                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                                placeholder="••••••••"
+                                                className="input-field"
                                                 value={passwords.confirmPassword}
                                                 onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})}
                                             />
@@ -168,17 +185,17 @@ const UserProfile = () => {
                                     </div>
 
                                     {message.text && (
-                                        <div className={`p-3 rounded text-sm ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                        <div className={`p-4 rounded-lg border text-[10px] font-bold uppercase tracking-widest ${message.type === 'error' ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
                                             {message.text}
                                         </div>
                                     )}
 
-                                    <div className="flex justify-end pt-2">
+                                    <div className="flex justify-start pt-4">
                                         <button
                                             type="submit"
-                                            className="px-6 py-2 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition-colors shadow-sm"
+                                            className="button-primary !h-12 !px-10 text-sm uppercase tracking-widest font-black"
                                         >
-                                            Update Password
+                                            Update Security Credentials
                                         </button>
                                     </div>
                                 </form>

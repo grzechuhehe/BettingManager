@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { getAdvancedStats } from '../api';
 
-const StatCard = ({ title, value, subtext, color = "text-gray-900" }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center text-center">
-    <h4 className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">{title}</h4>
-    <div className={`text-3xl font-bold ${color}`}>{value}</div>
-    {subtext && <p className="text-xs text-gray-400 mt-2">{subtext}</p>}
+const StatCard = ({ title, value, subtext, color = "text-primary" }) => (
+  <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col items-center text-center transition-all duration-300">
+    <h4 className="text-muted text-[10px] font-black uppercase tracking-[0.2em] mb-4">{title}</h4>
+    <div className={`stat-display ${color}`}>{value}</div>
+    {subtext && <p className="text-[10px] font-bold text-muted mt-3 uppercase tracking-widest">{subtext}</p>}
   </div>
 );
 
@@ -27,17 +27,22 @@ const AdvancedStats = () => {
     fetchStats();
   }, []);
 
-  if (loading) return <div className="text-center py-4 text-gray-400">Loading Stats...</div>;
+  if (loading) return (
+      <div className="flex flex-col items-center justify-center py-10 gap-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Aggregating Risk Metrics...</p>
+      </div>
+  );
   if (!stats) return null;
 
   const getRoiColor = (roi) => {
-    if (roi > 0) return "text-green-600";
-    if (roi < 0) return "text-red-600";
-    return "text-gray-600";
+    if (roi > 0) return "text-primary";
+    if (roi < 0) return "text-rose-500";
+    return "text-muted";
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
       <StatCard 
         title="ROI" 
         value={`${stats.roiPercentage ? stats.roiPercentage.toFixed(2) : '0.00'}%`}
@@ -50,21 +55,21 @@ const AdvancedStats = () => {
         subtext="Risk-adjusted return"
       />
       <StatCard 
-        title="Win Rate (Single)" 
+        title="Efficiency" 
         value={`${stats.winRatesByType?.SINGLE ? stats.winRatesByType.SINGLE.toFixed(1) : '0.0'}%`}
-        color="text-blue-600"
+        subtext="Win Rate (Single)"
       />
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 flex flex-col items-center text-center justify-center">
-        <h4 className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">Streak Analysis</h4>
-        <div className="text-base font-bold text-yellow-600 flex flex-col gap-1">
+      <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col items-center text-center justify-center">
+        <h4 className="text-muted text-[10px] font-black uppercase tracking-[0.2em] mb-4">Streak Analysis</h4>
+        <div className="font-mono text-xs font-bold text-primary flex flex-col gap-1.5 uppercase tracking-wider">
           {stats.currentStreak ? (
             stats.currentStreak.split('|').map((part, index) => (
-              <span key={index} className="whitespace-nowrap">
+              <span key={index} className="whitespace-nowrap bg-surface-elevated px-2 py-0.5 rounded border border-hairline">
                 {part.trim()}
               </span>
             ))
           ) : (
-            "None"
+            <span className="text-muted">No Data</span>
           )}
         </div>
       </div>

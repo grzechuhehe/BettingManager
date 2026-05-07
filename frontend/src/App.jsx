@@ -31,15 +31,15 @@ const Navigation = () => {
   const { isAuthenticated, logout } = useAuth();
 
   return (
-    <nav className="space-x-4">
+    <nav className="flex items-center space-x-6">
       {isAuthenticated && (
         <>
-          <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">Dashboard</Link>
-          <Link to="/add-bet" className="text-blue-500 hover:text-blue-700">Add Bet</Link>
-          <Link to="/bets" className="text-blue-500 hover:text-blue-700">My Bets</Link>
-          <Link to="/live-odds" className="text-blue-500 hover:text-blue-700">Live Odds</Link>
-          <Link to="/profile" className="text-blue-500 hover:text-blue-700">Profile</Link>
-          <button onClick={logout} className="text-blue-500 hover:text-blue-700">Logout</button>
+          <Link to="/dashboard" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Dashboard</Link>
+          <Link to="/add-bet" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Add Bet</Link>
+          <Link to="/bets" className="text-sm text-body hover:text-on-dark font-medium transition-colors">My Bets</Link>
+          <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Live Odds</Link>
+          <Link to="/profile" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Profile</Link>
+          <button onClick={logout} className="button-primary text-sm">Logout</button>
         </>
       )}
     </nav>
@@ -51,14 +51,17 @@ const AppLayout = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen w-full bg-gray-100 flex flex-col items-center p-4">
-      <header className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6 mb-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-800">Sports Betting Manager</h1>
+    <div className="min-h-screen w-full bg-canvas flex flex-col items-center">
+      <header className="w-full h-16 border-b border-hairline bg-canvas/80 backdrop-blur-md flex justify-center sticky top-0 z-50">
+        <div className="w-full max-w-7xl px-6 flex justify-between items-center">
+          <Link to="/" className="text-xl font-bold tracking-tight text-on-dark flex items-center">
+             <span className="text-primary mr-2">●</span> SportsBettingManager
+          </Link>
           <Navigation />
         </div>
       </header>
-      <main className="w-full max-w-4xl">
+      <main className="w-full max-w-7xl px-6 py-24">
+
         <Routes>
           <Route path="/" element={!isAuthenticated ? <Home /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={<Register />} />
