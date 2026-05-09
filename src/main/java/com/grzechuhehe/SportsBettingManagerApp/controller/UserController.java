@@ -14,6 +14,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
@@ -42,17 +44,17 @@ public class UserController {
     @ApiResponse(responseCode = "400", description = "Incorrect old password or invalid new password")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<Map<String, String>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         User user = getCurrentUser();
 
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body("Incorrect old password");
+            return ResponseEntity.badRequest().body(Map.of("error", "Incorrect old password"));
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
-        return ResponseEntity.ok("Password changed successfully");
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
     private User getCurrentUser() {
