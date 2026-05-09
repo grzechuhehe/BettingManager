@@ -16,6 +16,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,12 +27,14 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/bets")
 @RequiredArgsConstructor
+@Tag(name = "Bet Management", description = "Endpoints for managing user bets, including single and parlay bets")
 public class BetController {
     private final BettingService bettingService;
     private final UserRepository userRepository;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
 
     @PostMapping("/add-bet")
+    @Operation(summary = "Create a new bet", description = "Adds a new single bet or a parlay (if multiple selections are provided) to the user's portfolio")
     public ResponseEntity<?> createBet(@Valid @RequestBody CreateBetRequest createBetRequest, BindingResult result) {
         logger.info("Otrzymano żądanie utworzenia zakładu: {}", createBetRequest);
 
@@ -61,6 +65,7 @@ public class BetController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all bets", description = "Retrieves all bets placed by the currently authenticated user")
     public ResponseEntity<List<BetResponse>> getAllBetsForCurrentUser() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -143,6 +148,7 @@ public class BetController {
 
 
     @PatchMapping("/{id}/settle")
+    @Operation(summary = "Settle a bet", description = "Updates the status of a bet (e.g., WON, LOST, VOID) and calculates final profit")
     public ResponseEntity<?> settleBet(@PathVariable Long id, @Valid @RequestBody SettleBetRequest request) {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -177,6 +183,7 @@ public class BetController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a bet", description = "Removes a bet from the system")
     public ResponseEntity<?> deleteBet(@PathVariable Long id) {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -227,4 +234,3 @@ public class BetController {
         return dto;
     }
 }
-
