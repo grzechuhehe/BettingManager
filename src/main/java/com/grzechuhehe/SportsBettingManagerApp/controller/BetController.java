@@ -1,5 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.BasicStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
@@ -60,7 +61,7 @@ public class BetController {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             logger.error("Błąd podczas zapisywania zakładu: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Błąd podczas zapisywania zakładu: " + e.getMessage());
+            return ResponseEntity.status(500).build();
         }
     }
 
@@ -81,12 +82,13 @@ public class BetController {
             return ResponseEntity.ok(betResponses);
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania zakładów dla bieżącego użytkownika: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(java.util.Collections.emptyList());
+            return ResponseEntity.status(500).build();
         }
     }
 
 
     @GetMapping("/dashboard-stats")
+    @Operation(summary = "Get dashboard statistics", description = "Retrieves comprehensive statistics for the user's dashboard, including profit/loss, ROI, yield, and equity curve")
     public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -100,24 +102,39 @@ public class BetController {
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getStats() {
+    @Operation(summary = "Get basic statistics", description = "Retrieves basic betting statistics including total bets, won bets, total stake, profit/loss, ROI, and recent bets")
+    public ResponseEntity<BasicStatsDTO> getStats() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
             User currentUser = userRepository.findByUsername(username)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            return ResponseEntity.ok(bettingService.getStatistics(currentUser));
+            
+            Map<String, Object> rawStats = bettingService.getStatistics(currentUser);
+            
+            @SuppressWarnings("unchecked")
+            List<Bet> recentBetsRaw = (List<Bet>) rawStats.get("recentBets");
+            List<BetResponse> recentBets = recentBetsRaw.stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+            
+            BasicStatsDTO statsDTO = new BasicStatsDTO(
+                (Integer) rawStats.get("totalBets"),
+                (Long) rawStats.get("wonBets"),
+                (BigDecimal) rawStats.get("totalStake"),
+                (BigDecimal) rawStats.get("profitLoss"),
+                (BigDecimal) rawStats.get("roi"),
+                recentBets
+            );
+            
+            return ResponseEntity.ok(statsDTO);
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania statystyk: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of(
-                "totalStake", BigDecimal.ZERO,
-                "profitLoss", BigDecimal.ZERO,
-                "roi", BigDecimal.ZERO,
-                "recentBets", java.util.Collections.emptyList()
-            ));
+            return ResponseEntity.status(500).build();
         }
     }
 
     @GetMapping("/advanced-stats")
+    @Operation(summary = "Get advanced statistics", description = "Retrieves advanced betting statistics including win rates by type, rolling average, streaks, and Sharpe ratio")
     public ResponseEntity<BetStatistics> getAdvancedStats() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -126,13 +143,12 @@ public class BetController {
             return ResponseEntity.ok(bettingService.getAdvancedStatistics(currentUser));
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania zaawansowanych statystyk: {}", e.getMessage(), e);
-            // Zwróć pusty obiekt statystyk
-            BetStatistics emptyStats = new BetStatistics();
-            return ResponseEntity.status(500).body(emptyStats);
+            return ResponseEntity.status(500).build();
         }
     }
 
     @GetMapping("/heatmap")
+    @Operation(summary = "Get heatmap data", description = "Retrieves daily profit/loss data for generating a betting heatmap")
     public ResponseEntity<Map<String, BigDecimal>> getHeatmapData() {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -141,8 +157,7 @@ public class BetController {
             return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania danych heatmap: {}", e.getMessage(), e);
-            // Zwróć pustą mapę
-            return ResponseEntity.status(500).body(java.util.Collections.emptyMap());
+            return ResponseEntity.status(500).build();
         }
     }
 
@@ -161,11 +176,12 @@ public class BetController {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             logger.error("Error settling bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Error settling bet: " + e.getMessage());
+            return ResponseEntity.status(500).build();
         }
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update a bet", description = "Updates the details of an existing bet")
     public ResponseEntity<?> updateBet(@PathVariable Long id, @Valid @RequestBody BetRequest betRequest) {
         try {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -178,7 +194,7 @@ public class BetController {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             logger.error("Error updating bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Error updating bet: " + e.getMessage());
+            return ResponseEntity.status(500).build();
         }
     }
 
@@ -196,7 +212,7 @@ public class BetController {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             logger.error("Error deleting bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Error deleting bet: " + e.getMessage());
+            return ResponseEntity.status(500).build();
         }
     }
 
