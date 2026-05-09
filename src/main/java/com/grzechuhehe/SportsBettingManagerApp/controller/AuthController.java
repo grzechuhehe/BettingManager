@@ -6,6 +6,9 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.SignupRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.service.AuthService;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,12 +24,16 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Endpoints for user session management and registration")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final AuthService authService;
     private final JwtUtils jwtUtils;
 
+    @Operation(summary = "Authenticate User", description = "Returns a JWT token for valid credentials")
+    @ApiResponse(responseCode = "200", description = "Authentication successful")
+    @ApiResponse(responseCode = "401", description = "Invalid credentials")
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
@@ -42,6 +49,9 @@ public class AuthController {
                 userDetails.getUsername()));
     }
 
+    @Operation(summary = "Register User", description = "Creates a new user account")
+    @ApiResponse(responseCode = "200", description = "User registered successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid input or user already exists")
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         try {

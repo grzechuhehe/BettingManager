@@ -4,6 +4,9 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.ChangePasswordRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.UserProfileDTO;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,11 +17,15 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
+@Tag(name = "User Profile", description = "Operations related to user account and settings")
 public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Operation(summary = "Get User Profile", description = "Returns the profile information of the currently authenticated user")
+    @ApiResponse(responseCode = "200", description = "Profile retrieved successfully")
+    @ApiResponse(responseCode = "401", description = "Unauthorized")
     @GetMapping("/profile")
     public ResponseEntity<UserProfileDTO> getProfile() {
         User user = getCurrentUser();
@@ -30,6 +37,10 @@ public class UserController {
         ));
     }
 
+    @Operation(summary = "Change Password", description = "Updates the password for the currently authenticated user")
+    @ApiResponse(responseCode = "200", description = "Password changed successfully")
+    @ApiResponse(responseCode = "400", description = "Incorrect old password or invalid new password")
+    @ApiResponse(responseCode = "401", description = "Unauthorized")
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         User user = getCurrentUser();
