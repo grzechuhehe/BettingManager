@@ -36,33 +36,20 @@ public class BetController {
 
     @PostMapping("/add-bet")
     @Operation(summary = "Create a new bet", description = "Adds a new single bet or a parlay (if multiple selections are provided) to the user's portfolio")
-    public ResponseEntity<?> createBet(@Valid @RequestBody CreateBetRequest createBetRequest, BindingResult result) {
+    public ResponseEntity<List<BetResponse>> createBet(@Valid @RequestBody CreateBetRequest createBetRequest) {
         logger.info("Otrzymano żądanie utworzenia zakładu: {}", createBetRequest);
 
-        if (result.hasErrors()) {
-            logger.error("Błędy walidacji: {}", result.getFieldErrors());
-            return ResponseEntity.badRequest().body(result.getFieldErrors());
-        }
+        // Pobierz aktualnie uwierzytelnionego użytkownika
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        logger.info("Zapisuję zakład dla użytkownika: {}", username);
 
-        try {
-            // Pobierz aktualnie uwierzytelnionego użytkownika
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            logger.info("Zapisuję zakład dla użytkownika: {}", username);
+        List<Bet> placedBets = bettingService.placeBet(createBetRequest, username);
+        List<BetResponse> betResponses = placedBets.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
 
-            List<Bet> placedBets = bettingService.placeBet(createBetRequest, username);
-            List<BetResponse> betResponses = placedBets.stream()
-                    .map(this::convertToDto)
-                    .collect(Collectors.toList());
-
-            logger.info("Zakład(y) zapisane pomyślnie. Liczba zakładów: {}", placedBets.size());
-            return ResponseEntity.ok(betResponses);
-        } catch (IllegalArgumentException e) {
-            logger.error("Błąd walidacji lub brak użytkownika: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Błąd podczas zapisywania zakładu: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        logger.info("Zakład(y) zapisane pomyślnie. Liczba zakładów: {}", placedBets.size());
+        return ResponseEntity.ok(betResponses);
     }
 
     @GetMapping
@@ -164,56 +151,35 @@ public class BetController {
 
     @PatchMapping("/{id}/settle")
     @Operation(summary = "Settle a bet", description = "Updates the status of a bet (e.g., WON, LOST, VOID) and calculates final profit")
-    public ResponseEntity<?> settleBet(@PathVariable Long id, @Valid @RequestBody SettleBetRequest request) {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public ResponseEntity<BetResponse> settleBet(@PathVariable Long id, @Valid @RequestBody SettleBetRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            Bet settledBet = bettingService.settleBet(id, request.status(), currentUser);
-            return ResponseEntity.ok(convertToDto(settledBet));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error settling bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        Bet settledBet = bettingService.settleBet(id, request.status(), currentUser);
+        return ResponseEntity.ok(convertToDto(settledBet));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a bet", description = "Updates the details of an existing bet")
-    public ResponseEntity<?> updateBet(@PathVariable Long id, @Valid @RequestBody BetRequest betRequest) {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public ResponseEntity<BetResponse> updateBet(@PathVariable Long id, @Valid @RequestBody BetRequest betRequest) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            Bet updatedBet = bettingService.updateBet(id, betRequest, currentUser);
-            return ResponseEntity.ok(convertToDto(updatedBet));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error updating bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        Bet updatedBet = bettingService.updateBet(id, betRequest, currentUser);
+        return ResponseEntity.ok(convertToDto(updatedBet));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a bet", description = "Removes a bet from the system")
-    public ResponseEntity<?> deleteBet(@PathVariable Long id) {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public ResponseEntity<Void> deleteBet(@PathVariable Long id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            bettingService.deleteBet(id, currentUser);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error deleting bet: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        bettingService.deleteBet(id, currentUser);
+        return ResponseEntity.ok().build();
     }
 
     // Metoda pomocnicza do konwersji Bet na BetResponse
