@@ -3,9 +3,11 @@ package com.grzechuhehe.SportsBettingManagerApp.dto;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -17,11 +19,13 @@ public class BetRequest {
 
     @NotNull(message = "Stake cannot be null")
     @Positive(message = "Stake must be positive")
+    @DecimalMax(value = "1000000.00", message = "Stake exceeds maximum allowed amount ($1,000,000)")
     @Schema(description = "The amount of money wagered", example = "10.00")
     private BigDecimal stake;
 
     @NotNull(message = "Odds cannot be null")
     @DecimalMin(value = "1.01", message = "Odds must be greater than 1.00")
+    @DecimalMax(value = "10000.00", message = "Odds exceed realistic bounds (max 10000.00)")
     @Schema(description = "The odds for the selection", example = "1.95")
     private BigDecimal odds;
 
@@ -33,6 +37,7 @@ public class BetRequest {
     private String sport;
 
     @NotNull(message = "Event name cannot be null")
+    @Size(max = 255, message = "Event name is too long")
     @Schema(description = "The name of the event", example = "Real Madrid vs Barcelona")
     private String eventName;
 
