@@ -190,6 +190,48 @@ class BettingServiceTest {
         verify(betRepository, times(1)).delete(bet);
     }
 
+    @Test
+    void placeBet_ShouldThrowException_WhenParlayContainsDuplicateEvents() {
+        CreateBetRequest request = new CreateBetRequest();
+        BetRequest leg1 = new BetRequest();
+        leg1.setEventName("Real Madrid vs Barcelona");
+        leg1.setSelection("Real Madrid");
+        leg1.setStake(BigDecimal.TEN);
+        leg1.setOdds(BigDecimal.valueOf(1.5));
+
+        BetRequest leg2 = new BetRequest();
+        leg2.setEventName("Real Madrid vs Barcelona"); // Duplicate event!
+        leg2.setSelection("Barcelona");
+        leg2.setStake(BigDecimal.TEN);
+        leg2.setOdds(BigDecimal.valueOf(2.5));
+
+        request.setBets(java.util.Arrays.asList(leg1, leg2));
+
+        when(userRepository.findByUsername(anyString())).thenReturn(java.util.Optional.of(testUser));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> bettingService.placeBet(request, "testuser"));
+
+        assertThat(ex.getMessage()).contains("Duplicate events");
+    }
+
+    @Test
+    void settleBet_ShouldThrowException_WhenBetAlreadySettled() {
+        // Given
+        Bet bet = new Bet();
+        bet.setId(40L);
+        bet.setUser(testUser);
+        bet.setStatus(BetStatus.WON); // Already settled
+
+        when(betRepository.findById(40L)).thenReturn(Optional.of(bet));
+
+        // When & Then
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> bettingService.settleBet(40L, BetStatus.LOST, testUser));
+
+        assertThat(ex.getMessage()).contains("Cannot settle a bet that is already");
+    }
+
 
     @Test
     void getHeatmapData_ShouldGroupProfitsByDate() {

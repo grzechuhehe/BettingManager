@@ -156,6 +156,21 @@ public class BettingService {
             if (parlayStake.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("Stake must be positive for a parlay bet.");
             }
+
+            long nonNullEventsCount = betRequests.stream()
+                    .map(BetRequest::getEventName)
+                    .filter(Objects::nonNull)
+                    .count();
+
+            long uniqueEventsCount = betRequests.stream()
+                    .map(BetRequest::getEventName)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .count();
+
+            if (uniqueEventsCount < nonNullEventsCount) {
+                throw new IllegalArgumentException("Duplicate events are not allowed in a parlay bet.");
+            }
             
             Bet parlayBet = Bet.builder()
                     .betType(BetType.PARLAY)
@@ -435,7 +450,7 @@ public class BettingService {
         }
 
         if (bet.getStatus() != BetStatus.PENDING) {
-            throw new IllegalArgumentException("Bet is already settled.");
+            throw new IllegalArgumentException("Cannot settle a bet that is already " + bet.getStatus());
         }
 
         bet.setStatus(newStatus);
