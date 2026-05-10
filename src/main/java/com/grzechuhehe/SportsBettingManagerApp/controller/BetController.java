@@ -55,97 +55,72 @@ public class BetController {
     @GetMapping
     @Operation(summary = "Get all bets", description = "Retrieves all bets placed by the currently authenticated user")
     public ResponseEntity<List<BetResponse>> getAllBetsForCurrentUser() {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-            List<Bet> bets = bettingService.getUserBets(currentUser);
-            List<BetResponse> betResponses = bets.stream()
-                    .map(this::convertToDto)
-                    .collect(Collectors.toList());
+        List<Bet> bets = bettingService.getUserBets(currentUser);
+        List<BetResponse> betResponses = bets.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
 
-            logger.info("Pobrano {} zakładów dla użytkownika: {}", betResponses.size(), username);
-            return ResponseEntity.ok(betResponses);
-        } catch (Exception e) {
-            logger.error("Błąd podczas pobierania zakładów dla bieżącego użytkownika: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        logger.info("Pobrano {} zakładów dla użytkownika: {}", betResponses.size(), username);
+        return ResponseEntity.ok(betResponses);
     }
 
 
     @GetMapping("/dashboard-stats")
     @Operation(summary = "Get dashboard statistics", description = "Retrieves comprehensive statistics for the user's dashboard, including profit/loss, ROI, yield, and equity curve")
     public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            return ResponseEntity.ok(bettingService.getDashboardStats(currentUser));
-        } catch (Exception e) {
-            logger.error("Błąd podczas pobierania statystyk dashboardu: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return ResponseEntity.ok(bettingService.getDashboardStats(currentUser));
     }
 
     @GetMapping("/stats")
     @Operation(summary = "Get basic statistics", description = "Retrieves basic betting statistics including total bets, won bets, total stake, profit/loss, ROI, and recent bets")
     public ResponseEntity<BasicStatsDTO> getStats() {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            
-            Map<String, Object> rawStats = bettingService.getStatistics(currentUser);
-            
-            @SuppressWarnings("unchecked")
-            List<Bet> recentBetsRaw = (List<Bet>) rawStats.get("recentBets");
-            List<BetResponse> recentBets = recentBetsRaw.stream()
-                    .map(this::convertToDto)
-                    .collect(Collectors.toList());
-            
-            BasicStatsDTO statsDTO = new BasicStatsDTO(
-                (Integer) rawStats.get("totalBets"),
-                (Long) rawStats.get("wonBets"),
-                (BigDecimal) rawStats.get("totalStake"),
-                (BigDecimal) rawStats.get("profitLoss"),
-                (BigDecimal) rawStats.get("roi"),
-                recentBets
-            );
-            
-            return ResponseEntity.ok(statsDTO);
-        } catch (Exception e) {
-            logger.error("Błąd podczas pobierania statystyk: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        Map<String, Object> rawStats = bettingService.getStatistics(currentUser);
+        
+        @SuppressWarnings("unchecked")
+        List<Bet> recentBetsRaw = (List<Bet>) rawStats.get("recentBets");
+        List<BetResponse> recentBets = recentBetsRaw.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+        
+        BasicStatsDTO statsDTO = new BasicStatsDTO(
+            (Integer) rawStats.get("totalBets"),
+            (Long) rawStats.get("wonBets"),
+            (BigDecimal) rawStats.get("totalStake"),
+            (BigDecimal) rawStats.get("profitLoss"),
+            (BigDecimal) rawStats.get("roi"),
+            recentBets
+        );
+        
+        return ResponseEntity.ok(statsDTO);
     }
 
     @GetMapping("/advanced-stats")
     @Operation(summary = "Get advanced statistics", description = "Retrieves advanced betting statistics including win rates by type, rolling average, streaks, and Sharpe ratio")
     public ResponseEntity<BetStatistics> getAdvancedStats() {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            return ResponseEntity.ok(bettingService.getAdvancedStatistics(currentUser));
-        } catch (Exception e) {
-            logger.error("Błąd podczas pobierania zaawansowanych statystyk: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return ResponseEntity.ok(bettingService.getAdvancedStatistics(currentUser));
     }
 
     @GetMapping("/heatmap")
     @Operation(summary = "Get heatmap data", description = "Retrieves daily profit/loss data for generating a betting heatmap")
     public ResponseEntity<Map<String, BigDecimal>> getHeatmapData() {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User currentUser = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
-        } catch (Exception e) {
-            logger.error("Błąd podczas pobierania danych heatmap: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
     }
 
 
