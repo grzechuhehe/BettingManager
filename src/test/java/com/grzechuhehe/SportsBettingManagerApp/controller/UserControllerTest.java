@@ -96,7 +96,7 @@ class UserControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("Password changed successfully"));
+                .andExpect(jsonPath("$.message").value("Password changed successfully"));
     }
 
     @Test
@@ -113,6 +113,6 @@ class UserControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$").value("Incorrect old password"));
+                .andExpect(jsonPath("$.error").value("Incorrect old password"));
     }
 }
