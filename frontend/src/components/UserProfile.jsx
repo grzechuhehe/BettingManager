@@ -5,7 +5,7 @@ const UserProfile = () => {
     const [profile, setProfile] = useState(null);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [passwords, setPasswords] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
     const [message, setMessage] = useState({ text: '', type: '' });
     const [isPasswordExpanded, setIsPasswordExpanded] = useState(false);
 
@@ -37,19 +37,18 @@ const UserProfile = () => {
             return;
         }
         if (passwords.newPassword.length < 6) {
-            setMessage({ text: "Security key must be at least 6 characters.", type: 'error' });
+            setMessage({ text: "New password must be at least 6 characters.", type: 'error' });
             return;
         }
 
         try {
             await changePassword({ 
-                oldPassword: passwords.oldPassword, 
                 newPassword: passwords.newPassword 
             });
-            setMessage({ text: "Security key updated successfully.", type: 'success' });
-            setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
+            setMessage({ text: "Password updated successfully.", type: 'success' });
+            setPasswords({ newPassword: '', confirmPassword: '' });
         } catch (error) {
-            setMessage({ text: error.response?.data || "Failed to update security key", type: 'error' });
+            setMessage({ text: error.response?.data?.message || "Failed to update password", type: 'error' });
         }
     };
 
@@ -71,7 +70,7 @@ const UserProfile = () => {
         <div className="max-w-7xl mx-auto space-y-12">
             <header className="pb-8 border-b border-hairline">
                 <h2 className="display-md">User Settings</h2>
-                <p className="text-body mt-2">Manage your institutional identity and security parameters.</p>
+                <p className="text-body mt-2">Manage your identity and security parameters.</p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -132,11 +131,11 @@ const UserProfile = () => {
                             onClick={() => setIsPasswordExpanded(!isPasswordExpanded)}
                             className="w-full flex justify-between items-center p-8 bg-surface-card hover:bg-surface-soft transition-colors text-left"
                         >
-                            <div className="flex items-center gap-6">
+                             <div className="flex items-center gap-6">
                                 <span className="text-2xl w-12 h-12 bg-surface-elevated flex items-center justify-center rounded-lg border border-hairline">🔒</span>
                                 <div>
-                                    <h3 className="text-xl font-bold text-on-dark">Security Protocol</h3>
-                                    <p className="text-sm text-muted mt-1 font-medium">Rotate access keys and update security credentials.</p>
+                                    <h3 className="text-xl font-bold text-on-dark">Change Password</h3>
+                                    <p className="text-sm text-muted mt-1 font-medium">Update your account password.</p>
                                 </div>
                             </div>
                             <span className={`transform transition-transform duration-300 text-primary font-bold ${isPasswordExpanded ? 'rotate-180' : ''}`}>
@@ -147,21 +146,9 @@ const UserProfile = () => {
                         {isPasswordExpanded && (
                             <div className="p-10 border-t border-hairline bg-surface-soft/30">
                                 <form onSubmit={handlePasswordChange} className="space-y-8 max-w-2xl">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Current Access Key</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            placeholder="••••••••"
-                                            className="input-field"
-                                            value={passwords.oldPassword}
-                                            onChange={(e) => setPasswords({...passwords, oldPassword: e.target.value})}
-                                        />
-                                    </div>
-                                    
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div>
-                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">New Security Key</label>
+                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">New Password</label>
                                             <input
                                                 type="password"
                                                 required
@@ -172,7 +159,7 @@ const UserProfile = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Confirm New Key</label>
+                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Confirm New Password</label>
                                             <input
                                                 type="password"
                                                 required
@@ -195,7 +182,7 @@ const UserProfile = () => {
                                             type="submit"
                                             className="button-primary !h-12 !px-10 text-sm uppercase tracking-widest font-black"
                                         >
-                                            Update Security Credentials
+                                            Update Password
                                         </button>
                                     </div>
                                 </form>

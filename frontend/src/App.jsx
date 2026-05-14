@@ -37,7 +37,7 @@ const Navigation = () => {
           <Link to="/dashboard" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Dashboard</Link>
           <Link to="/add-bet" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Add Bet</Link>
           <Link to="/bets" className="text-sm text-body hover:text-on-dark font-medium transition-colors">My Bets</Link>
-          <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Live Odds</Link>
+          <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Open Odds</Link>
           <Link to="/profile" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Profile</Link>
           <button onClick={logout} className="button-primary text-sm">Logout</button>
         </>

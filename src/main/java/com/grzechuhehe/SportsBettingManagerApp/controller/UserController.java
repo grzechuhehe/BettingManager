@@ -41,15 +41,11 @@ public class UserController {
 
     @Operation(summary = "Change Password", description = "Updates the password for the currently authenticated user")
     @ApiResponse(responseCode = "200", description = "Password changed successfully")
-    @ApiResponse(responseCode = "400", description = "Incorrect old password or invalid new password")
+    @ApiResponse(responseCode = "400", description = "Invalid new password")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @PostMapping("/change-password")
     public ResponseEntity<Map<String, String>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         User user = getCurrentUser();
-
-        if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Incorrect old password"));
-        }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);

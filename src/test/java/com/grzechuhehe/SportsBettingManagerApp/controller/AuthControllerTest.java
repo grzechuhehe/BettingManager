@@ -7,6 +7,7 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.LoginRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.SignupRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.service.AuthService;
+import com.grzechuhehe.SportsBettingManagerApp.service.PasswordResetService;
 import com.grzechuhehe.SportsBettingManagerApp.service.UserDetailsServiceImpl;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,9 @@ class AuthControllerTest {
 
     @MockBean
     private AuthEntryPointJwt authEntryPointJwt;
+
+    @MockBean
+    private PasswordResetService passwordResetService;
 
     @Test
     void authenticateUser_ShouldReturnJwt_WhenCredentialsAreValid() throws Exception {

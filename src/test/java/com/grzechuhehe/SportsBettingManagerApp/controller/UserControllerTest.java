@@ -83,12 +83,11 @@ class UserControllerTest {
 
     @Test
     @WithMockUser(username = "testuser")
-    void changePassword_ShouldSucceed_WhenOldPasswordIsCorrect() throws Exception {
+    void changePassword_ShouldSucceed() throws Exception {
         // Given
-        ChangePasswordRequest request = new ChangePasswordRequest("correctOldPassword", "newValidPassword123");
+        ChangePasswordRequest request = new ChangePasswordRequest("newValidPassword123");
         
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("correctOldPassword", "encodedOldPassword")).thenReturn(true);
         when(passwordEncoder.encode("newValidPassword123")).thenReturn("encodedNewPassword");
 
         // When & Then
@@ -97,22 +96,5 @@ class UserControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Password changed successfully"));
-    }
-
-    @Test
-    @WithMockUser(username = "testuser")
-    void changePassword_ShouldFail_WhenOldPasswordIsIncorrect() throws Exception {
-        // Given
-        ChangePasswordRequest request = new ChangePasswordRequest("wrongPassword", "newValidPassword123");
-        
-        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("wrongPassword", "encodedOldPassword")).thenReturn(false);
-
-        // When & Then
-        mockMvc.perform(post("/api/user/change-password")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Incorrect old password"));
     }
 }

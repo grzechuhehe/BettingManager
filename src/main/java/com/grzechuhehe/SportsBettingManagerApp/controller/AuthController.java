@@ -30,6 +30,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final AuthService authService;
     private final JwtUtils jwtUtils;
+    private final com.grzechuhehe.SportsBettingManagerApp.service.PasswordResetService passwordResetService;
 
     @Operation(summary = "Authenticate User", description = "Returns a JWT token for valid credentials")
     @ApiResponse(responseCode = "200", description = "Authentication successful")
@@ -58,6 +59,30 @@ public class AuthController {
             authService.registerUser(signUpRequest);
             return ResponseEntity.ok(Map.of("message", "User registered successfully!"));
         } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Forgot Password", description = "Generates a reset token and sends it to user email (currently logged to console)")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetRequest request) {
+        try {
+            String token = passwordResetService.createPasswordResetTokenForUser(request.getEmail());
+            // Logowanie zamiast wysyłki maila (brak SMTP)
+            System.out.println("DEBUG: Password reset token for " + request.getEmail() + " is: " + token);
+            return ResponseEntity.ok(Map.of("message", "Reset token sent to email (check console)"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Reset Password", description = "Resets the password using a valid token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetSubmit request) {
+        try {
+            passwordResetService.resetPassword(request);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

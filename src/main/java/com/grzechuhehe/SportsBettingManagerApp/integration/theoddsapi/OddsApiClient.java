@@ -21,11 +21,12 @@ public class OddsApiClient {
     private final String baseUrl;
 
     public OddsApiClient(
+            RestClient.Builder restClientBuilder,
             @Value("${odds.api.key:dummy-key}") String apiKey,
             @Value("${odds.api.base-url:https://api.the-odds-api.com/v4}") String baseUrl) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
-        this.restClient = RestClient.builder()
+        this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
                 .build();
     }

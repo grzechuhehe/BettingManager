@@ -94,8 +94,7 @@ const LiveMarkets = () => {
                                     })}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Live</span>
-                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Open</span>
                                 </div>
                             </div>
                             
