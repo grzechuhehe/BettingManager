@@ -63,11 +63,12 @@ public class AuthController {
         }
     }
 
-    @Operation(summary = "Forgot Password", description = "Generates a reset token and sends it to user email")
+    @Operation(summary = "Forgot Password", description = "Initiates password reset process securely")
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetRequest request) {
+        // Zawsze zwracamy 200 OK niezależnie od tego czy email istnieje (Anti-enumeration)
         passwordResetService.processForgotPassword(request.getEmail());
-        return ResponseEntity.ok(Map.of("message", "Jeśli konto o podanym adresie istnieje, link do resetowania hasła został wysłany."));
+        return ResponseEntity.ok(Map.of("message", "Jeśli konto z podanym adresem istnieje, wysłano na nie link do resetu hasła."));
     }
 
     @Operation(summary = "Reset Password", description = "Resets the password using a valid token")
@@ -75,8 +76,8 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetSubmit request) {
         try {
             passwordResetService.resetPassword(request);
-            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
-        } catch (RuntimeException e) {
+            return ResponseEntity.ok(Map.of("message", "Hasło zostało zmienione pomyślnie."));
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

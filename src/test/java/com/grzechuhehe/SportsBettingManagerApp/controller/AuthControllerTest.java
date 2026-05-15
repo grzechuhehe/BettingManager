@@ -113,4 +113,17 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Error: Username is already taken!"));
     }
+
+    @Test
+    void forgotPassword_ShouldReturnGenericSuccessMessage() throws Exception {
+        com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetRequest request = new com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetRequest("test@example.com");
+        
+        doNothing().when(passwordResetService).processForgotPassword(anyString());
+
+        mockMvc.perform(post("/api/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Jeśli konto z podanym adresem istnieje, wysłano na nie link do resetu hasła."));
+    }
 }
