@@ -48,6 +48,10 @@ public class User implements UserDetails {
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles = new ArrayList<>();
 
+    private boolean isEmailVerified = false;
+    
+    private String verificationToken;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         System.out.println("getAuthorities wywołane dla: " + this.username);
