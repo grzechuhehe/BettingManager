@@ -8,6 +8,8 @@ import BetList from './components/BetList';
 import Home from './components/Home';
 import UserProfile from './components/UserProfile';
 import LiveMarkets from './components/LiveMarkets';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -66,6 +68,8 @@ const AppLayout = () => {
           <Route path="/" element={!isAuthenticated ? <Home /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/dashboard"
             element={

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { login as apiLogin } from '../api';
 import { useAuth } from '../context/AuthContext';
 
@@ -75,6 +76,11 @@ const Login = () => {
                         Initialize Session
                     </button>
                 </form>
+                <div className="mt-4 text-center">
+                    <Link to="/forgot-password" title="Zapomniałeś hasła?" className="text-sm text-primary hover:underline">
+                        Zapomniałeś hasła?
+                    </Link>
+                </div>
                 {message && (
                     <div className={`mt-8 p-4 rounded-lg border text-center text-[10px] font-bold uppercase tracking-widest ${isError ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
                         {message}
