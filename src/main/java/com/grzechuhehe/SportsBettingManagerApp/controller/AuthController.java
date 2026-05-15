@@ -63,17 +63,11 @@ public class AuthController {
         }
     }
 
-    @Operation(summary = "Forgot Password", description = "Generates a reset token and sends it to user email (currently logged to console)")
+    @Operation(summary = "Forgot Password", description = "Generates a reset token and sends it to user email")
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody com.grzechuhehe.SportsBettingManagerApp.dto.PasswordResetRequest request) {
-        try {
-            String token = passwordResetService.createPasswordResetTokenForUser(request.getEmail());
-            // Logowanie zamiast wysyłki maila (brak SMTP)
-            System.out.println("DEBUG: Password reset token for " + request.getEmail() + " is: " + token);
-            return ResponseEntity.ok(Map.of("message", "Reset token sent to email (check console)"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        passwordResetService.processForgotPassword(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "Jeśli konto o podanym adresie istnieje, link do resetowania hasła został wysłany."));
     }
 
     @Operation(summary = "Reset Password", description = "Resets the password using a valid token")

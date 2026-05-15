@@ -5,12 +5,15 @@ import com.grzechuhehe.SportsBettingManagerApp.model.PasswordResetToken;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.PasswordResetTokenRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,16 +23,34 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    public String createPasswordResetTokenForUser(String email) {
-        System.out.println("Szukam użytkownika z emailem: " + email);
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika z podanym adresem e-mail"));
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
+    public void processForgotPassword(String email) {
+        log.info("Żądanie resetu hasła dla: {}", email);
+        Optional<User> userOpt = userRepository.findByEmail(email);
         
-        System.out.println("Znaleziono użytkownika: " + user.getUsername());
+        // Zabezpieczenie przed User Enumeration: zawsze zachowujemy się tak samo na zewnątrz
+        if (userOpt.isEmpty()) {
+            log.warn("Żądanie resetu dla nieistniejącego konta: {}", email);
+            return; 
+        }
+        
+        User user = userOpt.get();
+        
+        // Jeśli użytkownik ma już ważny token, możemy go usunąć i wygenerować nowy
+        PasswordResetToken existingToken = tokenRepository.findByUser(user);
+        if (existingToken != null) {
+            tokenRepository.delete(existingToken);
+        }
+
         String token = UUID.randomUUID().toString();
         createPasswordResetToken(user, token);
-        return token;
+        
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
     }
 
     private void createPasswordResetToken(User user, String token) {
@@ -37,16 +58,7 @@ public class PasswordResetService {
         myToken.setUser(user);
         myToken.setToken(token);
         tokenRepository.save(myToken);
-
-        // Logowanie faktu utworzenia tokenu bez ujawniania jego wartości
-        log.info("Utworzono token resetowania hasła dla użytkownika {}", user.getEmail());
-    }
-
-    public void validateResetToken(String token) {
-        PasswordResetToken passToken = tokenRepository.findByToken(token);
-        if (passToken == null || passToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Nieprawidłowy lub przedawniony token");
-        }
+        log.info("Zapisano nowy token resetowania hasła dla użytkownika {}", user.getEmail());
     }
 
     public void resetPassword(PasswordResetSubmit request) {
@@ -55,17 +67,18 @@ public class PasswordResetService {
 
         PasswordResetToken resetToken = tokenRepository.findByToken(token);
         if (resetToken == null) {
-            throw new RuntimeException("Nieprawidłowy token");
+            throw new IllegalArgumentException("Nieprawidłowy token");
         }
 
         if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             tokenRepository.delete(resetToken);
-            throw new RuntimeException("Token wygasł");
+            throw new IllegalArgumentException("Token wygasł");
         }
 
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         tokenRepository.delete(resetToken);
+        log.info("Hasło dla użytkownika {} zostało zresetowane pomyślnie", user.getEmail());
     }
 }
