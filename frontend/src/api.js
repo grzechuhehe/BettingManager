@@ -36,6 +36,14 @@ export const register = (userData) => {
   return apiClient.post('/auth/signup', userData);
 };
 
+export const forgotPassword = (email) => {
+  return apiClient.post('/auth/forgot-password', { email });
+};
+
+export const resetPassword = (token, newPassword) => {
+  return apiClient.post('/auth/reset-password', { token, newPassword });
+};
+
 // --- Funkcje API dla zakładów (Bets) ---
 export const getBets = () => {
   return apiClient.get('/bets');
