@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getUserProfile, changePassword, getDashboardStats } from '../api';
+import { getUserProfile, getDashboardStats, forgotPassword } from '../api';
 
 const UserProfile = () => {
     const [profile, setProfile] = useState(null);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
+    const [resetEmail, setResetEmail] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [isPasswordExpanded, setIsPasswordExpanded] = useState(false);
 
@@ -21,6 +22,7 @@ const UserProfile = () => {
             ]);
             setProfile(profileRes.data);
             setStats(statsRes.data);
+            setResetEmail(profileRes.data.email || '');
         } catch (error) {
             console.error("Error fetching profile data", error);
         } finally {
@@ -28,27 +30,18 @@ const UserProfile = () => {
         }
     };
 
-    const handlePasswordChange = async (e) => {
+    const handlePasswordResetRequest = async (e) => {
         e.preventDefault();
         setMessage({ text: '', type: '' });
-
-        if (passwords.newPassword !== passwords.confirmPassword) {
-            setMessage({ text: "Passwords mismatch in security confirmation.", type: 'error' });
-            return;
-        }
-        if (passwords.newPassword.length < 6) {
-            setMessage({ text: "New password must be at least 6 characters.", type: 'error' });
-            return;
-        }
+        setIsResetting(true);
 
         try {
-            await changePassword({ 
-                newPassword: passwords.newPassword 
-            });
-            setMessage({ text: "Password updated successfully.", type: 'success' });
-            setPasswords({ newPassword: '', confirmPassword: '' });
+            const response = await forgotPassword(resetEmail);
+            setMessage({ text: response.data.message || "Wysłano e-mail z linkiem do resetowania hasła.", type: 'success' });
         } catch (error) {
-            setMessage({ text: error.response?.data?.message || "Failed to update password", type: 'error' });
+            setMessage({ text: error.response?.data?.error || "Nie udało się wysłać linku resetującego.", type: 'error' });
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -145,30 +138,20 @@ const UserProfile = () => {
                         
                         {isPasswordExpanded && (
                             <div className="p-10 border-t border-hairline bg-surface-soft/30">
-                                <form onSubmit={handlePasswordChange} className="space-y-8 max-w-2xl">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                placeholder="••••••••"
-                                                className="input-field"
-                                                value={passwords.newPassword}
-                                                onChange={(e) => setPasswords({...passwords, newPassword: e.target.value})}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Confirm New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                placeholder="••••••••"
-                                                className="input-field"
-                                                value={passwords.confirmPassword}
-                                                onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})}
-                                            />
-                                        </div>
+                                <form onSubmit={handlePasswordResetRequest} className="space-y-8 max-w-2xl">
+                                    <div>
+                                        <p className="text-sm text-body mb-6">
+                                            Ze względów bezpieczeństwa, zmiana hasła wymaga weryfikacji. 
+                                            Podaj swój adres e-mail, a wyślemy Ci link umożliwiający bezpieczną zmianę hasła.
+                                        </p>
+                                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Adres E-mail</label>
+                                        <input
+                                            type="email"
+                                            required
+                                            className="input-field max-w-md"
+                                            value={resetEmail}
+                                            onChange={(e) => setResetEmail(e.target.value)}
+                                        />
                                     </div>
 
                                     {message.text && (
@@ -180,9 +163,10 @@ const UserProfile = () => {
                                     <div className="flex justify-start pt-4">
                                         <button
                                             type="submit"
-                                            className="button-primary !h-12 !px-10 text-sm uppercase tracking-widest font-black"
+                                            disabled={isResetting}
+                                            className="button-primary !h-12 !px-10 text-sm uppercase tracking-widest font-black disabled:opacity-50"
                                         >
-                                            Update Password
+                                            {isResetting ? 'Wysyłanie...' : 'Wyślij link resetujący'}
                                         </button>
                                     </div>
                                 </form>

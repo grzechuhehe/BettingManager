@@ -7,7 +7,7 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker)
 
-A professional-grade analytics platform for sports traders. This full-stack application goes beyond simple tracking, offering **Bloomberg-style analytics**, performance metrics, and portfolio visualization. Built with performance and scalability in mind using **Java Spring Boot 3** and **React 19**.
+A professional-grade analytics platform for sports traders. This full-stack application goes beyond simple tracking, offering **Bloomberg-style analytics**, performance metrics, live odds integration, and portfolio visualization. Built with performance and scalability in mind using **Java Spring Boot 3** and **React 19**.
 
 ---
 
@@ -22,13 +22,17 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 ### 💼 Portfolio Management
 - **Bet Tracking:** Support for **Single** and **Parlay** (Accumulator) bets.
 - **Auto-Calculation:** Automatic potential winnings and parlay odds aggregation.
-- **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates.
+- **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates and safeguards against duplicate or invalid settlements.
+
+### 📡 External Integrations
+- **Live Odds:** Real-time sports data and market odds powered by **TheOddsAPI** integration.
 
 ### 🔐 Security & Architecture
 - **User Authentication:** Secure registration and login system based on **JWT**.
+- **Password Recovery:** Comprehensive email-based password reset flow with anti-enumeration protection and Thymeleaf HTML templates.
 - **API Documentation:** Interactive **Swagger UI (OpenAPI 3.0)** integration with Bearer Auth support.
-- **Error Handling:** Unified, professional JSON error response format across the entire API.
-- **Containerization:** Fully containerized environment using **Docker** and multi-stage builds.
+- **Global Error Handling:** Unified JSON error responses driven by a centralized `GlobalExceptionHandler` and strict DTO validation rules.
+- **Containerization & CI/CD:** Fully containerized environment using **Docker** and automated testing pipelines via **GitHub Actions**.
 
 ---
 
@@ -39,7 +43,9 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 - **Framework:** Spring Boot 3.3.6
 - **Database:** MySQL 8.0
 - **Security:** Spring Security + JWT
+- **Templating:** Thymeleaf (Email templates)
 - **Documentation:** Springdoc OpenAPI (Swagger)
+- **CI/CD:** GitHub Actions
 - **Containerization:** Docker, Docker Compose
 
 ### Frontend
@@ -63,11 +69,18 @@ The easiest and recommended way to run the application is using Docker. This ens
 Create a `.env` file in the root directory based on the following template:
 
 ```env
+# Database Credentials
 DB_USERNAME=user
 DB_PASSWORD=your_db_password
 DB_ROOTPASSWORD=your_db_root_password
+
+# Application Secrets
 JWT_SECRET=YourSuperSecretKeyForJwtTokens
 KEYSTORE_PASSWORD=your_p12_certificate_password
+
+# Email Configuration (Mailtrap - for testing password reset)
+SMTP_MAILTRAP_USER=your_mailtrap_user
+SMTP_MAILTRAP_PASSWORD=your_mailtrap_password
 ```
 
 ### 2. Build and Run

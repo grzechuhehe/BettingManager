@@ -32,6 +32,12 @@ services:
       - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}
       - ODDS_API_KEY=${ODDS_API_KEY}
       - APP_CORS_ALLOWED_ORIGINS=http://localhost:3000
+      - SPRING_MAIL_HOST=sandbox.smtp.mailtrap.io
+      - SPRING_MAIL_PORT=2525
+      - MAILTRAP_SMTP_USERNAME=${MAILTRAP_SMTP_USERNAME}
+      - MAILTRAP_SMTP_PASSWORD=${MAILTRAP_SMTP_PASSWORD}
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
     volumes:
       - ./sportsbetting.p12:/app/sportsbetting.p12
     depends_on:
