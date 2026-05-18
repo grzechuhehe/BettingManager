@@ -18,7 +18,8 @@ public class EvCalculationService {
     }
 
     public EvCalculationResponse calculateExpectedValue(EvCalculationRequest request) {
-        BigDecimal trueProbability = polymarketApiClient.fetchTrueProbability(request.getEventQuery());
+        BigDecimal trueProbability = polymarketApiClient.fetchTrueProbability(request.getEventQuery())
+                .orElse(new BigDecimal("0.5000"));
         
         // EV Formula: (Decimal Odds * True Probability) - 1.0
         BigDecimal expectedValue = request.getBookmakerOdds()

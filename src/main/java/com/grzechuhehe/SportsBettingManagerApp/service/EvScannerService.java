@@ -23,7 +23,7 @@ public class EvScannerService {
     private final PolymarketApiClient polyClient;
     private final EvOpportunityRepository repository;
 
-    @Scheduled(fixedRate = 3600000) // Scan hourly
+    @Scheduled(fixedRate = 3600000, initialDelay = 5000) // Scan hourly, start after 5s
     public void scanForEvOpportunities() {
         log.info("Starting automated +EV market scan...");
         try {
@@ -32,28 +32,50 @@ public class EvScannerService {
 
             // For MVP, we scan EPL soccer as a high-liquidity market
             List<OddsResponseDto> oddsResponses = oddsClient.getOdds("soccer_epl", "eu", "h2h");
+            log.info("Fetched {} events from TheOddsAPI", oddsResponses != null ? oddsResponses.size() : 0);
             
+            if (oddsResponses == null || oddsResponses.isEmpty()) {
+                log.warn("No odds fetched from TheOddsAPI. Check your API key or sport key.");
+                return;
+            }
+
             for (OddsResponseDto event : oddsResponses) {
                 String eventName = event.getHomeTeam() + " vs " + event.getAwayTeam();
                 
+                // Fetch Map of probabilities (e.g., "Arsenal" -> 0.85, "Burnley" -> 0.15)
+                java.util.Map<String, BigDecimal> polyProbs = polyClient.fetchMarketProbabilities(event.getHomeTeam(), event.getAwayTeam());
+                
+                if (polyProbs.isEmpty()) {
+                    log.debug("No Polymarket match found for: {}", eventName);
+                    continue;
+                }
+
                 for (OddsResponseDto.BookmakerDto bookmaker : event.getBookmakers()) {
                     for (OddsResponseDto.MarketDto market : bookmaker.getMarkets()) {
                         for (OddsResponseDto.OutcomeDto outcome : market.getOutcomes()) {
-                            BigDecimal bookmakerOdds = BigDecimal.valueOf(outcome.getPrice());
                             
-                            // Query Polymarket for this specific outcome
-                            BigDecimal trueProbability = polyClient.fetchTrueProbability(outcome.getName());
+                            // Find matching probability in the map
+                            BigDecimal trueProbability = null;
+                            for (java.util.Map.Entry<String, BigDecimal> entry : polyProbs.entrySet()) {
+                                if (outcome.getName().toLowerCase().contains(entry.getKey().toLowerCase().split(" ")[0])) {
+                                    trueProbability = entry.getValue();
+                                    break;
+                                }
+                            }
                             
-                            // Skip if probability is exactly 0.5000 (known fallback value for failed lookups)
-                            if (trueProbability.compareTo(new BigDecimal("0.5000")) == 0) {
+                            if (trueProbability == null || trueProbability.compareTo(BigDecimal.ZERO) <= 0 || trueProbability.compareTo(BigDecimal.ONE) >= 0) {
+                                // Skip if no probability or if it's 100% (usually a bug or closed market)
                                 continue;
                             }
 
+                            BigDecimal bookmakerOdds = BigDecimal.valueOf(outcome.getPrice());
+                            
                             // EV = (Odds * Prob) - 1
                             BigDecimal ev = bookmakerOdds.multiply(trueProbability).subtract(BigDecimal.ONE);
                             BigDecimal evPercentage = ev.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
                             
-                            if (ev.compareTo(BigDecimal.ZERO) > 0) {
+                            // Only save if EV is positive AND probability is realistic
+                            if (ev.compareTo(BigDecimal.ZERO) > 0 && evPercentage.compareTo(BigDecimal.valueOf(1000)) < 0) {
                                 log.info("Found +EV Opportunity: {} | {} | {}% EV", eventName, outcome.getName(), evPercentage);
                                 
                                 EvOpportunity opp = new EvOpportunity();
@@ -66,12 +88,10 @@ public class EvScannerService {
                                 
                                 repository.save(opp);
                             }
-
-                            // Small delay to respect rate limits
-                            Thread.sleep(100);
                         }
                     }
                 }
+                Thread.sleep(200);
             }
         } catch (InterruptedException e) {
             log.error("EV scanning interrupted: {}", e.getMessage());

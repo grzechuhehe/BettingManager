@@ -205,9 +205,9 @@ class BettingServiceTest {
         leg2.setStake(BigDecimal.TEN);
         leg2.setOdds(BigDecimal.valueOf(2.5));
 
-        request.setBets(java.util.Arrays.asList(leg1, leg2));
+        request.setBets(Arrays.asList(leg1, leg2));
 
-        when(userRepository.findByUsername(anyString())).thenReturn(java.util.Optional.of(testUser));
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> bettingService.placeBet(request, "testuser"));

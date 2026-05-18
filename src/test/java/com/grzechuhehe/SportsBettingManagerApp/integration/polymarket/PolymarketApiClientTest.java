@@ -9,9 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -31,9 +33,9 @@ class PolymarketApiClientTest {
         when(restTemplate.getForEntity(anyString(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(mockResponse));
 
-        BigDecimal prob = client.fetchTrueProbability("Real Madrid");
+        Optional<BigDecimal> prob = client.fetchTrueProbability("Real Madrid");
         
-        assertNotNull(prob);
-        assertEquals(new BigDecimal("0.6500"), prob);
+        assertTrue(prob.isPresent());
+        assertEquals(new BigDecimal("0.6500"), prob.get());
     }
 }

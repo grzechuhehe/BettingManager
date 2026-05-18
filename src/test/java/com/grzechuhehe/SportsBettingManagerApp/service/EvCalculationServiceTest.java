@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,7 +17,7 @@ class EvCalculationServiceTest {
     @Test
     void calculateExpectedValue_ShouldReturnCorrectEV() {
         PolymarketApiClient mockClient = Mockito.mock(PolymarketApiClient.class);
-        Mockito.when(mockClient.fetchTrueProbability("Lakers")).thenReturn(new BigDecimal("0.55")); // 55% true prob
+        Mockito.when(mockClient.fetchTrueProbability("Lakers")).thenReturn(Optional.of(new BigDecimal("0.55"))); // 55% true prob
         
         EvCalculationService service = new EvCalculationService(mockClient);
         EvCalculationRequest req = new EvCalculationRequest("Lakers", new BigDecimal("2.00")); // Odds 2.0

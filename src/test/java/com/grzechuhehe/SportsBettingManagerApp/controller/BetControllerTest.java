@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -121,8 +122,8 @@ class BetControllerTest {
                 new BigDecimal("15.5"),   // roi
                 new BigDecimal("15.5"),   // yield
                 new BigDecimal("1000.00"),// totalStaked
-                java.util.Collections.emptyMap(), // profitBySport
-                java.util.Collections.emptyList() // equityCurve
+                Collections.emptyMap(), // profitBySport
+                Collections.emptyList() // equityCurve
         );
 
         Mockito.when(bettingService.getDashboardStats(any(User.class))).thenReturn(stats);
