@@ -108,4 +108,8 @@ export const calculateExpectedValue = (eventQuery, bookmakerOdds) => {
     return apiClient.post('/ev/calculate', { eventQuery, bookmakerOdds });
 };
 
+export const getEvOpportunities = () => {
+    return apiClient.get('/ev/opportunities');
+};
+
 export default apiClient;

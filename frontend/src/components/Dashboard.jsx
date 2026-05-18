@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getDashboardStats } from '../api';
+import { getDashboardStats, getEvOpportunities } from '../api';
 import AdvancedAnalytics from './AdvancedAnalytics';
 import AdvancedStats from './AdvancedStats';
 import BettingHeatmap from './BettingHeatmap';
@@ -25,6 +25,7 @@ const ActionCard = ({ to, title, description, icon }) => (
 const Dashboard = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState(null);
+    const [opportunities, setOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -39,7 +40,17 @@ const Dashboard = () => {
             }
         };
 
+        const fetchOpportunities = async () => {
+            try {
+                const response = await getEvOpportunities();
+                setOpportunities(response.data);
+            } catch (error) {
+                console.error("Failed to fetch EV opportunities:", error);
+            }
+        };
+
         fetchStats();
+        fetchOpportunities();
     }, []);
 
     const formatCurrency = (val) => {
@@ -117,6 +128,43 @@ const Dashboard = () => {
                         </div>
                     </div>
                 )}
+            </section>
+
+            <section className="mt-12">
+                <div className="flex items-center gap-3 mb-10">
+                    <div className="w-1.5 h-6 bg-primary rounded-full animate-pulse"></div>
+                    <h3 className="text-xl font-bold text-on-dark">Live +EV Opportunities</h3>
+                </div>
+                <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-surface-soft border-b border-hairline">
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right text-primary">Expected Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {opportunities.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="p-10 text-center text-muted italic">Scanning markets for opportunities...</td>
+                                </tr>
+                            ) : (
+                                opportunities.map((opp) => (
+                                    <tr key={opp.id} className="border-b border-hairline hover:bg-surface-soft transition-colors">
+                                        <td className="p-4 font-bold text-on-dark">{opp.eventName}</td>
+                                        <td className="p-4 text-muted">{opp.bookmaker}</td>
+                                        <td className="p-4 text-right font-numeric font-bold">{opp.bookmakerOdds.toFixed(2)}</td>
+                                        <td className="p-4 text-right font-numeric text-muted">{(opp.trueProbability * 100).toFixed(1)}%</td>
+                                        <td className="p-4 text-right font-numeric font-black text-primary">+{opp.evPercentage.toFixed(2)}%</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <section className="bg-surface-soft p-12 rounded-xl border border-hairline">
