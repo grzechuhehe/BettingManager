@@ -10,6 +10,7 @@ import UserProfile from './components/UserProfile';
 import LiveMarkets from './components/LiveMarkets';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import EvCalculator from './components/EvCalculator';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -40,6 +41,7 @@ const Navigation = () => {
           <Link to="/add-bet" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Add Bet</Link>
           <Link to="/bets" className="text-sm text-body hover:text-on-dark font-medium transition-colors">My Bets</Link>
           <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Open Odds</Link>
+          <Link to="/ev-calculator" className="text-sm text-body hover:text-on-dark font-medium transition-colors">+EV Engine</Link>
           <Link to="/profile" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Profile</Link>
           <button onClick={logout} className="button-primary text-sm">Logout</button>
         </>
@@ -107,6 +109,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <LiveMarkets />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/ev-calculator"
+            element={
+              <ProtectedRoute>
+                <EvCalculator />
               </ProtectedRoute>
             }
           />

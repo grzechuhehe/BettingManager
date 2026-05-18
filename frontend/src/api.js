@@ -103,4 +103,9 @@ export const getLiveOdds = (sportKey) => {
   return apiClient.get(`/odds/markets/${sportKey}`);
 };
 
+// --- Funkcje API dla EV ---
+export const calculateExpectedValue = (eventQuery, bookmakerOdds) => {
+    return apiClient.post('/ev/calculate', { eventQuery, bookmakerOdds });
+};
+
 export default apiClient;
