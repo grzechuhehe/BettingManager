@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.integration.polymarket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -11,6 +12,7 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+@Slf4j
 @Service
 public class PolymarketApiClient {
 
@@ -42,7 +44,7 @@ public class PolymarketApiClient {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Error fetching from Polymarket: " + e.getMessage());
+            log.warn("Error fetching from Polymarket: {}", e.getMessage());
         }
         // Fallback default probability if not found to avoid breaking EV math
         return new BigDecimal("0.5000"); 
