@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardStats } from '../api';
 import AdvancedAnalytics from './AdvancedAnalytics';
+import AdvancedStats from './AdvancedStats';
 import BettingHeatmap from './BettingHeatmap';
 
 const StatCard = ({ title, value, subtext, colorClass = "text-primary" }) => (
@@ -56,7 +57,6 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-24">
-            {/* Header */}
             <header className="flex justify-between items-end pb-8 border-b border-hairline">
                 <div>
                     <h2 className="display-md">Dashboard</h2>
@@ -68,7 +68,6 @@ const Dashboard = () => {
                 </div>
             </header>
             
-            {/* KPI Cards */}
             <section>
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
@@ -101,7 +100,6 @@ const Dashboard = () => {
                 )}
             </section>
 
-            {/* Advanced Analytics (Graphs & Charts) */}
             <section>
                 <div className="flex items-center gap-3 mb-10">
                     <div className="w-1.5 h-6 bg-primary rounded-full"></div>
@@ -110,7 +108,8 @@ const Dashboard = () => {
                 {loading ? (
                     <div className="h-80 bg-surface-card rounded-lg border border-hairline animate-pulse"></div>
                 ) : (
-                    <div className="space-y-24">
+                    <div className="space-y-12">
+                        <AdvancedStats />
                         <AdvancedAnalytics stats={stats} />
                         <div className="bg-surface-card border border-hairline rounded-lg p-10">
                             <h4 className="text-lg font-bold text-on-dark mb-8">Activity Heatmap</h4>
@@ -120,7 +119,6 @@ const Dashboard = () => {
                 )}
             </section>
 
-            {/* Quick Actions */}
             <section className="bg-surface-soft p-12 rounded-xl border border-hairline">
                 <h3 className="text-xl font-bold text-on-dark mb-10">Quick Execution</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -131,16 +129,17 @@ const Dashboard = () => {
                         icon="📝"
                     />
                     <ActionCard 
+                        to="/ev-calculator"
+                        title="EV Calculator"
+                        description="Compare bookmaker odds against true probability from prediction markets."
+                        icon="⚖️"
+                    />
+                    <ActionCard 
                         to="/bets"
                         title="Trade History"
                         description="Audit and settle all open and historical market positions."
                         icon="📋"
                     />
-                    <div className="flex flex-col p-10 bg-surface-card/50 border border-dashed border-hairline rounded-lg justify-center text-center opacity-50 hover:opacity-100 transition-opacity cursor-not-allowed">
-                         <div className="text-3xl mb-8">⚙️</div>
-                         <h5 className="mb-2 text-lg font-bold text-muted">System Settings</h5>
-                         <span className="inline-block text-[10px] font-bold bg-hairline text-muted px-2 py-0.5 rounded-full uppercase tracking-widest mx-auto">Coming Soon</span>
-                    </div>
                 </div>
             </section>
         </div>
