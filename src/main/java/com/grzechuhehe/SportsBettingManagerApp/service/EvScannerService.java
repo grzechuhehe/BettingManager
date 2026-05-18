@@ -27,6 +27,9 @@ public class EvScannerService {
     public void scanForEvOpportunities() {
         log.info("Starting automated +EV market scan...");
         try {
+            // Clear old opportunities to ensure dashboard shows current data
+            repository.deleteAll();
+
             // For MVP, we scan EPL soccer as a high-liquidity market
             List<OddsResponseDto> oddsResponses = oddsClient.getOdds("soccer_epl", "eu", "h2h");
             
@@ -41,6 +44,11 @@ public class EvScannerService {
                             // Query Polymarket for this specific outcome
                             BigDecimal trueProbability = polyClient.fetchTrueProbability(outcome.getName());
                             
+                            // Skip if probability is exactly 0.5000 (known fallback value for failed lookups)
+                            if (trueProbability.compareTo(new BigDecimal("0.5000")) == 0) {
+                                continue;
+                            }
+
                             // EV = (Odds * Prob) - 1
                             BigDecimal ev = bookmakerOdds.multiply(trueProbability).subtract(BigDecimal.ONE);
                             BigDecimal evPercentage = ev.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
@@ -58,10 +66,16 @@ public class EvScannerService {
                                 
                                 repository.save(opp);
                             }
+
+                            // Small delay to respect rate limits
+                            Thread.sleep(100);
                         }
                     }
                 }
             }
+        } catch (InterruptedException e) {
+            log.error("EV scanning interrupted: {}", e.getMessage());
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.error("Error during EV scanning: {}", e.getMessage());
         }
