@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -15,13 +16,16 @@ import java.util.List;
 @Tag(name = "EV Opportunities", description = "Endpoints for viewing automated +EV market opportunities")
 public class EvOpportunityController {
     private final EvOpportunityRepository repository;
-    private final EvScannerService evScannerService;
+    private final com.grzechuhehe.SportsBettingManagerApp.service.EvScannerService evScannerService;
 
     @GetMapping
-    @Operation(summary = "Get all EV opportunities", description = "Returns a list of all currently detected +EV opportunities from the automated scanner")
+    @Operation(summary = "Get active EV opportunities", description = "Returns latest unique +EV opportunities detected in the last 2 hours")
     public List<EvOpportunity> getOpportunities() {
-        return repository.findAll();
+        // Only return the latest scan for each unique (event, selection, bookmaker)
+        // Historical data stays in DB for ROI/Charts.
+        return repository.findLatestUniqueOpportunities(LocalDateTime.now().minusHours(2));
     }
+
 
     @PostMapping("/trigger-scan")
     @Operation(summary = "Trigger manual scan", description = "Manually starts the automated +EV market scan process")

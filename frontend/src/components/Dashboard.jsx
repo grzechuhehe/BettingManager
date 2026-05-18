@@ -27,6 +27,28 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [opportunities, setOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [expandedEvents, setExpandedEvents] = useState({});
+
+    const toggleEvent = (eventName) => {
+        setExpandedEvents(prev => ({
+            ...prev,
+            [eventName]: !prev[eventName]
+        }));
+    };
+
+    // Grouping logic
+    const grouped = opportunities.reduce((acc, opp) => {
+        if (!acc[opp.eventName]) acc[opp.eventName] = [];
+        acc[opp.eventName].push(opp);
+        return acc;
+    }, {});
+
+    // Sort events by the highest EV opportunity within each
+    const sortedEventNames = Object.keys(grouped).sort((a, b) => {
+        const maxEvA = Math.max(...grouped[a].map(o => o.evPercentage));
+        const maxEvB = Math.max(...grouped[b].map(o => o.evPercentage));
+        return maxEvB - maxEvA;
+    });
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -140,6 +162,7 @@ const Dashboard = () => {
                         <thead>
                             <tr className="bg-surface-soft border-b border-hairline">
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
@@ -147,20 +170,53 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {opportunities.length === 0 ? (
+                            {sortedEventNames.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="p-10 text-center text-muted italic">Scanning markets for opportunities...</td>
+                                    <td colSpan="6" className="p-10 text-center text-muted italic">Scanning markets for opportunities...</td>
                                 </tr>
                             ) : (
-                                opportunities.map((opp) => (
-                                    <tr key={opp.id} className="border-b border-hairline hover:bg-surface-soft transition-colors">
-                                        <td className="p-4 font-bold text-on-dark">{opp.eventName}</td>
-                                        <td className="p-4 text-muted">{opp.bookmaker}</td>
-                                        <td className="p-4 text-right font-numeric font-bold">{opp.bookmakerOdds.toFixed(2)}</td>
-                                        <td className="p-4 text-right font-numeric text-muted">{(opp.trueProbability * 100).toFixed(1)}%</td>
-                                        <td className="p-4 text-right font-numeric font-black text-primary">+{opp.evPercentage.toFixed(2)}%</td>
-                                    </tr>
-                                ))
+                                sortedEventNames.map((eventName) => {
+                                    const eventOpps = grouped[eventName];
+                                    // eventOpps are already sorted by EV desc from backend query
+                                    const bestOpp = eventOpps[0];
+                                    const isExpanded = expandedEvents[eventName];
+
+                                    return (
+                                        <React.Fragment key={eventName}>
+                                            <tr 
+                                                className="border-b border-hairline hover:bg-surface-soft transition-colors cursor-pointer"
+                                                onClick={() => toggleEvent(eventName)}
+                                            >
+                                                <td className="p-4 font-bold text-on-dark flex items-center gap-3">
+                                                    <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                                                    {eventName}
+                                                </td>
+                                                <td className="p-4 text-muted font-bold text-primary">{bestOpp.targetSelection}</td>
+                                                <td className="p-4 text-muted">
+                                                    {bestOpp.bookmaker}
+                                                    {eventOpps.length > 1 && (
+                                                        <span className="ml-2 px-2 py-0.5 bg-surface-soft text-[10px] rounded-full border border-hairline">
+                                                            +{eventOpps.length - 1} more
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right font-numeric font-bold">{bestOpp.bookmakerOdds.toFixed(2)}</td>
+                                                <td className="p-4 text-right font-numeric text-muted">{(bestOpp.trueProbability * 100).toFixed(1)}%</td>
+                                                <td className="p-4 text-right font-numeric font-black text-primary">+{bestOpp.evPercentage.toFixed(2)}%</td>
+                                            </tr>
+                                            {isExpanded && eventOpps.slice(1).map((opp) => (
+                                                <tr key={opp.id} className="border-b border-hairline bg-surface-soft/30 text-sm">
+                                                    <td className="p-4 pl-10 text-muted italic">↳ Alternative</td>
+                                                    <td className="p-4 text-muted font-bold">{opp.targetSelection}</td>
+                                                    <td className="p-4 text-muted">{opp.bookmaker}</td>
+                                                    <td className="p-4 text-right font-numeric font-semibold">{opp.bookmakerOdds.toFixed(2)}</td>
+                                                    <td className="p-4 text-right font-numeric text-muted">{(opp.trueProbability * 100).toFixed(1)}%</td>
+                                                    <td className="p-4 text-right font-numeric font-bold text-primary/70">+{opp.evPercentage.toFixed(2)}%</td>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

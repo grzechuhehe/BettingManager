@@ -12,6 +12,7 @@ public class EvOpportunity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String eventName;
+    private String targetSelection; // Which team/outcome we are betting on
     private String bookmaker;
     private BigDecimal bookmakerOdds;
     private BigDecimal trueProbability;

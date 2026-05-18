@@ -27,8 +27,7 @@ public class EvScannerService {
     public void scanForEvOpportunities() {
         log.info("Starting automated +EV market scan...");
         try {
-            // Clear old opportunities to ensure dashboard shows current data
-            repository.deleteAll();
+            // We no longer deleteAll() here to preserve history for future ROI simulations
 
             // For MVP, we scan EPL soccer as a high-liquidity market
             List<OddsResponseDto> oddsResponses = oddsClient.getOdds("soccer_epl", "eu", "h2h");
@@ -74,12 +73,13 @@ public class EvScannerService {
                             BigDecimal ev = bookmakerOdds.multiply(trueProbability).subtract(BigDecimal.ONE);
                             BigDecimal evPercentage = ev.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
                             
-                            // Only save if EV is positive AND probability is realistic
-                            if (ev.compareTo(BigDecimal.ZERO) > 0 && evPercentage.compareTo(BigDecimal.valueOf(1000)) < 0) {
+                            // Only save if EV is positive AND probability is realistic AND EV >= 2%
+                            if (ev.compareTo(BigDecimal.ZERO) > 0 && evPercentage.compareTo(BigDecimal.valueOf(2)) >= 0 && evPercentage.compareTo(BigDecimal.valueOf(1000)) < 0) {
                                 log.info("Found +EV Opportunity: {} | {} | {}% EV", eventName, outcome.getName(), evPercentage);
                                 
                                 EvOpportunity opp = new EvOpportunity();
-                                opp.setEventName(eventName + " (" + outcome.getName() + ")");
+                                opp.setEventName(eventName); // Keep clean event name like "Arsenal vs Burnley"
+                                opp.setTargetSelection(outcome.getName()); // Save "Burnley" separately
                                 opp.setBookmaker(bookmaker.getTitle());
                                 opp.setBookmakerOdds(bookmakerOdds);
                                 opp.setTrueProbability(trueProbability);
