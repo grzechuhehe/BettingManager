@@ -14,6 +14,7 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 ## 🚀 Key Features
 
 ### 📈 Professional Analytics Dashboard
+- **Live +EV Feed:** Expandable, deduplicated feed of currently available positive Expected Value opportunities filtered by >2% profitability.
 - **Equity Curve:** Interactive line chart visualizing cumulative profit over time (Lifetime Performance).
 - **Profit by Sport:** Breakdown of net profit across different sports disciplines to identify strengths.
 - **Key Metrics:** Real-time calculation of **ROI (Return on Investment)** and **Yield**.
@@ -24,7 +25,9 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 - **Auto-Calculation:** Automatic potential winnings and parlay odds aggregation.
 - **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates and safeguards against duplicate or invalid settlements.
 
-### 📡 External Integrations
+### 📡 External Integrations & EV Engine
+- **Automated EV Scanner:** Background engine running 24/7 that cross-references traditional bookmaker odds against predictive markets to find mathematically profitable (+EV) bets.
+- **Predictive Probability:** Integration with **Polymarket Gamma API** to calculate "True Probability" based on the wisdom of the crowd, avoiding traditional vig-removal inaccuracies.
 - **Live Odds:** Real-time sports data and market odds powered by **TheOddsAPI** integration.
 
 ### 🔐 Security & Architecture
