@@ -60,3 +60,5 @@ sportsbetting.p12
 /.superpowers/
 .gemini/
 gha-creds-*.json
+/.gemini_security/
+/.gemini_security/

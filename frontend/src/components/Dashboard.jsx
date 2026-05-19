@@ -28,6 +28,7 @@ const Dashboard = () => {
     const [opportunities, setOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedEvents, setExpandedEvents] = useState({});
+    const [showAsProbability, setShowAsProbability] = useState(false);
 
     const toggleEvent = (eventName) => {
         setExpandedEvents(prev => ({
@@ -35,6 +36,8 @@ const Dashboard = () => {
             [eventName]: !prev[eventName]
         }));
     };
+
+    const getImpliedProb = (odds) => ((1 / odds) * 100).toFixed(1) + '%';
 
     // Grouping logic
     const grouped = opportunities.reduce((acc, opp) => {
@@ -164,7 +167,9 @@ const Dashboard = () => {
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
+                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right cursor-pointer hover:text-primary" onClick={() => setShowAsProbability(!showAsProbability)}>
+                                    Odds {showAsProbability ? '(Prob)' : '(Decimal)'}
+                                </th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
                                 <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right text-primary">Expected Value</th>
                             </tr>
@@ -177,7 +182,6 @@ const Dashboard = () => {
                             ) : (
                                 sortedEventNames.map((eventName) => {
                                     const eventOpps = grouped[eventName];
-                                    // eventOpps are already sorted by EV desc from backend query
                                     const bestOpp = eventOpps[0];
                                     const isExpanded = expandedEvents[eventName];
 
@@ -200,7 +204,9 @@ const Dashboard = () => {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="p-4 text-right font-numeric font-bold">{bestOpp.bookmakerOdds.toFixed(2)}</td>
+                                                <td className="p-4 text-right font-numeric font-bold">
+                                                    {showAsProbability ? getImpliedProb(bestOpp.bookmakerOdds) : bestOpp.bookmakerOdds.toFixed(2)}
+                                                </td>
                                                 <td className="p-4 text-right font-numeric text-muted">{(bestOpp.trueProbability * 100).toFixed(1)}%</td>
                                                 <td className="p-4 text-right font-numeric font-black text-primary">+{bestOpp.evPercentage.toFixed(2)}%</td>
                                             </tr>
@@ -209,7 +215,9 @@ const Dashboard = () => {
                                                     <td className="p-4 pl-10 text-muted italic">↳ Alternative</td>
                                                     <td className="p-4 text-muted font-bold">{opp.targetSelection}</td>
                                                     <td className="p-4 text-muted">{opp.bookmaker}</td>
-                                                    <td className="p-4 text-right font-numeric font-semibold">{opp.bookmakerOdds.toFixed(2)}</td>
+                                                    <td className="p-4 text-right font-numeric font-semibold">
+                                                        {showAsProbability ? getImpliedProb(opp.bookmakerOdds) : opp.bookmakerOdds.toFixed(2)}
+                                                    </td>
                                                     <td className="p-4 text-right font-numeric text-muted">{(opp.trueProbability * 100).toFixed(1)}%</td>
                                                     <td className="p-4 text-right font-numeric font-bold text-primary/70">+{opp.evPercentage.toFixed(2)}%</td>
                                                 </tr>

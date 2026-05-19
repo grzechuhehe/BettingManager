@@ -58,7 +58,7 @@ const Login = () => {
                         />
                     </div>
                     <div>
-                        <label htmlFor="password" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Access Key</label>
+                        <label htmlFor="password" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Password</label>
                         <input
                             type="password"
                             id="password"
@@ -77,8 +77,8 @@ const Login = () => {
                     </button>
                 </form>
                 <div className="mt-4 text-center">
-                    <Link to="/forgot-password" title="Zapomniałeś hasła?" className="text-sm text-primary hover:underline">
-                        Zapomniałeś hasła?
+                    <Link to="/forgot-password" title="Forgot Password?" className="text-sm text-primary hover:underline">
+                        Forgot Password?
                     </Link>
                 </div>
                 {message && (

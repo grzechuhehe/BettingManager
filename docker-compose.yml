@@ -20,7 +20,9 @@ services:
       interval: 5s
 
   backend:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: sportsbetting_backend
     ports:
       - "8443:8443"
@@ -39,6 +41,8 @@ services:
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
     volumes:
+      - .:/app
+      - ~/.m2:/root/.m2
       - ./sportsbetting.p12:/app/sportsbetting.p12
     depends_on:
       db:
@@ -47,9 +51,13 @@ services:
   frontend:
     build: 
       context: ./frontend
+      dockerfile: Dockerfile
     container_name: sportsbetting_frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
 

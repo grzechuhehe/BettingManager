@@ -76,6 +76,7 @@ public class PolymarketApiClient {
 
     private void processMarket(JsonNode market, java.util.Map<String, BigDecimal> probabilities, String home, String away) {
         try {
+            String question = market.path("question").asText().toLowerCase();
             JsonNode outcomesNode = market.path("outcomes");
             JsonNode pricesNode = market.path("outcomePrices");
             
@@ -95,18 +96,36 @@ public class PolymarketApiClient {
                 pricesNode.forEach(n -> prices.add(new BigDecimal(n.asText())));
             }
 
+            String homeLower = home.toLowerCase();
+            String awayLower = away.toLowerCase();
+            String homeShort = home.split(" ")[0].toLowerCase();
+            String awayShort = away.split(" ")[0].toLowerCase();
+
             for (int i = 0; i < Math.min(outcomes.size(), prices.size()); i++) {
                 String outcomeName = outcomes.get(i);
                 BigDecimal price = prices.get(i);
-                
-                // Map outcome to team
-                if (outcomeName.equalsIgnoreCase("Yes") || outcomeName.toLowerCase().contains(home.toLowerCase().split(" ")[0])) {
+                String outcomeLower = outcomeName.toLowerCase();
+
+                // 1. Direct Name Match (Strongest signal)
+                if (outcomeLower.contains(homeLower) || (outcomeLower.contains(homeShort) && !outcomeLower.contains(awayShort))) {
                     probabilities.put(home, price);
-                } else if (outcomeName.equalsIgnoreCase("No") || outcomeName.toLowerCase().contains(away.toLowerCase().split(" ")[0])) {
+                } else if (outcomeLower.contains(awayLower) || (outcomeLower.contains(awayShort) && !outcomeLower.contains(homeShort))) {
                     probabilities.put(away, price);
-                } else {
-                    probabilities.put(outcomeName, price);
+                } else if (outcomeLower.contains("draw")) {
+                    probabilities.put("Draw", price);
+                } 
+                // 2. Binary Market Match (Yes/No)
+                else if (outcomeName.equalsIgnoreCase("Yes")) {
+                    // Map "Yes" only to the subject of the question
+                    if (question.contains(homeLower) || question.contains(homeShort)) {
+                        probabilities.put(home, price);
+                    } else if (question.contains(awayLower) || question.contains(awayShort)) {
+                        probabilities.put(away, price);
+                    }
                 }
+                // Note: We EXPLICITLY do NOT map "No" to the other team for soccer.
+                // In soccer, "Will Home win? No" = (Away Win OR Draw).
+                // Mapping it directly to Away Win causes massive +EV errors.
             }
         } catch (Exception e) {
             log.warn("Error processing market data: {}", e.getMessage());

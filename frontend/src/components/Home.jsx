@@ -26,19 +26,19 @@ const Home = () => {
       {/* Feature Strip */}
       <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-12 w-full max-w-6xl border-t border-hairline pt-16">
         <div className="text-left">
-            <p className="stat-display text-3xl mb-4">2.8k+</p>
-            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Daily Trades</h3>
-            <p className="text-sm text-muted">High-frequency performance tracking across all major global sports markets.</p>
+            <p className="stat-display text-3xl mb-4">Live</p>
+            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Market Tracking</h3>
+            <p className="text-sm text-muted">Real-time performance tracking across major global sports markets.</p>
         </div>
         <div className="text-left">
-            <p className="stat-display text-3xl mb-4">99.9%</p>
-            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Accuracy</h3>
-            <p className="text-sm text-muted">Precise settlement engine ensuring your ROI and Yield metrics are institutional-grade.</p>
+            <p className="stat-display text-3xl mb-4">Verified</p>
+            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Analytics</h3>
+            <p className="text-sm text-muted">Precise settlement engine ensuring your ROI and Yield metrics are accurate.</p>
         </div>
         <div className="text-left">
-            <p className="stat-display text-3xl mb-4">15ms</p>
-            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Latency</h3>
-            <p className="text-sm text-muted">Blazing fast real-time odds and market synchronization from premium providers.</p>
+            <p className="stat-display text-3xl mb-4">Optimized</p>
+            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest mb-2">Performance</h3>
+            <p className="text-sm text-muted">Fast market synchronization and data processing for sports traders.</p>
         </div>
       </div>
     </div>

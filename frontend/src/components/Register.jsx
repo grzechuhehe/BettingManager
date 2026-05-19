@@ -58,7 +58,7 @@ const Register = () => {
                         />
                     </div>
                     <div>
-                        <label htmlFor="email" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Email Endpoint</label>
+                        <label htmlFor="email" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Email</label>
                         <input
                             type="email"
                             id="email"
@@ -70,7 +70,7 @@ const Register = () => {
                         />
                     </div>
                     <div>
-                        <label htmlFor="password" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Security Key</label>
+                        <label htmlFor="password" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Password</label>
                         <input
                             type="password"
                             id="password"
