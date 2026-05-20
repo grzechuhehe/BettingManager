@@ -206,6 +206,14 @@ const Dashboard = () => {
                                                 <td className="p-4 text-muted font-bold text-primary">{bestOpp.targetSelection}</td>
                                                 <td className="p-4 text-muted">
                                                     {bestOpp.bookmaker}
+                                                    {/* NEW: Source badges */}
+                                                    <div className="flex gap-1 mt-1">
+                                                        {bestOpp.sources?.split(',').map(s => (
+                                                            <span key={s} className="px-1 text-[8px] bg-surface-soft border border-hairline rounded text-muted-foreground uppercase">
+                                                                {s === 'POLYMARKET' ? 'P' : 'K'}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                     {eventOpps.length > 1 && (
                                                         <span className="ml-2 px-2 py-0.5 bg-surface-soft text-[10px] rounded-full border border-hairline">
                                                             +{eventOpps.length - 1} more
@@ -232,7 +240,17 @@ const Dashboard = () => {
                                                         )}
                                                     </td>
                                                     <td className="p-4 text-muted font-bold">{opp.targetSelection}</td>
-                                                    <td className="p-4 text-muted">{opp.bookmaker}</td>
+                                                    <td className="p-4 text-muted">
+                                                        {opp.bookmaker}
+                                                        {/* NEW: Source badges */}
+                                                        <div className="flex gap-1 mt-1">
+                                                            {opp.sources?.split(',').map(s => (
+                                                                <span key={s} className="px-1 text-[8px] bg-surface-soft border border-hairline rounded text-muted-foreground uppercase">
+                                                                    {s === 'POLYMARKET' ? 'P' : 'K'}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
                                                     <td className="p-4 text-right font-numeric font-semibold">
                                                         {showAsProbability ? getImpliedProb(opp.bookmakerOdds) : opp.bookmakerOdds.toFixed(2)}
                                                     </td>
