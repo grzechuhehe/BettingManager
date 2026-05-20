@@ -17,5 +17,6 @@ public class EvOpportunity {
     private BigDecimal bookmakerOdds;
     private BigDecimal trueProbability;
     private BigDecimal evPercentage;
+    private BigDecimal marketLiquidity;
     private LocalDateTime detectedAt;
 }

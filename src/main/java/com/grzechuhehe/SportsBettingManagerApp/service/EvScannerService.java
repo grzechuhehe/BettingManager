@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,10 +42,10 @@ public class EvScannerService {
             for (OddsResponseDto event : oddsResponses) {
                 String eventName = event.getHomeTeam() + " vs " + event.getAwayTeam();
                 
-                // Fetch Map of probabilities (e.g., "Arsenal" -> 0.85, "Burnley" -> 0.15)
-                java.util.Map<String, BigDecimal> polyProbs = polyClient.fetchMarketProbabilities(event.getHomeTeam(), event.getAwayTeam());
+                // Fetch Map of MarketData
+                java.util.Map<String, com.grzechuhehe.SportsBettingManagerApp.integration.polymarket.MarketData> polyData = polyClient.fetchMarketProbabilities(event.getHomeTeam(), event.getAwayTeam());
                 
-                if (polyProbs.isEmpty()) {
+                if (polyData.isEmpty()) {
                     log.debug("No Polymarket match found for: {}", eventName);
                     continue;
                 }
@@ -53,17 +54,20 @@ public class EvScannerService {
                     for (OddsResponseDto.MarketDto market : bookmaker.getMarkets()) {
                         for (OddsResponseDto.OutcomeDto outcome : market.getOutcomes()) {
                             
-                            // Find matching probability in the map
+                            // Find matching data in the map
                             BigDecimal trueProbability = null;
-                            for (java.util.Map.Entry<String, BigDecimal> entry : polyProbs.entrySet()) {
+                            BigDecimal marketLiquidity = BigDecimal.ZERO;
+                            
+                            for (java.util.Map.Entry<String, com.grzechuhehe.SportsBettingManagerApp.integration.polymarket.MarketData> entry : polyData.entrySet()) {
                                 if (outcome.getName().toLowerCase().contains(entry.getKey().toLowerCase().split(" ")[0])) {
-                                    trueProbability = entry.getValue();
+                                    trueProbability = entry.getValue().probability();
+                                    marketLiquidity = entry.getValue().openInterest();
                                     break;
                                 }
                             }
                             
                             if (trueProbability == null || trueProbability.compareTo(BigDecimal.ZERO) <= 0 || trueProbability.compareTo(BigDecimal.ONE) >= 0) {
-                                // Skip if no probability or if it's 100% (usually a bug or closed market)
+                                // Skip if no probability or if it's 100%
                                 continue;
                             }
 
@@ -75,15 +79,16 @@ public class EvScannerService {
                             
                             // Only save if EV is positive AND probability is realistic AND EV >= 2%
                             if (ev.compareTo(BigDecimal.ZERO) > 0 && evPercentage.compareTo(BigDecimal.valueOf(2)) >= 0 && evPercentage.compareTo(BigDecimal.valueOf(1000)) < 0) {
-                                log.info("Found +EV Opportunity: {} | {} | {}% EV", eventName, outcome.getName(), evPercentage);
+                                log.info("Found +EV Opportunity: {} | {} | {}% EV | OI: ${}", eventName, outcome.getName(), evPercentage, marketLiquidity);
                                 
                                 EvOpportunity opp = new EvOpportunity();
-                                opp.setEventName(eventName); // Keep clean event name like "Arsenal vs Burnley"
-                                opp.setTargetSelection(outcome.getName()); // Save "Burnley" separately
+                                opp.setEventName(eventName); 
+                                opp.setTargetSelection(outcome.getName()); 
                                 opp.setBookmaker(bookmaker.getTitle());
                                 opp.setBookmakerOdds(bookmakerOdds);
                                 opp.setTrueProbability(trueProbability);
                                 opp.setEvPercentage(evPercentage);
+                                opp.setMarketLiquidity(marketLiquidity); // SAVE LIQUIDITY
                                 opp.setDetectedAt(LocalDateTime.now());
                                 
                                 repository.save(opp);
