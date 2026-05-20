@@ -18,5 +18,6 @@ public class EvOpportunity {
     private BigDecimal trueProbability;
     private BigDecimal evPercentage;
     private BigDecimal marketLiquidity;
+    private String sources; // Comma separated list like "POLYMARKET,KALSHI"
     private LocalDateTime detectedAt;
 }

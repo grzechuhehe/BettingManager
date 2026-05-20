@@ -1,7 +1,7 @@
 package com.grzechuhehe.SportsBettingManagerApp.service;
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.UnifiedMarketData;
 import com.grzechuhehe.SportsBettingManagerApp.integration.theoddsapi.OddsApiClient;
-import com.grzechuhehe.SportsBettingManagerApp.integration.polymarket.PolymarketApiClient;
 import com.grzechuhehe.SportsBettingManagerApp.integration.theoddsapi.dto.OddsResponseDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.EvOpportunity;
 import com.grzechuhehe.SportsBettingManagerApp.repository.EvOpportunityRepository;
@@ -14,14 +14,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EvScannerService {
     private final OddsApiClient oddsClient;
-    private final PolymarketApiClient polyClient;
+    private final PredictionMarketService predictionMarketService;
     private final EvOpportunityRepository repository;
 
     @Scheduled(fixedRate = 3600000, initialDelay = 5000) // Scan hourly, start after 5s
@@ -42,11 +41,11 @@ public class EvScannerService {
             for (OddsResponseDto event : oddsResponses) {
                 String eventName = event.getHomeTeam() + " vs " + event.getAwayTeam();
                 
-                // Fetch Map of MarketData
-                java.util.Map<String, com.grzechuhehe.SportsBettingManagerApp.integration.polymarket.MarketData> polyData = polyClient.fetchMarketProbabilities(event.getHomeTeam(), event.getAwayTeam());
+                // Fetch Map of UnifiedMarketData
+                java.util.Map<String, UnifiedMarketData> unifiedData = predictionMarketService.getUnifiedProbabilities(event.getHomeTeam(), event.getAwayTeam());
                 
-                if (polyData.isEmpty()) {
-                    log.debug("No Polymarket match found for: {}", eventName);
+                if (unifiedData.isEmpty()) {
+                    log.debug("No prediction market match found for: {}", eventName);
                     continue;
                 }
 
@@ -55,22 +54,22 @@ public class EvScannerService {
                         for (OddsResponseDto.OutcomeDto outcome : market.getOutcomes()) {
                             
                             // Find matching data in the map
-                            BigDecimal trueProbability = null;
-                            BigDecimal marketLiquidity = BigDecimal.ZERO;
+                            UnifiedMarketData bestData = null;
                             
-                            for (java.util.Map.Entry<String, com.grzechuhehe.SportsBettingManagerApp.integration.polymarket.MarketData> entry : polyData.entrySet()) {
+                            for (java.util.Map.Entry<String, UnifiedMarketData> entry : unifiedData.entrySet()) {
                                 if (outcome.getName().toLowerCase().contains(entry.getKey().toLowerCase().split(" ")[0])) {
-                                    trueProbability = entry.getValue().probability();
-                                    marketLiquidity = entry.getValue().openInterest();
+                                    bestData = entry.getValue();
                                     break;
                                 }
                             }
                             
-                            if (trueProbability == null || trueProbability.compareTo(BigDecimal.ZERO) <= 0 || trueProbability.compareTo(BigDecimal.ONE) >= 0) {
+                            if (bestData == null || bestData.blendedProbability().compareTo(BigDecimal.ZERO) <= 0 || bestData.blendedProbability().compareTo(BigDecimal.ONE) >= 0) {
                                 // Skip if no probability or if it's 100%
                                 continue;
                             }
 
+                            BigDecimal trueProbability = bestData.blendedProbability();
+                            BigDecimal marketLiquidity = bestData.totalOpenInterest();
                             BigDecimal bookmakerOdds = BigDecimal.valueOf(outcome.getPrice());
                             
                             // EV = (Odds * Prob) - 1
@@ -79,7 +78,8 @@ public class EvScannerService {
                             
                             // Only save if EV is positive AND probability is realistic AND EV >= 2%
                             if (ev.compareTo(BigDecimal.ZERO) > 0 && evPercentage.compareTo(BigDecimal.valueOf(2)) >= 0 && evPercentage.compareTo(BigDecimal.valueOf(1000)) < 0) {
-                                log.info("Found +EV Opportunity: {} | {} | {}% EV | OI: ${}", eventName, outcome.getName(), evPercentage, marketLiquidity);
+                                log.info("Found +EV Opportunity: {} | {} | {}% EV | OI: ${} | Sources: {}", 
+                                        eventName, outcome.getName(), evPercentage, marketLiquidity, bestData.sources());
                                 
                                 EvOpportunity opp = new EvOpportunity();
                                 opp.setEventName(eventName); 
@@ -88,7 +88,8 @@ public class EvScannerService {
                                 opp.setBookmakerOdds(bookmakerOdds);
                                 opp.setTrueProbability(trueProbability);
                                 opp.setEvPercentage(evPercentage);
-                                opp.setMarketLiquidity(marketLiquidity); // SAVE LIQUIDITY
+                                opp.setMarketLiquidity(marketLiquidity);
+                                opp.setSources(String.join(",", bestData.sources()));
                                 opp.setDetectedAt(LocalDateTime.now());
                                 
                                 repository.save(opp);
