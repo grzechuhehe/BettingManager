@@ -161,17 +161,17 @@ const Dashboard = () => {
                     <h3 className="text-xl font-bold text-on-dark">Live +EV Opportunities</h3>
                 </div>
                 <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse table-fixed">
                         <thead>
                             <tr className="bg-surface-soft border-b border-hairline">
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right cursor-pointer hover:text-primary" onClick={() => setShowAsProbability(!showAsProbability)}>
+                                <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
+                                <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
+                                <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
+                                <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right cursor-pointer hover:text-primary" onClick={() => setShowAsProbability(!showAsProbability)}>
                                     Odds {showAsProbability ? '(Prob)' : '(Decimal)'}
                                 </th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
-                                <th className="p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right text-primary">Expected Value</th>
+                                <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
+                                <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right text-primary">Expected Value</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -191,45 +191,44 @@ const Dashboard = () => {
                                                 className="border-b border-hairline hover:bg-surface-soft transition-colors cursor-pointer"
                                                 onClick={() => toggleEvent(eventName)}
                                             >
-                                                <td className="p-4 font-bold text-on-dark flex items-center gap-3 h-20">
+                                                <td className="p-4 font-bold text-on-dark flex items-center gap-3 h-16 truncate">
                                                     <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                                                    {eventName}
+                                                    <span className="truncate">{eventName}</span>
                                                     {(bestOpp.marketLiquidity === null || bestOpp.marketLiquidity < 20000) && (
                                                         <span 
-                                                            className="text-amber-500 cursor-help ml-2" 
+                                                            className="text-amber-500 cursor-help shrink-0" 
                                                             title={`Low liquidity ($${bestOpp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}). True probability might be inaccurate.`}
                                                         >
                                                             ⚠️
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="p-4 text-muted font-bold text-primary h-20">{bestOpp.targetSelection}</td>
-                                                <td className="p-4 text-muted h-20">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span>{bestOpp.bookmaker}</span>
-                                                        <div className="flex gap-1">
-                                                            {bestOpp.sources?.split(',').map(s => (
-                                                                <span key={s} className="px-1 text-[8px] bg-surface-soft border border-hairline rounded text-muted-foreground uppercase" title={`${s} OI: $${bestOpp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}`}>
-                                                                    {s === 'POLYMARKET' ? 'POLY' : 'KALSHI'}
-                                                                </span>
-                                                            ))}
+                                                <td className="p-4 text-muted font-bold text-primary h-16 truncate">{bestOpp.targetSelection}</td>
+                                                <td className="p-4 text-muted h-16">
+                                                    <div className="flex flex-col justify-center h-full">
+                                                        <span className="truncate">{bestOpp.bookmaker}</span>
+                                                        <div className="flex gap-1 mt-0.5">
+                                                            {bestOpp.sources?.split(',').map(s => {
+                                                                const isNA = s.includes('NOT_AVAILABLE');
+                                                                const label = s.replace('_NOT_AVAILABLE', '').replace('POLYMARKET', 'POLY').replace('KALSHI', 'KALSHI');
+                                                                return (
+                                                                    <span key={s} className={`px-1 text-[8px] border border-hairline rounded uppercase ${isNA ? 'bg-surface-soft/20 text-muted' : 'bg-surface-soft text-muted-foreground'}`} title={isNA ? `${label} market unavailable` : `${label} OI: $${bestOpp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}`}>
+                                                                        {label}
+                                                                    </span>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
-                                                    {eventOpps.length > 1 && (
-                                                        <span className="mt-1 block px-2 py-0.5 bg-surface-soft text-[10px] rounded-full border border-hairline w-max">
-                                                            +{eventOpps.length - 1} more
-                                                        </span>
-                                                    )}
                                                 </td>
-                                                <td className="p-4 text-right font-numeric font-bold h-20">
+                                                <td className="p-4 text-right font-numeric font-bold h-16">
                                                     {showAsProbability ? getImpliedProb(bestOpp.bookmakerOdds) : bestOpp.bookmakerOdds.toFixed(2)}
                                                 </td>
-                                                <td className="p-4 text-right font-numeric text-muted h-20">{(bestOpp.trueProbability * 100).toFixed(1)}%</td>
-                                                <td className="p-4 text-right font-numeric font-black text-primary h-20">+{bestOpp.evPercentage.toFixed(2)}%</td>
+                                                <td className="p-4 text-right font-numeric text-muted h-16">{(bestOpp.trueProbability * 100).toFixed(1)}%</td>
+                                                <td className="p-4 text-right font-numeric font-black text-primary h-16">+{bestOpp.evPercentage.toFixed(2)}%</td>
                                             </tr>
                                             {isExpanded && eventOpps.slice(1).map((opp) => (
-                                                <tr key={opp.id} className="border-b border-hairline bg-surface-soft/30 text-sm h-16">
-                                                    <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-16">
+                                                <tr key={opp.id} className="border-b border-hairline bg-surface-soft/30 text-sm h-14">
+                                                    <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-14 truncate">
                                                         ↳ Alternative
                                                         {(opp.marketLiquidity === null || opp.marketLiquidity < 20000) && (
                                                             <span 
@@ -240,24 +239,28 @@ const Dashboard = () => {
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="p-4 text-muted font-bold h-16">{opp.targetSelection}</td>
-                                                    <td className="p-4 text-muted h-16">
-                                                        <div className="flex flex-col gap-1">
-                                                            <span>{opp.bookmaker}</span>
-                                                            <div className="flex gap-1">
-                                                                {opp.sources?.split(',').map(s => (
-                                                                    <span key={s} className="px-1 text-[8px] bg-surface-soft border border-hairline rounded text-muted-foreground uppercase" title={`${s} OI: $${opp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}`}>
-                                                                        {s === 'POLYMARKET' ? 'POLY' : 'KALSHI'}
-                                                                    </span>
-                                                                ))}
+                                                    <td className="p-4 text-muted font-bold h-14 truncate">{opp.targetSelection}</td>
+                                                    <td className="p-4 text-muted h-14">
+                                                        <div className="flex flex-col justify-center h-full">
+                                                            <span className="truncate">{opp.bookmaker}</span>
+                                                            <div className="flex gap-1 mt-0.5">
+                                                                {opp.sources?.split(',').map(s => {
+                                                                    const isNA = s.includes('NOT_AVAILABLE');
+                                                                    const label = s.replace('_NOT_AVAILABLE', '').replace('POLYMARKET', 'POLY').replace('KALSHI', 'KALSHI');
+                                                                    return (
+                                                                        <span key={s} className={`px-1 text-[8px] border border-hairline rounded uppercase ${isNA ? 'bg-surface-soft/20 text-muted' : 'bg-surface-soft text-muted-foreground'}`} title={isNA ? `${label} market unavailable` : `${label} OI: $${opp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}`}>
+                                                                            {label}
+                                                                        </span>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-right font-numeric font-semibold h-16">
+                                                    <td className="p-4 text-right font-numeric font-semibold h-14">
                                                         {showAsProbability ? getImpliedProb(opp.bookmakerOdds) : opp.bookmakerOdds.toFixed(2)}
                                                     </td>
-                                                    <td className="p-4 text-right font-numeric text-muted h-16">{(opp.trueProbability * 100).toFixed(1)}%</td>
-                                                    <td className="p-4 text-right font-numeric font-bold text-primary/70 h-16">+{opp.evPercentage.toFixed(2)}%</td>
+                                                    <td className="p-4 text-right font-numeric text-muted h-14">{(opp.trueProbability * 100).toFixed(1)}%</td>
+                                                    <td className="p-4 text-right font-numeric font-bold text-primary/70 h-14">+{opp.evPercentage.toFixed(2)}%</td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>

@@ -50,9 +50,9 @@ public class PredictionMarketService {
                 
                 unified.put(outcome, new UnifiedMarketData(blendedProb, totalOI, List.of("POLYMARKET", "KALSHI")));
             } else if (pData != null) {
-                unified.put(outcome, new UnifiedMarketData(pData.probability(), pData.openInterest(), List.of("POLYMARKET")));
+                unified.put(outcome, new UnifiedMarketData(pData.probability(), pData.openInterest(), List.of("POLYMARKET", "KALSHI_NOT_AVAILABLE")));
             } else if (kData != null) {
-                unified.put(outcome, new UnifiedMarketData(kData.probability(), kData.openInterest(), List.of("KALSHI")));
+                unified.put(outcome, new UnifiedMarketData(kData.probability(), kData.openInterest(), List.of("POLYMARKET_NOT_AVAILABLE", "KALSHI")));
             }
         }
         return unified;

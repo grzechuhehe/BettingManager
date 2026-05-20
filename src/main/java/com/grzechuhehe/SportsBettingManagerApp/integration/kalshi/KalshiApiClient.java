@@ -16,7 +16,7 @@ import java.util.Map;
 @Service
 public class KalshiApiClient {
     private final RestTemplate restTemplate;
-    private static final String KALSHI_API_URL = "https://api.elections.kalshi.com/trade-api/v2/markets?status=active&limit=1000";
+    private static final String KALSHI_API_URL = "https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=1000";
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public KalshiApiClient(RestTemplate restTemplate) {
@@ -26,7 +26,6 @@ public class KalshiApiClient {
     public Map<String, MarketData> fetchMarketProbabilities(String homeTeam, String awayTeam) {
         Map<String, MarketData> probabilities = new HashMap<>();
         try {
-            // Kalshi doesn't have a great search-by-text API for free tier, so we fetch active markets and filter
             ResponseEntity<String> response = restTemplate.getForEntity(KALSHI_API_URL, String.class);
             JsonNode root = mapper.readTree(response.getBody());
             JsonNode markets = root.path("markets");
@@ -34,7 +33,9 @@ public class KalshiApiClient {
             if (markets.isArray()) {
                 for (JsonNode market : markets) {
                     String title = market.path("title").asText().toLowerCase();
-                    if (title.contains(homeTeam.toLowerCase()) && title.contains(awayTeam.toLowerCase())) {
+                    // Better matching logic: check if both teams are in the title
+                    if (title.contains(homeTeam.toLowerCase().split(" ")[0]) && 
+                        title.contains(awayTeam.toLowerCase().split(" ")[0])) {
                         processMarket(market, probabilities, homeTeam, awayTeam);
                         if (!probabilities.isEmpty()) return probabilities;
                     }
@@ -47,15 +48,24 @@ public class KalshiApiClient {
     }
 
     private void processMarket(JsonNode market, Map<String, MarketData> probabilities, String home, String away) {
-        BigDecimal price = new BigDecimal(market.path("yes_bid_dollars").asText());
-        BigDecimal openInterest = new BigDecimal(market.path("open_interest_fp").asText());
-        String title = market.path("title").asText().toLowerCase();
+        try {
+            // Use yes_bid_dollars as primary, last_price as fallback
+            String priceStr = market.path("yes_bid_dollars").asText();
+            if (priceStr == null || priceStr.equals("0.0000")) {
+                priceStr = market.path("last_price_dollars").asText();
+            }
 
-        // Kalshi markets are often "Yes/No" for a specific team
-        if (title.contains(home.toLowerCase())) {
-            probabilities.put(home, new MarketData(price, openInterest));
-        } else if (title.contains(away.toLowerCase())) {
-            probabilities.put(away, new MarketData(price, openInterest));
+            BigDecimal price = new BigDecimal(priceStr);
+            BigDecimal openInterest = new BigDecimal(market.path("open_interest_fp").asText());
+            String title = market.path("title").asText().toLowerCase();
+
+            if (title.contains(home.toLowerCase().split(" ")[0])) {
+                probabilities.put(home, new MarketData(price, openInterest));
+            } else if (title.contains(away.toLowerCase().split(" ")[0])) {
+                probabilities.put(away, new MarketData(price, openInterest));
+            }
+        } catch (Exception e) {
+            log.debug("Error parsing Kalshi market: {}", e.getMessage());
         }
     }
 }
