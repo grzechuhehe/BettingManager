@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -27,8 +27,8 @@ public class PolymarketApiClient {
 
     private static final String GAMMA_SEARCH_URL = "https://gamma-api.polymarket.com/public-search?q=";
 
-    public java.util.Map<String, BigDecimal> fetchMarketProbabilities(String homeTeam, String awayTeam) {
-        java.util.Map<String, BigDecimal> probabilities = new java.util.HashMap<>();
+    public Map<String, MarketData> fetchMarketProbabilities(String homeTeam, String awayTeam) {
+        Map<String, MarketData> probabilities = new HashMap<>();
         String query = homeTeam + " " + awayTeam;
         try {
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -42,9 +42,15 @@ public class PolymarketApiClient {
                 for (JsonNode event : events) {
                     String title = event.path("title").asText().toLowerCase();
                     if (isMatchMatch(title, homeTeam, awayTeam)) {
+                        // EXTRACT openInterest from the event node!
+                        BigDecimal eventOi = BigDecimal.ZERO;
+                        if (event.has("openInterest")) {
+                           eventOi = new BigDecimal(event.path("openInterest").asText());
+                        }
+                        
                         JsonNode markets = event.path("markets");
                         if (markets.isArray() && markets.size() > 0) {
-                            processMarket(markets.get(0), probabilities, homeTeam, awayTeam);
+                            processMarket(markets.get(0), probabilities, homeTeam, awayTeam, eventOi);
                             if (!probabilities.isEmpty()) return probabilities;
                         }
                     }
@@ -57,7 +63,12 @@ public class PolymarketApiClient {
                 for (JsonNode market : markets) {
                     String question = market.path("question").asText().toLowerCase();
                     if (isMatchMatch(question, homeTeam, awayTeam)) {
-                        processMarket(market, probabilities, homeTeam, awayTeam);
+                        // Markets might have openInterest directly
+                        BigDecimal marketOi = BigDecimal.ZERO;
+                        if (market.has("openInterest")) {
+                            marketOi = new BigDecimal(market.path("openInterest").asText());
+                        }
+                        processMarket(market, probabilities, homeTeam, awayTeam, marketOi);
                         if (!probabilities.isEmpty()) return probabilities;
                     }
                 }
@@ -74,13 +85,19 @@ public class PolymarketApiClient {
         return text.contains(homeKey) && text.contains(awayKey);
     }
 
-    private void processMarket(JsonNode market, java.util.Map<String, BigDecimal> probabilities, String home, String away) {
+    private void processMarket(JsonNode market, Map<String, MarketData> probabilities, String home, String away, BigDecimal eventOi) {
         try {
             String question = market.path("question").asText().toLowerCase();
             JsonNode outcomesNode = market.path("outcomes");
             JsonNode pricesNode = market.path("outcomePrices");
             
-            List<String> outcomes = new java.util.ArrayList<>();
+            // Extract market-level OI if event-level wasn't passed down effectively
+            BigDecimal openInterest = eventOi;
+            if (openInterest.compareTo(BigDecimal.ZERO) == 0 && market.has("openInterest")) {
+                openInterest = new BigDecimal(market.path("openInterest").asText());
+            }
+
+            List<String> outcomes = new ArrayList<>();
             if (outcomesNode.isTextual()) {
                 JsonNode array = mapper.readTree(outcomesNode.asText());
                 array.forEach(n -> outcomes.add(n.asText()));
@@ -105,22 +122,24 @@ public class PolymarketApiClient {
                 String outcomeName = outcomes.get(i);
                 BigDecimal price = prices.get(i);
                 String outcomeLower = outcomeName.toLowerCase();
+                
+                MarketData data = new MarketData(price, openInterest);
 
                 // 1. Direct Name Match (Strongest signal)
                 if (outcomeLower.contains(homeLower) || (outcomeLower.contains(homeShort) && !outcomeLower.contains(awayShort))) {
-                    probabilities.put(home, price);
+                    probabilities.put(home, data);
                 } else if (outcomeLower.contains(awayLower) || (outcomeLower.contains(awayShort) && !outcomeLower.contains(homeShort))) {
-                    probabilities.put(away, price);
+                    probabilities.put(away, data);
                 } else if (outcomeLower.contains("draw")) {
-                    probabilities.put("Draw", price);
+                    probabilities.put("Draw", data);
                 } 
                 // 2. Binary Market Match (Yes/No)
                 else if (outcomeName.equalsIgnoreCase("Yes")) {
                     // Map "Yes" only to the subject of the question
                     if (question.contains(homeLower) || question.contains(homeShort)) {
-                        probabilities.put(home, price);
+                        probabilities.put(home, data);
                     } else if (question.contains(awayLower) || question.contains(awayShort)) {
-                        probabilities.put(away, price);
+                        probabilities.put(away, data);
                     }
                 }
                 // Note: We EXPLICITLY do NOT map "No" to the other team for soccer.
@@ -133,7 +152,7 @@ public class PolymarketApiClient {
     }
 
     // Keep old method for compatibility or specific queries
-    public java.util.Optional<BigDecimal> fetchTrueProbability(String eventQuery) {
+    public Optional<BigDecimal> fetchTrueProbability(String eventQuery) {
         try {
             String encodedQuery = URLEncoder.encode(eventQuery, StandardCharsets.UTF_8);
             String url = GAMMA_API_URL + encodedQuery;
@@ -148,13 +167,13 @@ public class PolymarketApiClient {
                     JsonNode outcomePrices = markets.get(0).path("outcomePrices");
                     if (outcomePrices.isArray() && outcomePrices.size() > 0) {
                         String priceStr = outcomePrices.get(0).asText();
-                        return java.util.Optional.of(new BigDecimal(priceStr).setScale(4, RoundingMode.HALF_UP));
+                        return Optional.of(new BigDecimal(priceStr).setScale(4, RoundingMode.HALF_UP));
                     }
                 }
             }
         } catch (Exception e) {
             log.warn("Error fetching from Polymarket: {}", e.getMessage());
         }
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 }
