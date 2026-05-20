@@ -194,6 +194,14 @@ const Dashboard = () => {
                                                 <td className="p-4 font-bold text-on-dark flex items-center gap-3">
                                                     <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                                                     {eventName}
+                                                    {(bestOpp.marketLiquidity === null || bestOpp.marketLiquidity < 20000) && (
+                                                        <span 
+                                                            className="text-amber-500 cursor-help ml-2" 
+                                                            title={`Low market liquidity ($${bestOpp.marketLiquidity || 0}). True probability might be inaccurate due to low volume of open positions.`}
+                                                        >
+                                                            ⚠️
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="p-4 text-muted font-bold text-primary">{bestOpp.targetSelection}</td>
                                                 <td className="p-4 text-muted">
@@ -212,7 +220,17 @@ const Dashboard = () => {
                                             </tr>
                                             {isExpanded && eventOpps.slice(1).map((opp) => (
                                                 <tr key={opp.id} className="border-b border-hairline bg-surface-soft/30 text-sm">
-                                                    <td className="p-4 pl-10 text-muted italic">↳ Alternative</td>
+                                                    <td className="p-4 pl-10 text-muted italic flex items-center gap-2">
+                                                        ↳ Alternative
+                                                        {(opp.marketLiquidity === null || opp.marketLiquidity < 20000) && (
+                                                            <span 
+                                                                className="text-amber-500 cursor-help" 
+                                                                title={`Low market liquidity ($${opp.marketLiquidity || 0}). True probability might be inaccurate due to low volume of open positions.`}
+                                                            >
+                                                                ⚠️
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="p-4 text-muted font-bold">{opp.targetSelection}</td>
                                                     <td className="p-4 text-muted">{opp.bookmaker}</td>
                                                     <td className="p-4 text-right font-numeric font-semibold">
