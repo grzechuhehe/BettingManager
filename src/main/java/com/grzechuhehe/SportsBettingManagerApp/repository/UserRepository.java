@@ -13,11 +13,17 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
-    Optional<User> findByEmail(String email);
-
     Boolean existsByUsername(String username);
     Boolean existsByEmail(String email);
+    Optional<User> findByEmail(String email);
 
+    // Optimized queries for Social Betting
+    @Query("SELECT u FROM User u WHERE u.isActiveUser = false AND u.xUsername IS NOT NULL")
+    List<User> findByIsActiveUserFalseAndXUsernameIsNotNull();
+    
     @Query("SELECT u FROM User u WHERE u.xUsername IS NOT NULL AND (u.lastXCheckAt IS NULL OR u.lastXCheckAt < :threshold)")
     List<User> findProfilesToUpdate(@Param("threshold") LocalDateTime threshold);
+    
+    @Query("SELECT u FROM User u WHERE LOWER(u.xUsername) = LOWER(:xUsername)")
+    Optional<User> findByXUsernameIgnoreCase(@Param("xUsername") String xUsername);
 }

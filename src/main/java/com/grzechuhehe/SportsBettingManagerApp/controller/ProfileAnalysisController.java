@@ -31,9 +31,7 @@ public class ProfileAnalysisController {
     @Operation(summary = "Get tracked profiles", description = "Returns a list of all shadow profiles currently being tracked via X.")
     @GetMapping("/tracked")
     public ResponseEntity<List<TrackedProfileDTO>> getTrackedProfiles() {
-        // Zwracamy użytkowników, którzy mają xUsername i NIE SĄ prawdziwymi użytkownikami aplikacji (Shadow Profiles)
-        List<TrackedProfileDTO> profiles = userRepository.findAll().stream()
-                .filter(u -> u.getXUsername() != null && !u.isActiveUser())
+        List<TrackedProfileDTO> profiles = userRepository.findByIsActiveUserFalseAndXUsernameIsNotNull().stream()
                 .map(u -> TrackedProfileDTO.builder()
                         .id(u.getId())
                         .xUsername(u.getXUsername())
@@ -48,22 +46,17 @@ public class ProfileAnalysisController {
     @Operation(summary = "Start tracking a new profile", description = "Creates a new shadow profile to track their X activity.")
     @PostMapping("/track")
     public ResponseEntity<?> trackNewProfile(@Valid @RequestBody TrackProfileRequest request) {
-        String xUsername = request.getXUsername().replace("@", ""); // Zabezpieczenie przed "@" w nazwie
+        String xUsername = request.getXUsername().replace("@", ""); 
         
-        // Sprawdzamy czy już nie śledzimy tego profilu
-        boolean alreadyTracked = userRepository.findAll().stream()
-                .anyMatch(u -> xUsername.equalsIgnoreCase(u.getXUsername()));
-                
-        if (alreadyTracked) {
+        if (userRepository.findByXUsernameIgnoreCase(xUsername).isPresent()) {
             return ResponseEntity.badRequest().body("This profile is already being tracked.");
         }
 
         User shadowProfile = new User();
-        // Używamy samego xUsername jako nazwy użytkownika w naszej bazie
         shadowProfile.setUsername(xUsername); 
         shadowProfile.setXUsername(xUsername);
         shadowProfile.setXProfileUrl("https://x.com/" + xUsername);
-        shadowProfile.setActiveUser(false); // To blokuje logowanie na to konto!
+        shadowProfile.setActiveUser(false); 
         
         userRepository.save(shadowProfile);
         
@@ -73,9 +66,7 @@ public class ProfileAnalysisController {
     @Operation(summary = "Manual trigger scan", description = "Triggers an immediate analysis for a specific profile (max once per hour).")
     @PostMapping("/{xUsername}/scan")
     public ResponseEntity<?> triggerManualScan(@PathVariable String xUsername) {
-        Optional<User> shadowProfileOpt = userRepository.findAll().stream()
-                .filter(u -> xUsername.equalsIgnoreCase(u.getXUsername()))
-                .findFirst();
+        Optional<User> shadowProfileOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
 
         if (shadowProfileOpt.isEmpty()) {
             return ResponseEntity.notFound().build();

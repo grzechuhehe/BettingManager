@@ -64,7 +64,9 @@ public class Bet {
     // Szczegóły wyboru
     @Enumerated(EnumType.STRING)
     private MarketType marketType; // Rodzaj rynku, np. MONEYLINE_1X2, TOTALS_OVER_UNDER
-    private String selection; // Konkretny wybór, np. "Real Madrid", "Over 2.5"
+    @Column(length = 1000)
+    private String selection;
+ // Konkretny wybór, np. "Real Madrid", "Over 2.5"
     private String line; // Linia dla zakładów typu handicap lub over/under, np. "-1.5" lub "2.5"
 
     // Informacje o bukmacherze i API
