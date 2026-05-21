@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.UUID;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtUtils {
@@ -25,8 +26,20 @@ public class JwtUtils {
     @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
+    private Key key;
+
+    @PostConstruct
+    public void init() {
+        if (jwtSecret == null || jwtSecret.isBlank() || jwtSecret.equals("${JWT_SECRET}") || jwtSecret.length() < 32) {
+            logger.warn("JWT_SECRET is missing, too short, or unconfigured. Generating a secure random key for this session (Development Mode).");
+            this.key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        } else {
+            this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        return this.key;
     }
 
     public String generateJwtToken(Authentication authentication) {

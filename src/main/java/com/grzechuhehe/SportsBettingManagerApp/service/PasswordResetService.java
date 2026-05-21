@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.PasswordResetTokenRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.email.EmailService;
+import com.grzechuhehe.SportsBettingManagerApp.util.PiiUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,12 +30,12 @@ public class PasswordResetService {
     private String frontendUrl;
 
     public void processForgotPassword(String email) {
-        log.info("Żądanie resetu hasła dla: {}", email);
+        log.info("Żądanie resetu hasła dla: {}", PiiUtils.maskEmail(email));
         Optional<User> userOpt = userRepository.findByEmail(email);
         
         // Zabezpieczenie przed User Enumeration: zawsze zachowujemy się tak samo na zewnątrz
         if (userOpt.isEmpty()) {
-            log.warn("Żądanie resetu dla nieistniejącego konta: {}", email);
+            log.warn("Żądanie resetu dla nieistniejącego konta: {}", PiiUtils.maskEmail(email));
             return; 
         }
         
@@ -58,7 +59,7 @@ public class PasswordResetService {
         myToken.setUser(user);
         myToken.setToken(token);
         tokenRepository.save(myToken);
-        log.info("Zapisano nowy token resetowania hasła dla użytkownika {}", user.getEmail());
+        log.info("Zapisano nowy token resetowania hasła dla użytkownika {}", PiiUtils.maskEmail(user.getEmail()));
     }
 
     public void resetPassword(PasswordResetSubmit request) {
@@ -79,6 +80,6 @@ public class PasswordResetService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         tokenRepository.delete(resetToken);
-        log.info("Hasło dla użytkownika {} zostało zresetowane pomyślnie", user.getEmail());
+        log.info("Hasło dla użytkownika {} zostało zresetowane pomyślnie", PiiUtils.maskEmail(user.getEmail()));
     }
 }

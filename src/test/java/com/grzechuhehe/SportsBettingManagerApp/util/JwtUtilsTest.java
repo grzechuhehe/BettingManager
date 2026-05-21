@@ -21,6 +21,7 @@ class JwtUtilsTest {
         jwtUtils = new JwtUtils();
         ReflectionTestUtils.setField(jwtUtils, "jwtSecret", jwtSecret);
         ReflectionTestUtils.setField(jwtUtils, "jwtExpirationMs", jwtExpirationMs);
+        jwtUtils.init(); // Initialize the dynamic key parsing
     }
 
     @Test
@@ -58,6 +59,7 @@ class JwtUtilsTest {
         JwtUtils shortLivedJwtUtils = new JwtUtils();
         ReflectionTestUtils.setField(shortLivedJwtUtils, "jwtSecret", jwtSecret);
         ReflectionTestUtils.setField(shortLivedJwtUtils, "jwtExpirationMs", 1); // 1ms expiration
+        shortLivedJwtUtils.init(); // Initialize the dynamic key parsing
 
         Authentication authentication = mock(Authentication.class);
         User userPrincipal = new User();
