@@ -80,9 +80,20 @@ public class PolymarketApiClient {
     }
 
     private boolean isMatchMatch(String text, String home, String away) {
-        String homeKey = home.split(" ")[0].toLowerCase();
-        String awayKey = away.split(" ")[0].toLowerCase();
+        String homeKey = extractKey(home);
+        String awayKey = extractKey(away);
         return text.contains(homeKey) && text.contains(awayKey);
+    }
+
+    private String extractKey(String fullName) {
+        String[] parts = fullName.toLowerCase().split(" ");
+        if (parts.length == 0) return "";
+        String last = parts[parts.length - 1];
+        // basic edge case for soccer
+        if ((last.equals("fc") || last.equals("united") || last.equals("city") || last.equals("hotspur") || last.equals("albion")) && parts.length > 1) {
+            return parts[parts.length - 2];
+        }
+        return last;
     }
 
     private void processMarket(JsonNode market, Map<String, MarketData> probabilities, String home, String away, BigDecimal eventOi) {
@@ -115,8 +126,8 @@ public class PolymarketApiClient {
 
             String homeLower = home.toLowerCase();
             String awayLower = away.toLowerCase();
-            String homeShort = home.split(" ")[0].toLowerCase();
-            String awayShort = away.split(" ")[0].toLowerCase();
+            String homeShort = extractKey(home);
+            String awayShort = extractKey(away);
 
             for (int i = 0; i < Math.min(outcomes.size(), prices.size()); i++) {
                 String outcomeName = outcomes.get(i);

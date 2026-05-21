@@ -34,8 +34,9 @@ public class KalshiApiClient {
                 for (JsonNode market : markets) {
                     String title = market.path("title").asText().toLowerCase();
                     // Better matching logic: check if both teams are in the title
-                    if (title.contains(homeTeam.toLowerCase().split(" ")[0]) && 
-                        title.contains(awayTeam.toLowerCase().split(" ")[0])) {
+                    String homeKey = extractKey(homeTeam);
+                    String awayKey = extractKey(awayTeam);
+                    if (title.contains(homeKey) && title.contains(awayKey)) {
                         processMarket(market, probabilities, homeTeam, awayTeam);
                         if (!probabilities.isEmpty()) return probabilities;
                     }
@@ -45,6 +46,17 @@ public class KalshiApiClient {
             log.warn("Error fetching from Kalshi for {} vs {}: {}", homeTeam, awayTeam, e.getMessage());
         }
         return probabilities;
+    }
+
+    private String extractKey(String fullName) {
+        String[] parts = fullName.toLowerCase().split(" ");
+        if (parts.length == 0) return "";
+        String last = parts[parts.length - 1];
+        // basic edge case for soccer
+        if ((last.equals("fc") || last.equals("united") || last.equals("city") || last.equals("hotspur") || last.equals("albion")) && parts.length > 1) {
+            return parts[parts.length - 2];
+        }
+        return last;
     }
 
     private void processMarket(JsonNode market, Map<String, MarketData> probabilities, String home, String away) {
@@ -59,9 +71,12 @@ public class KalshiApiClient {
             BigDecimal openInterest = new BigDecimal(market.path("open_interest_fp").asText());
             String title = market.path("title").asText().toLowerCase();
 
-            if (title.contains(home.toLowerCase().split(" ")[0])) {
+            String homeKey = extractKey(home);
+            String awayKey = extractKey(away);
+
+            if (title.contains(homeKey)) {
                 probabilities.put(home, new MarketData(price, openInterest));
-            } else if (title.contains(away.toLowerCase().split(" ")[0])) {
+            } else if (title.contains(awayKey)) {
                 probabilities.put(away, new MarketData(price, openInterest));
             }
         } catch (Exception e) {
