@@ -62,3 +62,4 @@ sportsbetting.p12
 gha-creds-*.json
 /.gemini_security/
 
+/uploads/

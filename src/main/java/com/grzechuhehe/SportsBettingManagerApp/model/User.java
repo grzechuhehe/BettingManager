@@ -47,7 +47,11 @@ public class User implements UserDetails {
 
     private String xUsername;
 
+    private String xProfileUrl;
+
     private LocalDateTime lastXCheckAt;
+
+    private LocalDateTime registeredAt;
 
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles = new ArrayList<>();

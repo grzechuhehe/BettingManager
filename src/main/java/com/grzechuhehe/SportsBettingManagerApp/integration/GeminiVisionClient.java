@@ -30,17 +30,18 @@ public class GeminiVisionClient {
     /**
      * Wysyła tekst posta i zdjęcie do Gemini w celu ekstrakcji danych o zakładzie.
      */
-    public String analyzeBet(String postText, String localImagePath) {
+    public String analyzeBet(String postText, List<String> localImagePaths) {
         try {
             String url = API_URL + apiKey;
 
             // 1. Przygotowanie promptu
-            String prompt = "Jesteś ekspertem od zakładów bukmacherskich. Przeanalizuj tekst posta i załączone zdjęcie kuponu. " +
-                    "Wyciągnij dane o zakładzie (mecz, typ, kurs, bukmacher, stawka w jednostkach [u]). " +
+            String prompt = "Jesteś ekspertem od zakładów bukmacherskich. Przeanalizuj tekst posta i ZAŁĄCZONE ZDJĘCIA (mogą być częściami jednego kuponu). " +
+                    "Zadaniem jest scalenie informacji ze wszystkich zdjęć w jeden spójny kupon. " +
+                    "Sprawdź: czy iloczyn kursów na zdjęciach zgadza się z końcowym kursem? Czy są jakieś bonusy (np. 'boosted odds')? " +
                     "Zwróć odpowiedź WYŁĄCZNIE w formacie JSON, np: " +
                     "{\"eventName\": \"Real - Barca\", \"selection\": \"1\", \"odds\": 1.85, \"bookmaker\": \"STS\", \"units\": 5.0}";
 
-            // 2. Przygotowanie części zapytania (tekst + obraz w Base64)
+            // 2. Przygotowanie części zapytania (tekst + obrazy w Base64)
             List<Map<String, Object>> parts = new ArrayList<>();
             
             // Część tekstowa
@@ -48,20 +49,22 @@ public class GeminiVisionClient {
             textPart.put("text", prompt + "\n\nTekst posta: " + postText);
             parts.add(textPart);
 
-            // Część obrazkowa (jeśli istnieje)
-            if (localImagePath != null) {
-                Path path = Paths.get(localImagePath.replaceFirst("/images/profiles/", "uploads/profiles/"));
-                if (Files.exists(path)) {
-                    byte[] imageBytes = Files.readAllBytes(path);
-                    String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            // Część obrazkowa
+            if (localImagePaths != null) {
+                for (String localImagePath : localImagePaths) {
+                    Path path = Paths.get(localImagePath.replaceFirst("/images/profiles/", "uploads/profiles/"));
+                    if (Files.exists(path)) {
+                        byte[] imageBytes = Files.readAllBytes(path);
+                        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
 
-                    Map<String, Object> inlineData = new HashMap<>();
-                    inlineData.put("mime_type", "image/jpeg");
-                    inlineData.put("data", base64Image);
+                        Map<String, Object> inlineData = new HashMap<>();
+                        inlineData.put("mime_type", "image/jpeg");
+                        inlineData.put("data", base64Image);
 
-                    Map<String, Object> imagePart = new HashMap<>();
-                    imagePart.put("inline_data", inlineData);
-                    parts.add(imagePart);
+                        Map<String, Object> imagePart = new HashMap<>();
+                        imagePart.put("inline_data", inlineData);
+                        parts.add(imagePart);
+                    }
                 }
             }
 

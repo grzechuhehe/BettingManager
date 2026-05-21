@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BetRepository extends JpaRepository<Bet, Long>{
@@ -19,4 +20,6 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
     List<Bet> findByUserOrderByPlacedAtAsc(User user);
     @Query("SELECT b FROM Bet b WHERE b.user = :user AND b.placedAt >= :startDate")
     List<Bet> findByUserAndPeriod(User user, @Param("startDate") LocalDateTime startDate);
+    
+    Optional<Bet> findBySourcePostId(String sourcePostId);
 }

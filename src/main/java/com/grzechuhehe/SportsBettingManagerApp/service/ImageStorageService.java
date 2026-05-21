@@ -36,35 +36,37 @@ public class ImageStorageService {
     }
 
     /**
-     * Pobiera obraz z podanego URL i zapisuje go lokalnie.
+     * Pobiera obraz z podanego URL i zapisuje go lokalnie w podfolderze użytkownika.
      * @param imageUrl Adres URL obrazu (z SocialData API).
-     * @return Względna ścieżka do zapisanego pliku, którą odczyta frontend (np. /images/profiles/uuid.jpg),
-     *         lub null w przypadku błędu.
+     * @param xUsername Nazwa użytkownika z X (Twitter).
+     * @return Względna ścieżka do zapisanego pliku, którą odczyta frontend, lub null.
      */
-    public String downloadAndSaveImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
+    public String downloadAndSaveImage(String imageUrl, String xUsername) {
+        if (imageUrl == null || imageUrl.isEmpty() || xUsername == null || xUsername.isEmpty()) {
             return null;
         }
 
         try {
-            // 1. Pobieranie obrazu jako tablica bajtów
             byte[] imageBytes = restTemplate.getForObject(imageUrl, byte[].class);
             if (imageBytes == null) {
                 log.warn("Nie udało się pobrać obrazu, pusty wynik z URL: {}", imageUrl);
                 return null;
             }
 
-            // 2. Generowanie unikalnej nazwy pliku (tymczasowo zapisujemy jako standardowy JPG, 
-            // w przyszłości można dodać libkę Scrimage do konwersji na WebP)
-            String fileName = UUID.randomUUID().toString() + ".jpg";
-            Path filePath = Paths.get(UPLOAD_DIR + fileName);
+            // Tworzenie podfolderu dla użytkownika
+            String userDirPath = UPLOAD_DIR + xUsername + "/";
+            File userDir = new File(userDirPath);
+            if (!userDir.exists()) {
+                userDir.mkdirs();
+            }
 
-            // 3. Zapis pliku na dysk
+            String fileName = UUID.randomUUID().toString() + ".jpg";
+            Path filePath = Paths.get(userDirPath + fileName);
+
             Files.write(filePath, imageBytes);
             log.info("Pomyślnie zapisano dowód kuponu do: {}", filePath);
 
-            // 4. Zwracanie ścieżki dostępnej publicznie przez Spring MVC
-            return "/images/profiles/" + fileName;
+            return "/images/profiles/" + xUsername + "/" + fileName;
 
         } catch (Exception e) {
             log.error("Błąd podczas pobierania lub zapisu obrazu z {}: {}", imageUrl, e.getMessage());
