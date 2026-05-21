@@ -55,7 +55,7 @@ public class ProfileAnalysisController {
                 .anyMatch(u -> xUsername.equalsIgnoreCase(u.getXUsername()));
                 
         if (alreadyTracked) {
-            return ResponseEntity.badRequest().body("Ten profil jest już śledzony.");
+            return ResponseEntity.badRequest().body("This profile is already being tracked.");
         }
 
         User shadowProfile = new User();
@@ -67,7 +67,7 @@ public class ProfileAnalysisController {
         
         userRepository.save(shadowProfile);
         
-        return ResponseEntity.ok("Profil " + xUsername + " został dodany do śledzenia.");
+        return ResponseEntity.ok("Profile " + xUsername + " added to tracking.");
     }
 
     @Operation(summary = "Manual trigger scan", description = "Triggers an immediate analysis for a specific profile (max once per hour).")
@@ -85,7 +85,7 @@ public class ProfileAnalysisController {
         
         // Rate limiting: prevent manual scan if checked within last hour
         if (user.getLastXCheckAt() != null && user.getLastXCheckAt().isAfter(LocalDateTime.now().minusHours(1))) {
-            return ResponseEntity.badRequest().body("Ten profil był sprawdzany w ciągu ostatniej godziny. Spróbuj później.");
+            return ResponseEntity.badRequest().body("This profile was checked within the last hour. Please try again later.");
         }
 
         // Trigger analysis

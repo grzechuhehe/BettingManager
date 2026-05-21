@@ -87,7 +87,13 @@ public class ProfileAnalysisOrchestrator {
                     existingBet.setImageProofPath(localImagePaths.get(0)); // Uproszczenie: zapisujemy ścieżkę pierwszego
                     
                     updateBetDataFromAI(existingBet, fullText, localImagePaths);
-                    betRepository.save(existingBet);
+                    
+                    // Defense-in-depth: Validate before saving to prevent rollback
+                    if (existingBet.getOdds() != null) {
+                        betRepository.save(existingBet);
+                    } else {
+                        log.warn("Pomijam zapis zaktualizowanego zakładu dla {} - AI nie zwróciło kursu (odds)", xUsername);
+                    }
                 }
                 continue;
             }
@@ -104,9 +110,13 @@ public class ProfileAnalysisOrchestrator {
 
             updateBetDataFromAI(newBet, fullText, localImagePaths);
             
-            if (newBet.getEventName() != null || newBet.getOdds() != null) {
+            // Defense-in-depth: Validate before saving
+            if (newBet.getOdds() != null && newBet.getEventName() != null) {
                  betRepository.save(newBet);
                  log.info("Zapisano nowy zakład wyciągnięty przez AI dla użytkownika {}", xUsername);
+            } else {
+                 log.warn("Odrzucono nowy zakład z posta {} dla {} - brak wymaganych danych od AI (odds: {}, event: {})", 
+                          tweetId, xUsername, newBet.getOdds(), newBet.getEventName());
             }
         }
     }

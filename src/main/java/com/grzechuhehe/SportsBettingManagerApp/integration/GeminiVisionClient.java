@@ -24,6 +24,9 @@ public class GeminiVisionClient {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    @Value("${gemini.system.prompt}")
+    private String systemPrompt;
+
     private static final String MODEL_NAME = "gemini-2.5-flash"; // Zgodnie z Twoją specyfikacją na maj 2026
     private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent?key=";
 
@@ -34,19 +37,13 @@ public class GeminiVisionClient {
         try {
             String url = API_URL + apiKey;
 
-            // 1. Przygotowanie promptu
-            String prompt = "Jesteś ekspertem od zakładów bukmacherskich. Przeanalizuj tekst posta i ZAŁĄCZONE ZDJĘCIA (mogą być częściami jednego kuponu). " +
-                    "Zadaniem jest scalenie informacji ze wszystkich zdjęć w jeden spójny kupon. " +
-                    "Sprawdź: czy iloczyn kursów na zdjęciach zgadza się z końcowym kursem? Czy są jakieś bonusy (np. 'boosted odds')? " +
-                    "Zwróć odpowiedź WYŁĄCZNIE w formacie JSON, np: " +
-                    "{\"eventName\": \"Real - Barca\", \"selection\": \"1\", \"odds\": 1.85, \"bookmaker\": \"STS\", \"units\": 5.0}";
-
+            // 1. Przygotowanie promptu z properties/env
             // 2. Przygotowanie części zapytania (tekst + obrazy w Base64)
             List<Map<String, Object>> parts = new ArrayList<>();
             
             // Część tekstowa
             Map<String, Object> textPart = new HashMap<>();
-            textPart.put("text", prompt + "\n\nTekst posta: " + postText);
+            textPart.put("text", systemPrompt + "\n\nTekst posta: " + postText);
             parts.add(textPart);
 
             // Część obrazkowa

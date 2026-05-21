@@ -44,6 +44,7 @@ services:
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
       - SOCIALDATA_API_KEY=${SOCIALDATA_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_SYSTEM_PROMPT=${GEMINI_SYSTEM_PROMPT}
     volumes:
       - .:/app
       - ~/.m2:/root/.m2
