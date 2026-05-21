@@ -36,9 +36,11 @@ public class Bet {
     @Enumerated(EnumType.STRING)
     private BetStatus status; // PENDING, WON, LOST, etc.
 
-    @Positive(message = "Stake must be positive")
     @Column(precision = 10, scale = 2)
     private BigDecimal stake; // Stawka
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal units; // Stawka w jednostkach [u]
 
     @NotNull
     @DecimalMin(value = "1.01", message = "Odds must be greater than 1.00")
@@ -69,6 +71,11 @@ public class Bet {
     private String bookmaker; // Nazwa bukmachera
     private String externalBetId; // ID zakładu w systemie zewnętrznym (API)
     private String externalApiName; // Nazwa API, z którego pochodzi zakład
+
+    // AI & Profile Analysis
+    private boolean isAiExtracted = false;
+    private String imageProofPath;
+    private String sourcePostId;
 
     // Daty
     @Column(nullable = false, updatable = false)
