@@ -20,4 +20,5 @@ public class ProfilePickDTO {
     private String imageProofPath;
     private LocalDateTime placedAt;
     private String sourcePostId;
+    private java.util.List<ProfilePickDTO> legs;
 }

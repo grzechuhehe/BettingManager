@@ -22,4 +22,7 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
     List<Bet> findByUserAndPeriod(User user, @Param("startDate") LocalDateTime startDate);
     
     Optional<Bet> findBySourcePostId(String sourcePostId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT b FROM Bet b WHERE b.user = :user AND b.isAiExtracted = true AND b.parentBet IS NULL")
+    org.springframework.data.domain.Page<Bet> findRootAiBetsByUser(User user, org.springframework.data.domain.Pageable pageable);
 }
