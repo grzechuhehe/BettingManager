@@ -131,4 +131,21 @@ public class ProfileAnalysisController {
 
         return ResponseEntity.ok(picks);
     }
+
+    @Operation(summary = "Search for a tracked profile", description = "Returns profile details if tracked, 404 otherwise.")
+    @GetMapping("/search")
+    public ResponseEntity<TrackedProfileDTO> searchProfile(@RequestParam String query) {
+        String xUsername = query.replace("@", "").trim();
+        Optional<User> userOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        User u = userOpt.get();
+        return ResponseEntity.ok(TrackedProfileDTO.builder()
+                .id(u.getId())
+                .xUsername(u.getXUsername())
+                .xProfileUrl(u.getXProfileUrl())
+                .lastXCheckAt(u.getLastXCheckAt())
+                .build());
+    }
 }
