@@ -63,3 +63,4 @@ gha-creds-*.json
 /.gemini_security/
 
 /uploads/
+.worktrees/
