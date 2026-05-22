@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
 import com.grzechuhehe.SportsBettingManagerApp.integration.SocialDataClient;
+import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
@@ -20,8 +21,9 @@ import java.util.Collections;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -119,5 +121,39 @@ class ProfileAnalysisControllerTest {
                 .characterEncoding("UTF-8"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Scan for profile freshguru has been triggered."));
+    }
+
+    @Test
+    void getProfilePicks_ShouldReturnPicks_WhenProfileExists() throws Exception {
+        User shadowProfile = new User();
+        shadowProfile.setId(1L);
+        shadowProfile.setXUsername("guru");
+
+        Bet aiBet = Bet.builder()
+                .id(100L)
+                .isAiExtracted(true)
+                .eventName("Match A")
+                .selection("Over 2.5")
+                .odds(new java.math.BigDecimal("1.85"))
+                .placedAt(LocalDateTime.now())
+                .build();
+
+        when(userRepository.findByXUsernameIgnoreCase("guru")).thenReturn(Optional.of(shadowProfile));
+        when(betRepository.findByUserOrderByPlacedAtAsc(shadowProfile)).thenReturn(Collections.singletonList(aiBet));
+
+        mockMvc.perform(get("/api/profiles/guru/picks")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].eventName").value("Match A"))
+                .andExpect(jsonPath("$[0].selection").value("Over 2.5"));
+    }
+
+    @Test
+    void getProfilePicks_ShouldReturn404_WhenProfileDoesNotExist() throws Exception {
+        when(userRepository.findByXUsernameIgnoreCase("unknown")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/profiles/unknown/picks"))
+                .andExpect(status().isNotFound());
     }
 }
