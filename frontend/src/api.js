@@ -112,4 +112,10 @@ export const getEvOpportunities = () => {
     return apiClient.get('/ev/opportunities');
 };
 
+// --- Funkcje API dla Social Betting Profiles ---
+export const getTrackedProfiles = () => apiClient.get('/profiles/tracked');
+export const trackNewProfile = (xUsername) => apiClient.post('/profiles/track', { xUsername });
+export const triggerManualScan = (xUsername) => apiClient.post(`/profiles/${xUsername}/scan`);
+export const getProfilePicks = (xUsername) => apiClient.get(`/profiles/${xUsername}/picks`);
+
 export default apiClient;
