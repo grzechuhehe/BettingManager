@@ -24,6 +24,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.xUsername IS NOT NULL AND (u.lastXCheckAt IS NULL OR u.lastXCheckAt < :threshold)")
     List<User> findProfilesToUpdate(@Param("threshold") LocalDateTime threshold);
     
-    @Query("SELECT u FROM User u WHERE LOWER(u.xUsername) = LOWER(:xUsername)")
+    @Query("SELECT u FROM User u WHERE LOWER(u.xUsername) = LOWER(:xUsername) OR (u.xUsername IS NULL AND LOWER(u.username) = LOWER(:xUsername))")
     Optional<User> findByXUsernameIgnoreCase(@Param("xUsername") String xUsername);
 }

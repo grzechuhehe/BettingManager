@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Register from './components/Register';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -11,6 +11,7 @@ import LiveMarkets from './components/LiveMarkets';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import EvCalculator from './components/EvCalculator';
+import SocialBettingDashboard from './components/social/SocialBettingDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -32,6 +33,18 @@ const ProtectedRoute = ({ children }) => {
 // Komponent nawigacji
 const Navigation = () => {
   const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState('');
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      const cleanUsername = searchInput.replace('@', '').trim();
+      // Przejście z parametrem query w URL np: /social?q=grubytypuje
+      navigate(`/social?q=${encodeURIComponent(cleanUsername)}`);
+      setSearchInput('');
+    }
+  };
 
   return (
     <nav className="flex items-center space-x-6">
@@ -41,7 +54,18 @@ const Navigation = () => {
           <Link to="/add-bet" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Add Bet</Link>
           <Link to="/bets" className="text-sm text-body hover:text-on-dark font-medium transition-colors">My Bets</Link>
           <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Open Odds</Link>
-          <Link to="/ev-calculator" className="text-sm text-body hover:text-on-dark font-medium transition-colors">+EV Engine</Link>
+          
+          {/* Global Search Bar */}
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+            <input 
+              type="text" 
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search X profiles..." 
+              className="bg-gray-800 text-sm text-white placeholder-gray-400 border border-gray-700 rounded-full px-4 py-1.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 transition-all"
+            />
+          </form>
+
           <Link to="/profile" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Profile</Link>
           <button onClick={logout} className="button-primary text-sm">Logout</button>
         </>
@@ -117,6 +141,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <EvCalculator />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/social"
+            element={
+              <ProtectedRoute>
+                <SocialBettingDashboard />
               </ProtectedRoute>
             }
           />

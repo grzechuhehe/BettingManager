@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
+import com.grzechuhehe.SportsBettingManagerApp.integration.SocialDataClient;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
@@ -34,6 +35,9 @@ class ProfileAnalysisControllerTest {
     @Mock
     private BetRepository betRepository;
 
+    @Mock
+    private SocialDataClient socialDataClient;
+
     @InjectMocks
     private ProfileAnalysisController profileAnalysisController;
 
@@ -51,7 +55,8 @@ class ProfileAnalysisControllerTest {
         TrackProfileRequest request = new TrackProfileRequest();
         request.setXUsername("nowyguru");
 
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByXUsernameIgnoreCase("nowyguru")).thenReturn(Optional.empty());
+        when(socialDataClient.checkProfileExists("nowyguru")).thenReturn(true);
         when(userRepository.save(any(User.class))).thenReturn(new User());
 
         // When & Then
@@ -75,7 +80,8 @@ class ProfileAnalysisControllerTest {
         TrackProfileRequest request = new TrackProfileRequest();
         request.setXUsername("@hacker"); // Edge case: użytkownik wpisuje z małpą
 
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByXUsernameIgnoreCase("hacker")).thenReturn(Optional.empty());
+        when(socialDataClient.checkProfileExists("hacker")).thenReturn(true);
 
         mockMvc.perform(post("/api/profiles/track")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +99,7 @@ class ProfileAnalysisControllerTest {
         // Ustawiamy czas skanowania na 10 minut temu (za wcześnie na kolejny skan)
         shadowProfile.setLastXCheckAt(LocalDateTime.now().minusMinutes(10));
 
-        when(userRepository.findAll()).thenReturn(Collections.singletonList(shadowProfile));
+        when(userRepository.findByXUsernameIgnoreCase("spamguru")).thenReturn(Optional.of(shadowProfile));
 
         mockMvc.perform(post("/api/profiles/spamguru/scan")
                 .characterEncoding("UTF-8"))
@@ -107,10 +113,11 @@ class ProfileAnalysisControllerTest {
         shadowProfile.setXUsername("freshguru");
         shadowProfile.setLastXCheckAt(null); // Nigdy nie skanowany
 
-        when(userRepository.findAll()).thenReturn(Collections.singletonList(shadowProfile));
+        when(userRepository.findByXUsernameIgnoreCase("freshguru")).thenReturn(Optional.of(shadowProfile));
 
         mockMvc.perform(post("/api/profiles/freshguru/scan")
                 .characterEncoding("UTF-8"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(content().string("Scan for profile freshguru has been triggered."));
     }
 }

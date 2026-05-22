@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePickDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackedProfileDTO;
+import com.grzechuhehe.SportsBettingManagerApp.integration.SocialDataClient;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
@@ -27,14 +28,18 @@ public class ProfileAnalysisController {
 
     private final UserRepository userRepository;
     private final BetRepository betRepository;
+    private final SocialDataClient socialDataClient;
 
-    @Operation(summary = "Get tracked profiles", description = "Returns a list of all shadow profiles currently being tracked via X.")
+    @Operation(summary = "Get tracked profiles", description = "Returns a list of all profiles currently being tracked via X.")
     @GetMapping("/tracked")
     public ResponseEntity<List<TrackedProfileDTO>> getTrackedProfiles() {
-        List<TrackedProfileDTO> profiles = userRepository.findByIsActiveUserFalseAndXUsernameIsNotNull().stream()
+        // Zwracamy shadow profile (isActiveUser=false) LUB użytkowników z przypiętym kontem X (xUsername!=null)
+        List<TrackedProfileDTO> profiles = userRepository.findAll().stream()
+                .filter(u -> !u.isActiveUser() || u.getXUsername() != null)
                 .map(u -> TrackedProfileDTO.builder()
                         .id(u.getId())
-                        .xUsername(u.getXUsername())
+                        // FALLBACK: jeśli xUsername w starej bazie jest null, używamy username
+                        .xUsername(u.getXUsername() != null ? u.getXUsername() : u.getUsername())
                         .xProfileUrl(u.getXProfileUrl())
                         .lastXCheckAt(u.getLastXCheckAt())
                         .build())
@@ -43,13 +48,23 @@ public class ProfileAnalysisController {
         return ResponseEntity.ok(profiles);
     }
 
-    @Operation(summary = "Start tracking a new profile", description = "Creates a new shadow profile to track their X activity.")
+    @Operation(summary = "Start tracking a new profile", description = "Creates a new shadow profile to track their X activity. Verifies existence on X.")
     @PostMapping("/track")
     public ResponseEntity<?> trackNewProfile(@Valid @RequestBody TrackProfileRequest request) {
-        String xUsername = request.getXUsername().replace("@", ""); 
+        String xUsername = request.getXUsername().replace("@", "").trim(); 
         
-        if (userRepository.findByXUsernameIgnoreCase(xUsername).isPresent()) {
+        // Sprawdzamy czy już nie śledzimy tego profilu (szukamy po xUsername ORAZ po username)
+        boolean alreadyTracked = userRepository.findAll().stream()
+                .anyMatch(u -> xUsername.equalsIgnoreCase(u.getXUsername()) || xUsername.equalsIgnoreCase(u.getUsername()));
+                
+        if (alreadyTracked) {
             return ResponseEntity.badRequest().body("This profile is already being tracked.");
+        }
+
+        // Weryfikacja czy profil istnieje na platformie X
+        boolean profileExistsOnX = socialDataClient.checkProfileExists(xUsername);
+        if (!profileExistsOnX) {
+            return ResponseEntity.badRequest().body("Profile @" + xUsername + " does not exist on X or is suspended.");
         }
 
         User shadowProfile = new User();
@@ -83,6 +98,37 @@ public class ProfileAnalysisController {
         // W produkcyjnym kodzie lepiej wstrzyknąć serwis orkiestratora, 
         // ale tutaj wywołamy metodę bezpośrednio lub przeniesiemy logikę analizy do osobnego serwisu.
         // Zakładam, że przeniesiemy logikę analyzeProfile do osobnego serwisu w kolejnym kroku.
-        return ResponseEntity.ok("Skanowanie profilu " + xUsername + " zostało rozpoczęte.");
+        return ResponseEntity.ok("Scan for profile " + xUsername + " has been triggered.");
+    }
+
+    @Operation(summary = "Get picks for a profile", description = "Returns AI-extracted bets for the specified X profile.")
+    @GetMapping("/{xUsername}/picks")
+    public ResponseEntity<List<ProfilePickDTO>> getProfilePicks(@PathVariable String xUsername) {
+        Optional<User> shadowProfileOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
+
+        if (shadowProfileOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = shadowProfileOpt.get();
+        
+        List<ProfilePickDTO> picks = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
+                // Tylko zakłady wyekstrahowane przez AI
+                .filter(b -> b.isAiExtracted())
+                .map(b -> ProfilePickDTO.builder()
+                        .id(b.getId())
+                        .eventName(b.getEventName())
+                        .selection(b.getSelection())
+                        .odds(b.getOdds())
+                        .units(b.getUnits())
+                        .bookmaker(b.getBookmaker())
+                        .status(b.getStatus())
+                        .imageProofPath(b.getImageProofPath())
+                        .placedAt(b.getPlacedAt())
+                        .sourcePostId(b.getSourcePostId())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(picks);
     }
 }

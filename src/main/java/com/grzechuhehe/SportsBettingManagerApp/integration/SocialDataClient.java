@@ -26,9 +26,49 @@ public class SocialDataClient {
     private String apiKey;
 
     private static final String SEARCH_URL = "https://api.socialdata.tools/twitter/search";
+    private static final String USER_URL = "https://api.socialdata.tools/twitter/user/";
+
+    /**
+     * Sprawdza czy dany użytkownik istnieje na platformie X.
+     */
+    public boolean checkProfileExists(String username) {
+        try {
+            String url = USER_URL + username;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + apiKey);
+            headers.set("Accept", "application/json");
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            log.info("Weryfikuję istnienie profilu @{} w SocialData API...", username);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            
+            boolean exists = response.getStatusCode().is2xxSuccessful() && 
+                             response.getBody() != null && 
+                             (response.getBody().containsKey("id_str") || response.getBody().containsKey("id"));
+            
+            if (!exists) {
+                log.warn("SocialData zwróciło sukces, ale brak pól ID dla @{}. Body: {}", username, response.getBody());
+            }
+
+            return exists;
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.info("Profil @{} nie istnieje na X (404 z API SocialData)", username);
+            return false;
+        } catch (Exception e) {
+            log.error("KRYTYCZNY BŁĄD API SocialData podczas sprawdzania @{}: {}. Sprawdź klucz API i limity!", 
+                      username, e.getMessage(), e);
+            // Jeśli to błąd API (np. 401, 429), a nie brak usera (404), 
+            // to chwilowo zwrócimy true, żeby nie blokować użytkownika przez błędy integracji? 
+            // NIE - lepiej rzucić wyjątek, żeby kontroler mógł go obsłużyć.
+            throw new RuntimeException("External API error: " + e.getMessage());
+        }
+    }
 
     /**
      * Pobiera ostatnie tweety użytkownika z X, pomijając odpowiedzi (replies).
+
      * @param username Nazwa użytkownika bez @ (np. elonmusk).
      * @return Lista map reprezentujących tweety.
      */
