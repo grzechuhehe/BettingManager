@@ -8,6 +8,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -126,13 +127,31 @@ public class ProfileAnalysisOrchestrator {
         
         if (aiResponseJson != null && !aiResponseJson.isEmpty()) {
             try {
-                // Usuwamy ewentualne formatowanie markdown (```json ... ```) od Gemini
+                // Usuwamy ewentualne formatowanie markdown od Gemini
                 String cleanJson = aiResponseJson.replaceAll("```json", "").replaceAll("```", "").trim();
                 JsonNode jsonNode = objectMapper.readTree(cleanJson);
 
-                if (jsonNode.has("eventName")) bet.setEventName(jsonNode.get("eventName").asText());
-                if (jsonNode.has("selection")) bet.setSelection(jsonNode.get("selection").asText());
-                if (jsonNode.has("bookmaker")) bet.setBookmaker(jsonNode.get("bookmaker").asText());
+                if (jsonNode.has("eventName") && !jsonNode.get("eventName").isNull()) bet.setEventName(jsonNode.get("eventName").asText());
+                if (jsonNode.has("selection") && !jsonNode.get("selection").isNull()) bet.setSelection(jsonNode.get("selection").asText());
+                if (jsonNode.has("bookmaker") && !jsonNode.get("bookmaker").isNull()) bet.setBookmaker(jsonNode.get("bookmaker").asText());
+                if (jsonNode.has("sport") && !jsonNode.get("sport").isNull()) bet.setSport(jsonNode.get("sport").asText());
+                if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
+                    try {
+                        bet.setMarketType(com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType.valueOf(jsonNode.get("marketType").asText().toUpperCase()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+                
+                if (jsonNode.has("oddsType") && !jsonNode.get("oddsType").isNull()) {
+                    try {
+                        bet.setOddsType(OddsType.valueOf(jsonNode.get("oddsType").asText().toUpperCase()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+                
+                if (jsonNode.has("status") && !jsonNode.get("status").isNull()) {
+                    try {
+                        bet.setStatus(BetStatus.valueOf(jsonNode.get("status").asText().toUpperCase()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
                 
                 if (jsonNode.has("odds") && !jsonNode.get("odds").isNull()) {
                     bet.setOdds(new BigDecimal(jsonNode.get("odds").asText()));
@@ -142,6 +161,43 @@ public class ProfileAnalysisOrchestrator {
                     bet.setUnits(new BigDecimal(jsonNode.get("units").asText()));
                 } else {
                     bet.setUnits(BigDecimal.ONE); // Domyślnie 1u
+                }
+                
+                if (jsonNode.has("stake") && !jsonNode.get("stake").isNull()) {
+                    bet.setStake(new BigDecimal(jsonNode.get("stake").asText()));
+                } else {
+                    bet.setStake(bet.getUnits()); // Fallback dla wyliczeń, jeśli nie ma jawnej waluty
+                }
+                
+                bet.calculatePotentialWinnings();
+                
+                // Obsługa Parlay (AKO) z nowej struktury JSON
+                if (jsonNode.has("legs") && jsonNode.get("legs").isArray() && jsonNode.get("legs").size() > 0) {
+                    bet.setBetType(BetType.PARLAY);
+                    if (bet.getEventName() == null || bet.getEventName().isEmpty() || bet.getEventName().equals("null")) {
+                        bet.setEventName("Parlay Bet (" + jsonNode.get("legs").size() + " legs)");
+                    }
+                    if (bet.getSelection() == null || bet.getSelection().isEmpty() || bet.getSelection().equals("null")) {
+                        bet.setSelection("Multiple Selections");
+                    }
+                    
+                    java.util.Set<Bet> childBets = new java.util.HashSet<>();
+                    for (JsonNode legNode : jsonNode.get("legs")) {
+                        Bet childBet = Bet.builder()
+                            .user(bet.getUser())
+                            .betType(BetType.SINGLE)
+                            .status(bet.getStatus()) // Dziedziczy status po rodzicu na etapie tworzenia
+                            .placedAt(bet.getPlacedAt())
+                            .parentBet(bet)
+                            .build();
+                            
+                        if (legNode.has("eventName") && !legNode.get("eventName").isNull()) childBet.setEventName(legNode.get("eventName").asText());
+                        if (legNode.has("selection") && !legNode.get("selection").isNull()) childBet.setSelection(legNode.get("selection").asText());
+                        if (legNode.has("odds") && !legNode.get("odds").isNull()) childBet.setOdds(new BigDecimal(legNode.get("odds").asText()));
+                        
+                        childBets.add(childBet);
+                    }
+                    bet.setChildBets(childBets);
                 }
                 
             } catch (Exception e) {
