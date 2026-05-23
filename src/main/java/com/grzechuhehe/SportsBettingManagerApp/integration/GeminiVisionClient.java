@@ -72,9 +72,55 @@ public class GeminiVisionClient {
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("contents", Collections.singletonList(content));
             
-            // Konfiguracja wymuszenia formatu JSON (Generation Config)
+            // Konfiguracja wymuszenia formatu JSON i Schematu (Generation Config)
             Map<String, Object> generationConfig = new HashMap<>();
             generationConfig.put("response_mime_type", "application/json");
+            
+            // Definiowanie schematu
+            Map<String, Object> betSchema = new HashMap<>();
+            betSchema.put("type", "OBJECT");
+            
+            Map<String, Object> betProperties = new HashMap<>();
+            
+            Map<String, Object> eventName = new HashMap<>(); eventName.put("type", "STRING"); eventName.put("description", "Name of the match/event.");
+            Map<String, Object> selection = new HashMap<>(); selection.put("type", "STRING"); selection.put("description", "What was bet on (e.g., Over 2.5, Team A).");
+            Map<String, Object> odds = new HashMap<>(); odds.put("type", "NUMBER"); odds.put("description", "Total odds of the bet.");
+            Map<String, Object> bookmaker = new HashMap<>(); bookmaker.put("type", "STRING"); bookmaker.put("description", "Name of the bookmaker.");
+            Map<String, Object> stake = new HashMap<>(); stake.put("type", "NUMBER"); stake.put("description", "Stake amount in currency. Null if not visible.");
+            Map<String, Object> units = new HashMap<>(); units.put("type", "NUMBER"); units.put("description", "Stake in units (e.g., 1.5). Default to 1.0 if not specified.");
+            Map<String, Object> sport = new HashMap<>(); sport.put("type", "STRING"); sport.put("description", "Sport category (e.g., Football, Basketball).");
+            Map<String, Object> marketType = new HashMap<>(); marketType.put("type", "STRING"); marketType.put("description", "Market type (e.g., MATCH_ODDS, OVER_UNDER).");
+            Map<String, Object> oddsType = new HashMap<>(); oddsType.put("type", "STRING"); oddsType.put("description", "Odds format (e.g., DECIMAL, AMERICAN). Default to DECIMAL.");
+            Map<String, Object> status = new HashMap<>(); status.put("type", "STRING"); status.put("description", "Bet status: PENDING, WON, LOST, VOID. Default to PENDING.");
+            
+            // Dla kuponów AKO (Parlay)
+            Map<String, Object> legs = new HashMap<>();
+            legs.put("type", "ARRAY");
+            legs.put("description", "List of individual selections if this is a parlay/accumulator bet.");
+            Map<String, Object> legItems = new HashMap<>();
+            legItems.put("type", "OBJECT");
+            Map<String, Object> legProperties = new HashMap<>();
+            legProperties.put("eventName", eventName);
+            legProperties.put("selection", selection);
+            legProperties.put("odds", odds);
+            legItems.put("properties", legProperties);
+            legs.put("items", legItems);
+            
+            betProperties.put("eventName", eventName);
+            betProperties.put("selection", selection);
+            betProperties.put("odds", odds);
+            betProperties.put("bookmaker", bookmaker);
+            betProperties.put("stake", stake);
+            betProperties.put("units", units);
+            betProperties.put("sport", sport);
+            betProperties.put("marketType", marketType);
+            betProperties.put("oddsType", oddsType);
+            betProperties.put("status", status);
+            betProperties.put("legs", legs);
+            
+            betSchema.put("properties", betProperties);
+            generationConfig.put("response_schema", betSchema);
+
             requestBody.put("generationConfig", generationConfig);
 
             // 4. Wysyłka
