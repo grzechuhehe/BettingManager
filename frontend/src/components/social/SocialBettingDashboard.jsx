@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getTrackedProfiles, trackNewProfile, triggerManualScan } from '../../api';
-import ProfilePicksView from './ProfilePicksView';
+import { getTrackedProfiles, trackNewProfile, triggerManualScan, getTrackedProfilePicks } from '../../api';
+import PicksDataGrid from './PicksDataGrid';
+import { Pagination, Box, CircularProgress, Typography, Button } from '@mui/material';
 
 export default function SocialBettingDashboard() {
     const [profiles, setProfiles] = useState([]);
     const [selectedUsername, setSelectedUsername] = useState(null);
     const [searchParams] = useSearchParams();
     
+    // Picks state
+    const [picks, setPicks] = useState([]);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [picksLoading, setPicksLoading] = useState(false);
+
     // Normalizacja nicka: usuwamy @ i białe znaki
     const rawQuery = searchParams.get('q') || '';
     const searchQuery = rawQuery.replace(/^@/, '').trim();
@@ -27,15 +34,37 @@ export default function SocialBettingDashboard() {
         }
     };
 
+    const loadPicks = async (username, currentPage) => {
+        setPicksLoading(true);
+        try {
+            const res = await getTrackedProfilePicks(username, currentPage - 1, 10);
+            // Backend returns Page<ProfilePickDTO> which has 'content' and 'totalPages'
+            setPicks(res.data.content || []);
+            setTotalPages(res.data.totalPages || 0);
+        } catch (err) {
+            console.error("Failed to load picks", err);
+            setError('Failed to load picks for this profile.');
+        } finally {
+            setPicksLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadProfiles();
     }, []);
+
+    useEffect(() => {
+        if (selectedUsername) {
+            loadPicks(selectedUsername, page);
+        }
+    }, [selectedUsername, page]);
 
     // Kasujemy błędy/komunikaty, gdy użytkownik wpisuje nowe zapytanie w pasku URL
     useEffect(() => {
         setMessage(null);
         setError(null);
         setSelectedUsername(null);
+        setPage(1);
     }, [searchQuery]);
 
     const handleTrackNew = async () => {
@@ -79,6 +108,10 @@ export default function SocialBettingDashboard() {
         }
     };
 
+    const handlePageChange = (event, value) => {
+        setPage(value);
+    };
+
     // Szukamy w bazie używając znormalizowanego nicka
     const foundProfile = profiles.find(p => 
         p && p.xUsername && searchQuery && 
@@ -93,10 +126,43 @@ export default function SocialBettingDashboard() {
             </div>
 
             {selectedUsername ? (
-                <ProfilePicksView 
-                    xUsername={selectedUsername} 
-                    onBack={() => setSelectedUsername(null)} 
-                />
+                <div className="bg-[#111111] border border-white/5 p-8 rounded-2xl shadow-2xl mb-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                            Picks by @{selectedUsername}
+                        </Typography>
+                        <Button 
+                            onClick={() => setSelectedUsername(null)} 
+                            sx={{ color: 'rgba(255, 255, 255, 0.6)', '&:hover': { color: 'white' } }}
+                        >
+                            &larr; Back to Search
+                        </Button>
+                    </div>
+
+                    {picksLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : (
+                        <>
+                            <PicksDataGrid picks={picks} />
+                            {totalPages > 1 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                                    <Pagination 
+                                        count={totalPages} 
+                                        page={page} 
+                                        onChange={handlePageChange} 
+                                        color="primary" 
+                                        sx={{ 
+                                            '& .MuiPaginationItem-root': { color: 'white' },
+                                            '& .Mui-selected': { backgroundColor: 'rgba(25, 118, 210, 0.5) !important' }
+                                        }}
+                                    />
+                                </Box>
+                            )}
+                        </>
+                    )}
+                </div>
             ) : (
                 <div className="bg-[#111111] border border-white/5 p-8 rounded-2xl shadow-2xl mb-6">
                     {/* Messages */}
