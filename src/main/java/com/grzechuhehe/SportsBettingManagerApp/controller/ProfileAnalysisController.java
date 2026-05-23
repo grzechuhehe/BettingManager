@@ -1,5 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.PageResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePickDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackedProfileDTO;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -103,7 +105,11 @@ public class ProfileAnalysisController {
 
     @Operation(summary = "Get picks for a profile", description = "Returns AI-extracted bets for the specified X profile.")
     @GetMapping("/{xUsername}/picks")
-    public ResponseEntity<List<ProfilePickDTO>> getProfilePicks(@PathVariable String xUsername) {
+    public ResponseEntity<PageResponse<ProfilePickDTO>> getProfilePicks(
+            @PathVariable String xUsername,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+            
         Optional<User> shadowProfileOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
 
         if (shadowProfileOpt.isEmpty()) {
@@ -112,24 +118,30 @@ public class ProfileAnalysisController {
 
         User user = shadowProfileOpt.get();
         
-        List<ProfilePickDTO> picks = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
-                // Tylko zakłady wyekstrahowane przez AI
-                .filter(b -> b.isAiExtracted())
-                .map(b -> ProfilePickDTO.builder()
-                        .id(b.getId())
-                        .eventName(b.getEventName())
-                        .selection(b.getSelection())
-                        .odds(b.getOdds())
-                        .units(b.getUnits())
-                        .bookmaker(b.getBookmaker())
-                        .status(b.getStatus())
-                        .imageProofPath(b.getImageProofPath())
-                        .placedAt(b.getPlacedAt())
-                        .sourcePostId(b.getSourcePostId())
-                        .build())
-                .collect(Collectors.toList());
+        org.springframework.data.domain.Page<Bet> betPage = betRepository.findRootAiBetsByUser(
+                user, 
+                org.springframework.data.domain.PageRequest.of(page, size, Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "placedAt"))
+        );
+        
+        org.springframework.data.domain.Page<ProfilePickDTO> picks = betPage.map(this::mapToProfilePickDTO);
 
-        return ResponseEntity.ok(picks);
+        return ResponseEntity.ok(PageResponse.fromPage(picks));
+    }
+
+    private ProfilePickDTO mapToProfilePickDTO(Bet b) {
+        return ProfilePickDTO.builder()
+                .id(b.getId())
+                .eventName(b.getEventName())
+                .selection(b.getSelection())
+                .odds(b.getOdds())
+                .units(b.getUnits())
+                .bookmaker(b.getBookmaker())
+                .status(b.getStatus())
+                .imageProofPath(b.getImageProofPath())
+                .placedAt(b.getPlacedAt())
+                .sourcePostId(b.getSourcePostId())
+                .legs(b.getChildBets() != null ? b.getChildBets().stream().map(this::mapToProfilePickDTO).collect(Collectors.toList()) : null)
+                .build();
     }
 
     @Operation(summary = "Search for a tracked profile", description = "Returns profile details if tracked, 404 otherwise.")
