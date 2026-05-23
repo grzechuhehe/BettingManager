@@ -35,20 +35,8 @@ const AdvancedStats = () => {
   );
   if (!stats) return null;
 
-  const getRoiColor = (roi) => {
-    if (roi > 0) return "text-primary";
-    if (roi < 0) return "text-rose-500";
-    return "text-muted";
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-      <StatCard 
-        title="ROI" 
-        value={`${stats.roiPercentage ? stats.roiPercentage.toFixed(2) : '0.00'}%`}
-        color={getRoiColor(stats.roiPercentage)}
-        subtext="Return on Investment"
-      />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
       <StatCard 
         title="Sharpe Ratio" 
         value={stats.sharpeRatio ? stats.sharpeRatio.toFixed(2) : '0.00'}
