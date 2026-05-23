@@ -1,6 +1,7 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.dto.PageResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePickDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;

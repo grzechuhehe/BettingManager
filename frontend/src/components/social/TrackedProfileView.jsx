@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTrackedProfilePicks, getTrackedProfileStats } from '../../api';
+import { getTrackedProfilePicks, getTrackedProfileStats, getTrackedProfileAdvancedStats } from '../../api';
 import PicksDataGrid from './PicksDataGrid';
 
 export default function TrackedProfileView() {
@@ -8,6 +8,7 @@ export default function TrackedProfileView() {
     const navigate = useNavigate();
     
     const [stats, setStats] = useState(null);
+    const [advancedStats, setAdvancedStats] = useState(null);
     const [picks, setPicks] = useState([]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -21,11 +22,13 @@ export default function TrackedProfileView() {
             setLoading(true);
             setError(null);
             try {
-                const [statsRes, picksRes] = await Promise.all([
+                const [statsRes, advStatsRes, picksRes] = await Promise.all([
                     getTrackedProfileStats(username),
+                    getTrackedProfileAdvancedStats(username),
                     getTrackedProfilePicks(username, page - 1, 10)
                 ]);
                 setStats(statsRes.data);
+                setAdvancedStats(advStatsRes.data);
                 setPicks(picksRes.data.content || []);
                 setTotalPages(picksRes.data.totalPages || 0);
             } catch (err) {
@@ -124,6 +127,38 @@ export default function TrackedProfileView() {
                             : ((stats?.totalProfitLoss || 0) * 10).toFixed(2)
                         }
                     </p>
+                </div>
+            </div>
+
+            {/* Advanced Stats Section */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Yield</p>
+                    <p className={`text-3xl font-black font-numeric ${(stats?.yield || 0) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                        {stats?.yield?.toFixed(2) || '0.00'}%
+                    </p>
+                </div>
+                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Efficiency</p>
+                    <p className="text-3xl font-black text-on-dark font-numeric">{advancedStats?.efficiency?.toFixed(1) || '0.0'}%</p>
+                </div>
+                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Sharpe Ratio</p>
+                    <p className="text-3xl font-black text-on-dark font-numeric">{advancedStats?.sharpeRatio?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center flex flex-col justify-center">
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Streak Analysis</p>
+                    <div className="font-mono text-xs font-bold text-primary flex flex-col gap-1 uppercase tracking-wider">
+                        {advancedStats?.currentStreak ? (
+                            advancedStats.currentStreak.split('|').map((part, index) => (
+                                <span key={index} className="whitespace-nowrap bg-surface-elevated px-2 py-0.5 rounded border border-hairline">
+                                    {part.trim()}
+                                </span>
+                            ))
+                        ) : (
+                            <span className="text-muted">No Data</span>
+                        )}
+                    </div>
                 </div>
             </div>
 
