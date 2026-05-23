@@ -157,19 +157,18 @@ public class BettingService {
                 throw new IllegalArgumentException("Stake must be positive for a parlay bet.");
             }
 
-            long nonNullEventsCount = betRequests.stream()
-                    .map(BetRequest::getEventName)
-                    .filter(Objects::nonNull)
+            long totalLegsWithEventAndSelection = betRequests.stream()
+                    .filter(req -> req.getEventName() != null && req.getSelection() != null)
                     .count();
 
-            long uniqueEventsCount = betRequests.stream()
-                    .map(BetRequest::getEventName)
-                    .filter(Objects::nonNull)
+            long uniqueLegsCount = betRequests.stream()
+                    .filter(req -> req.getEventName() != null && req.getSelection() != null)
+                    .map(req -> req.getEventName() + "|" + req.getSelection())
                     .distinct()
                     .count();
 
-            if (uniqueEventsCount < nonNullEventsCount) {
-                throw new IllegalArgumentException("Duplicate events are not allowed in a parlay bet.");
+            if (uniqueLegsCount < totalLegsWithEventAndSelection) {
+                throw new IllegalArgumentException("Duplicate identical selections for the same event are not allowed in a parlay bet.");
             }
             
             Bet parlayBet = Bet.builder()

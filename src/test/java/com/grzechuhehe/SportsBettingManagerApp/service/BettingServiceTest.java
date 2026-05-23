@@ -191,17 +191,17 @@ class BettingServiceTest {
     }
 
     @Test
-    void placeBet_ShouldThrowException_WhenParlayContainsDuplicateEvents() {
+    void placeBet_ShouldThrowException_WhenParlayContainsDuplicateIdenticalSelections() {
         CreateBetRequest request = new CreateBetRequest();
         BetRequest leg1 = new BetRequest();
         leg1.setEventName("Real Madrid vs Barcelona");
-        leg1.setSelection("Real Madrid");
+        leg1.setSelection("Over 2.5");
         leg1.setStake(BigDecimal.TEN);
         leg1.setOdds(BigDecimal.valueOf(1.5));
 
         BetRequest leg2 = new BetRequest();
-        leg2.setEventName("Real Madrid vs Barcelona"); // Duplicate event!
-        leg2.setSelection("Barcelona");
+        leg2.setEventName("Real Madrid vs Barcelona"); // Same event!
+        leg2.setSelection("Over 2.5"); // Same selection!
         leg2.setStake(BigDecimal.TEN);
         leg2.setOdds(BigDecimal.valueOf(2.5));
 
@@ -212,7 +212,7 @@ class BettingServiceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> bettingService.placeBet(request, "testuser"));
 
-        assertThat(ex.getMessage()).contains("Duplicate events");
+        assertThat(ex.getMessage()).contains("Duplicate identical selections");
     }
 
     @Test
