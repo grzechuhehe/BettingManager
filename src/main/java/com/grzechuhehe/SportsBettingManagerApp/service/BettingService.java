@@ -274,6 +274,7 @@ public class BettingService {
 
         BigDecimal profit = calculateNetProfit(bets);
         BigDecimal roi = calculateROI(profit, totalInvestment);
+        BigDecimal efficiency = calculateLegEfficiency(bets);
 
         return new BetStatistics(
                 bets.size(),
@@ -283,8 +284,35 @@ public class BettingService {
                 calculateWinRatesByType(bets),
                 calculateRollingAverage(bets, 30),
                 analyzeStreaks(bets),
-                calculateSharpeRatio(bets)
+                calculateSharpeRatio(bets),
+                efficiency
         );
+    }
+
+    private BigDecimal calculateLegEfficiency(List<Bet> parentBets) {
+        long totalLegs = 0;
+        long wonLegs = 0;
+
+        for (Bet bet : parentBets) {
+            if (bet.getBetType() == BetType.PARLAY && bet.getChildBets() != null && !bet.getChildBets().isEmpty()) {
+                for (Bet child : bet.getChildBets()) {
+                    if (child.getStatus() != BetStatus.PENDING) {
+                        totalLegs++;
+                        if (child.getStatus() == BetStatus.WON) wonLegs++;
+                    }
+                }
+            } else {
+                if (bet.getStatus() != BetStatus.PENDING) {
+                    totalLegs++;
+                    if (bet.getStatus() == BetStatus.WON) wonLegs++;
+                }
+            }
+        }
+
+        if (totalLegs == 0) return BigDecimal.ZERO;
+        return BigDecimal.valueOf(wonLegs)
+                .divide(BigDecimal.valueOf(totalLegs), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
     }
 
     private BigDecimal calculateSharpeRatio(List<Bet> bets) {

@@ -20,6 +20,7 @@ public class BetStatistics {
     private BigDecimal rollingAverage30d;
     private String currentStreak;
     private BigDecimal sharpeRatio;
+    private BigDecimal efficiency;
 
     public BetStatistics(int totalBets, int successfulBets, BigDecimal profitLoss, BigDecimal roiPercentage,
                          Map<String, BigDecimal> winRatesByType, BigDecimal rollingAverage30d, String currentStreak) {

@@ -388,4 +388,41 @@ class BettingServiceTest {
         assertThat(stats.getSharpeRatio()).isGreaterThan(BigDecimal.ZERO);
         assertThat(stats.getCurrentStreak()).contains("Current: 1 Loss");
     }
+
+    @Test
+    void getAdvancedStatistics_ShouldCalculateLegEfficiency() {
+        Bet singleWin = new Bet();
+        singleWin.setStatus(BetStatus.WON);
+        singleWin.setBetType(BetType.SINGLE);
+        singleWin.setStake(BigDecimal.TEN);
+        
+        Bet singleLoss = new Bet();
+        singleLoss.setStatus(BetStatus.LOST);
+        singleLoss.setBetType(BetType.SINGLE);
+        singleLoss.setStake(BigDecimal.TEN);
+
+        Bet parlay = new Bet();
+        parlay.setStatus(BetStatus.LOST); // Parlay lost, but 1 leg won, 1 lost
+        parlay.setBetType(BetType.PARLAY);
+        parlay.setStake(BigDecimal.TEN);
+        
+        Bet leg1 = new Bet();
+        leg1.setStatus(BetStatus.WON);
+        leg1.setBetType(BetType.SINGLE);
+        
+        Bet leg2 = new Bet();
+        leg2.setStatus(BetStatus.LOST);
+        leg2.setBetType(BetType.SINGLE);
+        
+        parlay.setChildBets(new java.util.HashSet<>(java.util.Arrays.asList(leg1, leg2)));
+
+        when(betRepository.findByUserOrderByPlacedAtAsc(testUser)).thenReturn(java.util.Arrays.asList(singleWin, singleLoss, parlay));
+
+        BetStatistics stats = bettingService.getAdvancedStatistics(testUser);
+        
+        // Total legs = 1 (singleWin) + 1 (singleLoss) + 2 (parlay legs) = 4
+        // Won legs = 1 (singleWin) + 1 (leg1) = 2
+        // Efficiency = 2 / 4 = 50%
+        org.assertj.core.api.Assertions.assertThat(stats.getEfficiency()).isEqualByComparingTo("50.00");
+    }
 }
