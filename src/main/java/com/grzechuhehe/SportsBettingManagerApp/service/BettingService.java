@@ -270,6 +270,7 @@ public class BettingService {
 
         BigDecimal totalInvestment = bets.stream()
                 .map(Bet::getStake)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal profit = calculateNetProfit(bets);
