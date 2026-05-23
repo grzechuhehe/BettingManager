@@ -43,7 +43,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
             <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                     <tr className="bg-surface-soft border-b border-hairline">
-                        <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
+                        <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bet</th>
                         <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
                         <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
                         <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">{displayMode === 'units' ? 'Units' : 'Stake'}</th>
@@ -68,7 +68,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                         ) : (
                                             <span className="w-2.5"></span> /* Spacer for alignment */
                                         )}
-                                        <span className="truncate">{pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}</span>
+                                        <span className="truncate" title={pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}>{pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}</span>
                                     </td>
                                     <td className="p-4 text-muted font-bold text-primary h-16 truncate">
                                         {pick.selection || (isParlay ? 'Multiple Selections' : '-')}
@@ -91,7 +91,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                 
                                 {isExpanded && isParlay && pick.legs.map((leg, index) => (
                                     <tr key={`${pick.id}-leg-${index}`} className="border-b border-hairline bg-surface-soft/30 text-sm h-14">
-                                        <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-14 truncate">
+                                        <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-14 truncate" title={leg.eventName || 'Unknown Event'}>
                                             ↳ {leg.eventName || 'Unknown Event'}
                                         </td>
                                         <td className="p-4 text-muted font-bold h-14 truncate">
