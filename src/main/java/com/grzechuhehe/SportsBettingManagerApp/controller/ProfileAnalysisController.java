@@ -145,6 +145,20 @@ public class ProfileAnalysisController {
         return ResponseEntity.ok(stats);
     }
 
+    @Operation(summary = "Get advanced statistics for a profile", description = "Returns advanced statistics like Sharpe ratio and Efficiency.")
+    @GetMapping("/{xUsername}/advanced-stats")
+    public ResponseEntity<BetStatistics> getProfileAdvancedStats(@PathVariable String xUsername) {
+        Optional<User> shadowProfileOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
+
+        if (shadowProfileOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = shadowProfileOpt.get();
+        BetStatistics stats = bettingService.getAdvancedStatistics(user);
+        return ResponseEntity.ok(stats);
+    }
+
     private ProfilePickDTO mapToProfilePickDTO(Bet b) {
         return ProfilePickDTO.builder()
                 .id(b.getId())
