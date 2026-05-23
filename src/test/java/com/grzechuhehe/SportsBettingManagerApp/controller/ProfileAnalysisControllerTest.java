@@ -138,15 +138,17 @@ class ProfileAnalysisControllerTest {
                 .placedAt(LocalDateTime.now())
                 .build();
 
+        org.springframework.data.domain.Page<Bet> betPage = new org.springframework.data.domain.PageImpl<>(Collections.singletonList(aiBet));
+
         when(userRepository.findByXUsernameIgnoreCase("guru")).thenReturn(Optional.of(shadowProfile));
-        when(betRepository.findByUserOrderByPlacedAtAsc(shadowProfile)).thenReturn(Collections.singletonList(aiBet));
+        when(betRepository.findRootAiBetsByUser(eq(shadowProfile), any(org.springframework.data.domain.PageRequest.class))).thenReturn(betPage);
 
         mockMvc.perform(get("/api/profiles/guru/picks")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].eventName").value("Match A"))
-                .andExpect(jsonPath("$[0].selection").value("Over 2.5"));
+                .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.content[0].eventName").value("Match A"))
+                .andExpect(jsonPath("$.content[0].selection").value("Over 2.5"));
     }
 
     @Test

@@ -12,6 +12,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import EvCalculator from './components/EvCalculator';
 import SocialBettingDashboard from './components/social/SocialBettingDashboard';
+import TrackedProfileView from './components/social/TrackedProfileView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Komponent do ochrony ścieżek
@@ -149,6 +150,14 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <SocialBettingDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/profile/:username"
+            element={
+              <ProtectedRoute>
+                <TrackedProfileView />
               </ProtectedRoute>
             }
           />

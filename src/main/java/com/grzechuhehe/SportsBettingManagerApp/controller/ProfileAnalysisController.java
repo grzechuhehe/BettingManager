@@ -1,5 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.controller;
 
+import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.PageResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePickDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
@@ -9,6 +10,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,6 +33,7 @@ public class ProfileAnalysisController {
     private final UserRepository userRepository;
     private final BetRepository betRepository;
     private final SocialDataClient socialDataClient;
+    private final BettingService bettingService;
 
     @Operation(summary = "Get tracked profiles", description = "Returns a list of all profiles currently being tracked via X.")
     @GetMapping("/tracked")
@@ -126,6 +129,20 @@ public class ProfileAnalysisController {
         org.springframework.data.domain.Page<ProfilePickDTO> picks = betPage.map(this::mapToProfilePickDTO);
 
         return ResponseEntity.ok(PageResponse.fromPage(picks));
+    }
+
+    @Operation(summary = "Get statistics for a profile", description = "Returns dashboard-like statistics for the specified X profile.")
+    @GetMapping("/{xUsername}/stats")
+    public ResponseEntity<DashboardStatsDTO> getProfileStats(@PathVariable String xUsername) {
+        Optional<User> shadowProfileOpt = userRepository.findByXUsernameIgnoreCase(xUsername);
+
+        if (shadowProfileOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = shadowProfileOpt.get();
+        DashboardStatsDTO stats = bettingService.getDashboardStats(user);
+        return ResponseEntity.ok(stats);
     }
 
     private ProfilePickDTO mapToProfilePickDTO(Bet b) {

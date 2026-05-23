@@ -117,5 +117,6 @@ export const getTrackedProfiles = () => apiClient.get('/profiles/tracked');
 export const trackNewProfile = (xUsername) => apiClient.post('/profiles/track', { xUsername });
 export const triggerManualScan = (xUsername) => apiClient.post(`/profiles/${xUsername}/scan`);
 export const getTrackedProfilePicks = (xUsername, page = 0, size = 10) => apiClient.get(`/profiles/${xUsername}/picks?page=${page}&size=${size}`);
+export const getTrackedProfileStats = (xUsername) => apiClient.get(`/profiles/${xUsername}/stats`);
 
 export default apiClient;

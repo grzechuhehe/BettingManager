@@ -10,7 +10,7 @@ const getStatusColor = (status) => {
     }
 };
 
-export default function PicksDataGrid({ picks }) {
+export default function PicksDataGrid({ picks, displayMode = 'units' }) {
     const [expandedPicks, setExpandedPicks] = useState({});
 
     const togglePick = (pickId) => {
@@ -28,6 +28,16 @@ export default function PicksDataGrid({ picks }) {
         );
     }
 
+    const formatStake = (pick) => {
+        // Fallback to 1 unit if units are null/undefined
+        const units = pick.units != null ? pick.units : 1;
+        if (displayMode === 'currency') {
+            const stakeInPln = units * 10;
+            return `${stakeInPln.toFixed(2)} PLN`;
+        }
+        return `${units}u`;
+    };
+
     return (
         <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed">
@@ -36,7 +46,7 @@ export default function PicksDataGrid({ picks }) {
                         <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
                         <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
                         <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
-                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Units</th>
+                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">{displayMode === 'units' ? 'Units' : 'Stake'}</th>
                         <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
                         <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Status</th>
                     </tr>
@@ -67,7 +77,7 @@ export default function PicksDataGrid({ picks }) {
                                         {pick.odds ? pick.odds.toFixed(2) : '-'}
                                     </td>
                                     <td className="p-4 text-right font-numeric text-muted h-16">
-                                        {pick.units ? `${pick.units}u` : '-'}
+                                        {formatStake(pick)}
                                     </td>
                                     <td className="p-4 text-muted h-16 truncate">
                                         {pick.bookmaker || 'Unknown'}
