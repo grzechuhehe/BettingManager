@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getTrackedProfiles, trackNewProfile, triggerManualScan, getTrackedProfilePicks } from '../../api';
 import PicksDataGrid from './PicksDataGrid';
-import { Pagination, Box, CircularProgress, Typography, Button } from '@mui/material';
 
 export default function SocialBettingDashboard() {
     const [profiles, setProfiles] = useState([]);
@@ -108,10 +107,6 @@ export default function SocialBettingDashboard() {
         }
     };
 
-    const handlePageChange = (event, value) => {
-        setPage(value);
-    };
-
     // Szukamy w bazie używając znormalizowanego nicka
     const foundProfile = profiles.find(p => 
         p && p.xUsername && searchQuery && 
@@ -128,37 +123,46 @@ export default function SocialBettingDashboard() {
             {selectedUsername ? (
                 <div className="bg-[#111111] border border-white/5 p-8 rounded-2xl shadow-2xl mb-6">
                     <div className="flex justify-between items-center mb-6">
-                        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <h2 className="text-2xl font-bold text-white">
                             Picks by @{selectedUsername}
-                        </Typography>
-                        <Button 
+                        </h2>
+                        <button 
                             onClick={() => setSelectedUsername(null)} 
-                            sx={{ color: 'rgba(255, 255, 255, 0.6)', '&:hover': { color: 'white' } }}
+                            className="text-white/60 hover:text-white transition-colors flex items-center gap-2"
                         >
                             &larr; Back to Search
-                        </Button>
+                        </button>
                     </div>
 
                     {picksLoading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                            <CircularProgress />
-                        </Box>
+                        <div className="flex justify-center items-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
                     ) : (
                         <>
                             <PicksDataGrid picks={picks} />
+                            
+                            {/* Simple Pagination */}
                             {totalPages > 1 && (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                                    <Pagination 
-                                        count={totalPages} 
-                                        page={page} 
-                                        onChange={handlePageChange} 
-                                        color="primary" 
-                                        sx={{ 
-                                            '& .MuiPaginationItem-root': { color: 'white' },
-                                            '& .Mui-selected': { backgroundColor: 'rgba(25, 118, 210, 0.5) !important' }
-                                        }}
-                                    />
-                                </Box>
+                                <div className="flex justify-center items-center gap-4 mt-6">
+                                    <button 
+                                        disabled={page === 1}
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded text-white transition-colors"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-muted text-sm">
+                                        Page {page} of {totalPages}
+                                    </span>
+                                    <button 
+                                        disabled={page === totalPages}
+                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                        className="px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded text-white transition-colors"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
                             )}
                         </>
                     )}

@@ -1,134 +1,122 @@
-import React from 'react';
-import {
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    Chip,
-    Box,
-    Grid
-} from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import React, { useState } from 'react';
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'WON': return 'success';
-        case 'LOST': return 'error';
-        case 'VOID': return 'default';
-        case 'PENDING': return 'primary';
-        default: return 'default';
+        case 'WON': return 'text-green-500 bg-green-500/10 border-green-500/20';
+        case 'LOST': return 'text-red-500 bg-red-500/10 border-red-500/20';
+        case 'VOID': return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+        case 'PENDING': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+        default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
     }
 };
 
 export default function PicksDataGrid({ picks }) {
+    const [expandedPicks, setExpandedPicks] = useState({});
+
+    const togglePick = (pickId) => {
+        setExpandedPicks(prev => ({
+            ...prev,
+            [pickId]: !prev[pickId]
+        }));
+    };
+
     if (!picks || picks.length === 0) {
         return (
-            <Typography variant="body1" sx={{ color: 'gray', fontStyle: 'italic', mt: 2 }}>
+            <div className="p-10 text-center text-muted italic">
                 No AI-extracted picks found for this profile yet.
-            </Typography>
+            </div>
         );
     }
 
     return (
-        <Box sx={{ mt: 2 }}>
-            {picks.map((pick) => (
-                <Accordion key={pick.id} sx={{ mb: 1, backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon sx={{ color: 'white' }} />}
-                        aria-controls={`panel${pick.id}-content`}
-                        id={`panel${pick.id}-header`}
-                    >
-                        <Grid container alignItems="center" spacing={2}>
-                            <Grid item xs={12} sm={5}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                                    {pick.eventName || 'Multiple Events (Parlay)'}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6} sm={4}>
-                                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                                    {pick.selection || 'Parlay'}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6} sm={3} sx={{ textAlign: 'right' }}>
-                                <Chip 
-                                    label={pick.status || 'PENDING'} 
-                                    size="small" 
-                                    color={getStatusColor(pick.status)}
-                                    sx={{ fontWeight: 'bold' }}
-                                />
-                            </Grid>
-                        </Grid>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={pick.legs && pick.legs.length > 0 ? 4 : 12}>
-                                <Box sx={{ p: 1 }}>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Total Odds:</strong> {pick.odds}
-                                    </Typography>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Units:</strong> {pick.units}
-                                    </Typography>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Bookmaker:</strong> {pick.bookmaker || 'Unknown'}
-                                    </Typography>
-                                    <Typography variant="body2" gutterBottom>
-                                        <strong>Placed At:</strong> {new Date(pick.placedAt).toLocaleString()}
-                                    </Typography>
-                                    {pick.imageProofPath && (
-                                        <Box sx={{ mt: 2 }}>
-                                            <Typography variant="caption" display="block" gutterBottom sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                                                Proof Image:
-                                            </Typography>
-                                            <img 
-                                                src={`https://localhost:8443${pick.imageProofPath}`} 
-                                                alt="Bet slip proof" 
-                                                style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-                                                onError={(e) => e.target.style.display = 'none'}
-                                            />
-                                        </Box>
-                                    )}
-                                </Box>
-                            </Grid>
-                            
-                            {pick.legs && pick.legs.length > 0 && (
-                                <Grid item xs={12} md={8}>
-                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                                        Parlay Legs
-                                    </Typography>
-                                    <TableContainer component={Paper} sx={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', backgroundImage: 'none' }}>
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow>
-                                                    <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold' }}>Event</TableCell>
-                                                    <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold' }}>Selection</TableCell>
-                                                    <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold' }}>Odds</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {pick.legs.map((leg, index) => (
-                                                    <TableRow key={index}>
-                                                        <TableCell sx={{ color: 'white', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>{leg.eventName}</TableCell>
-                                                        <TableCell sx={{ color: 'white', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>{leg.selection}</TableCell>
-                                                        <TableCell sx={{ color: 'white', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>{leg.odds}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                </Grid>
-                            )}
-                        </Grid>
-                    </AccordionDetails>
-                </Accordion>
-            ))}
-        </Box>
+        <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr className="bg-surface-soft border-b border-hairline">
+                        <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Market / Event</th>
+                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
+                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
+                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Units</th>
+                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
+                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {picks.map((pick) => {
+                        const isParlay = pick.legs && pick.legs.length > 0;
+                        const isExpanded = expandedPicks[pick.id];
+
+                        return (
+                            <React.Fragment key={pick.id}>
+                                <tr 
+                                    className={`border-b border-hairline transition-colors ${isParlay ? 'cursor-pointer hover:bg-surface-soft' : ''}`}
+                                    onClick={() => isParlay && togglePick(pick.id)}
+                                >
+                                    <td className="p-4 font-bold text-on-dark flex items-center gap-3 h-16 truncate">
+                                        {isParlay ? (
+                                            <span className={`text-[10px] text-muted transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                                        ) : (
+                                            <span className="w-2.5"></span> /* Spacer for alignment */
+                                        )}
+                                        <span className="truncate">{pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}</span>
+                                    </td>
+                                    <td className="p-4 text-muted font-bold text-primary h-16 truncate">
+                                        {pick.selection || (isParlay ? 'Multiple Selections' : '-')}
+                                    </td>
+                                    <td className="p-4 text-right font-numeric font-bold h-16 text-on-dark">
+                                        {pick.odds ? pick.odds.toFixed(2) : '-'}
+                                    </td>
+                                    <td className="p-4 text-right font-numeric text-muted h-16">
+                                        {pick.units ? `${pick.units}u` : '-'}
+                                    </td>
+                                    <td className="p-4 text-muted h-16 truncate">
+                                        {pick.bookmaker || 'Unknown'}
+                                    </td>
+                                    <td className="p-4 text-right h-16">
+                                        <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
+                                            {pick.status || 'PENDING'}
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                {isExpanded && isParlay && pick.legs.map((leg, index) => (
+                                    <tr key={`${pick.id}-leg-${index}`} className="border-b border-hairline bg-surface-soft/30 text-sm h-14">
+                                        <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-14 truncate">
+                                            ↳ {leg.eventName || 'Unknown Event'}
+                                        </td>
+                                        <td className="p-4 text-muted font-bold h-14 truncate">
+                                            {leg.selection || '-'}
+                                        </td>
+                                        <td className="p-4 text-right font-numeric text-muted h-14">
+                                            {leg.odds ? leg.odds.toFixed(2) : '-'}
+                                        </td>
+                                        <td colSpan="3" className="p-4 text-right text-muted italic h-14">
+                                            {/* Empty space for legs as they share units/status/bookmaker with parent */}
+                                        </td>
+                                    </tr>
+                                ))}
+                                
+                                {/* Image proof row if available (could be placed inside expansion, but keeping it visible for now or maybe expandable too) */}
+                                {isExpanded && pick.imageProofPath && (
+                                    <tr className="border-b border-hairline bg-surface-soft/10 text-sm">
+                                        <td colSpan="6" className="p-4 pl-10 text-muted">
+                                            <div className="flex flex-col gap-2">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold">Proof Image</span>
+                                                <img 
+                                                    src={`https://localhost:8443${pick.imageProofPath}`} 
+                                                    alt="Bet slip proof" 
+                                                    className="max-w-md rounded-lg border border-hairline"
+                                                    onError={(e) => e.target.style.display = 'none'}
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
     );
 }
