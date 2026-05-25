@@ -20,10 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -83,6 +80,14 @@ public class ProfileAnalysisOrchestrator {
         int savedCount = 0;
         int errorCount = 0;
 
+        // Mapa do śledzenia tekstów tweetów w bieżącej paczce dla kontekstu wątków
+        Map<String, String> tweetIdToTextMap = new HashMap<>();
+        for (Map<String, Object> t : recentTweets) {
+            String id = (String) t.get("id_str");
+            String txt = (String) t.get("full_text");
+            if (id != null && txt != null) tweetIdToTextMap.put(id, txt);
+        }
+
         for (Map<String, Object> tweet : recentTweets) {
             String tweetId = (String) tweet.get("id_str");
             try {
@@ -97,9 +102,24 @@ public class ProfileAnalysisOrchestrator {
                 
                 processed++;
                 String sharingUrl = extractSharingUrl(tweet);
+                String replyToId = (String) tweet.get("in_reply_to_status_id_str");
+
+                // Szukamy kontekstu z wątku (poprzedni post)
+                String threadContext = null;
+                if (replyToId != null) {
+                    threadContext = tweetIdToTextMap.get(replyToId);
+                    if (threadContext == null) {
+                        // Jeśli nie ma w paczce, szukamy w bazie
+                        Optional<Bet> parentBetFromDb = betRepository.findBySourcePostId(replyToId);
+                        if (parentBetFromDb.isPresent()) {
+                            Bet pb = parentBetFromDb.get();
+                            threadContext = String.format("PARENT CONTEXT: Event: %s, Sport: %s, Selection: %s", 
+                                pb.getEventName(), pb.getSport(), pb.getSelection());
+                        }
+                    }
+                }
                 
                 // Jeśli to jest odpowiedź (komentarz) i zawiera link, to może być link do kuponu w wątku
-                String replyToId = (String) tweet.get("in_reply_to_status_id_str");
                 if (replyToId != null && sharingUrl != null) {
                     Optional<Bet> parentBetOpt = betRepository.findBySourcePostId(replyToId);
                     if (parentBetOpt.isPresent()) {
@@ -134,7 +154,7 @@ public class ProfileAnalysisOrchestrator {
                     if (!localImagePaths.isEmpty() && existingBet.getImageProofPath() == null) {
                         log.info("Wykryto dodane zdjęcia do istniejącego posta {} od {}", tweetId, xUsername);
                         existingBet.setImageProofPath(localImagePaths.get(0));
-                        updateBetDataFromAI(existingBet, fullText, localImagePaths);
+                        updateBetDataFromAI(existingBet, fullText, localImagePaths, threadContext);
                         
                         if (isBetValid(existingBet)) {
                             betRepository.save(existingBet);
@@ -156,7 +176,7 @@ public class ProfileAnalysisOrchestrator {
                         .placedAt(LocalDateTime.now())
                         .build();
 
-                updateBetDataFromAI(newBet, fullText, localImagePaths);
+                updateBetDataFromAI(newBet, fullText, localImagePaths, threadContext);
                 
                 if (isBetValid(newBet)) {
                      betRepository.save(newBet);
@@ -184,9 +204,32 @@ public class ProfileAnalysisOrchestrator {
         return bet.getOdds().compareTo(new BigDecimal("1.00")) > 0;
     }
 
-    private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths) {
-        log.info("Wysyłam post (id: {}) do analizy przez Gemini (zdjęcia: {})...", bet.getSourcePostId(), imagePaths.size());
-        String aiResponseJson = geminiVisionClient.analyzeBet(text, imagePaths);
+    private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths, String threadContext) {
+        // Zabezpieczenie przed halucynacjami: jeśli nie ma zdjęć i tekst to tylko URL, odrzucamy.
+        boolean isOnlyUrl = false;
+        if ((imagePaths == null || imagePaths.isEmpty()) && text != null) {
+            String sharingUrl = bet.getSharingUrl();
+            String trimmedText = text.trim();
+            // Jeśli tekst jest bardzo krótki i zawiera URL, uznajemy go za "pusty" post
+            if (sharingUrl != null && trimmedText.contains(sharingUrl) && trimmedText.length() < sharingUrl.length() + 15) {
+                isOnlyUrl = true;
+            }
+        }
+
+        if (isOnlyUrl) {
+            log.warn("⚠️ Post {} zawiera tylko link i brak zdjęć. Pomijam analizę AI, aby uniknąć halucynacji.", bet.getSourcePostId());
+            bet.setEventName(null);
+            return;
+        }
+
+        String fullPromptText = text;
+        if (threadContext != null) {
+            fullPromptText = "CONTEXT FROM PREVIOUS POST (The post below is a reply to this): \n" + threadContext + "\n\nCURRENT POST TEXT: \n" + text;
+        }
+
+        log.info("🔍 Wysyłam post (id: {}) do analizy przez Gemini (zdjęcia: {}). Tekst: [{}]", 
+                 bet.getSourcePostId(), imagePaths.size(), text != null ? text.replace("\n", " ") : "brak");
+        String aiResponseJson = geminiVisionClient.analyzeBet(fullPromptText, imagePaths);
         
         if (aiResponseJson != null && !aiResponseJson.isEmpty()) {
             log.debug("Otrzymano odpowiedź z Gemini dla posta {}: {}", bet.getSourcePostId(), aiResponseJson);
@@ -195,8 +238,8 @@ public class ProfileAnalysisOrchestrator {
                 String cleanJson = aiResponseJson.replaceAll("```json", "").replaceAll("```", "").trim();
                 JsonNode jsonNode = objectMapper.readTree(cleanJson);
 
-                if (jsonNode.has("eventName") && !jsonNode.get("eventName").isNull()) bet.setEventName(jsonNode.get("eventName").asText());
-                if (jsonNode.has("selection") && !jsonNode.get("selection").isNull()) bet.setSelection(jsonNode.get("selection").asText());
+                if (jsonNode.has("eventName") && !jsonNode.get("eventName").isNull() && !jsonNode.get("eventName").asText().trim().isEmpty()) bet.setEventName(jsonNode.get("eventName").asText());
+                if (jsonNode.has("selection") && !jsonNode.get("selection").isNull() && !jsonNode.get("selection").asText().trim().isEmpty()) bet.setSelection(jsonNode.get("selection").asText());
                 if (jsonNode.has("bookmaker") && !jsonNode.get("bookmaker").isNull()) bet.setBookmaker(jsonNode.get("bookmaker").asText());
                 if (jsonNode.has("sport") && !jsonNode.get("sport").isNull()) bet.setSport(jsonNode.get("sport").asText());
                 if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
@@ -279,7 +322,7 @@ public class ProfileAnalysisOrchestrator {
                         bet.setSelection("Multiple Selections");
                     }
                     
-                    java.util.Set<Bet> childBets = new java.util.HashSet<>();
+                    Set<Bet> childBets = new HashSet<>();
                     for (JsonNode legNode : jsonNode.get("legs")) {
                         Bet childBet = Bet.builder()
                             .user(bet.getUser())

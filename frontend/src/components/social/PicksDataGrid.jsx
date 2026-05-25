@@ -67,7 +67,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                     className={`border-b border-hairline transition-colors ${isParlay ? 'cursor-pointer hover:bg-surface-soft' : ''}`}
                                     onClick={() => isParlay && togglePick(pick.id)}
                                 >
-                                    <td className="p-4 font-bold text-on-dark h-16">
+                                    <td className="px-4 font-bold text-on-dark h-16">
                                         <div className="flex items-center gap-3 h-full">
                                             {isParlay ? (
                                                 <span className={`text-[10px] text-muted transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
@@ -82,7 +82,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                                     href={`https://x.com/i/status/${pick.sourcePostId}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-muted hover:text-primary transition-colors p-1"
+                                                    className="text-muted hover:text-primary transition-colors p-1 flex items-center justify-center"
                                                     onClick={(e) => e.stopPropagation()}
                                                     title="View original post"
                                                 >
@@ -93,19 +93,19 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                             )}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-muted font-bold text-primary h-16 truncate">
+                                    <td className="px-4 text-muted font-bold text-primary h-16 truncate align-middle">
                                         {pick.selection || (isParlay ? 'Multiple Selections' : '-')}
                                     </td>
-                                    <td className="p-4 text-right font-numeric font-bold h-16 text-on-dark">
+                                    <td className="px-4 text-right font-numeric font-bold h-16 text-on-dark align-middle">
                                         {pick.odds ? pick.odds.toFixed(2) : '-'}
                                     </td>
-                                    <td className="p-4 text-right font-numeric text-muted h-16">
+                                    <td className="px-4 text-right font-numeric text-muted h-16 align-middle">
                                         {formatStake(pick)}
                                     </td>
-                                    <td className="p-4 text-muted h-16 truncate">
+                                    <td className="px-4 text-muted h-16 truncate align-middle">
                                         {pick.bookmaker || 'Unknown'}
                                     </td>
-                                    <td className="p-4 text-right h-16">
+                                    <td className="px-4 text-right h-16 align-middle">
                                         <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
                                             {pick.status || 'PENDING'}
                                         </span>
