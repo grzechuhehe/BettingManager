@@ -78,6 +78,8 @@ public class Bet {
     private boolean isAiExtracted = false;
     private String imageProofPath;
     private String sourcePostId;
+    private String sharingUrl; // Link do udostępnionego zakładu/kuponu
+    private boolean isPreMatch = true; // Czy zakład został dodany przed rozpoczęciem (śledzony na żywo)
 
     // Daty
     @Column(nullable = false, updatable = false)

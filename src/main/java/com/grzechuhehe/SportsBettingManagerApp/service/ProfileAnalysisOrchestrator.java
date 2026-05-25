@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,6 @@ public class ProfileAnalysisOrchestrator {
 
     // Uruchamia się co 15 minut
     @Scheduled(fixedRate = 900000)
-    @Transactional
     public void processTrackedProfiles() {
         log.info("Rozpoczynam analizę profili z X (SocialData + Gemini)...");
         
@@ -48,84 +48,148 @@ public class ProfileAnalysisOrchestrator {
 
         for (User user : profilesToUpdate) {
             try {
-                analyzeProfile(user);
-                user.setLastXCheckAt(LocalDateTime.now());
-                userRepository.save(user);
+                // Wywołujemy w oddzielnej transakcji, aby błąd u jednego użytkownika nie psuł reszty
+                processSingleProfile(user);
             } catch (Exception e) {
-                log.error("Błąd podczas analizy profilu {} : {}", user.getXUsername(), e.getMessage());
+                log.error("KRYTYCZNY BŁĄD podczas analizy profilu {} : {}", user.getXUsername(), e.getMessage());
             }
         }
+    }
+
+    @Transactional
+    public void processSingleProfile(User user) {
+        analyzeProfile(user);
+        user.setLastXCheckAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 
     private void analyzeProfile(User user) {
-        String xUsername = user.getXUsername();
+        String xUsernameRaw = user.getXUsername();
+        if (xUsernameRaw == null) return;
+        
+        // Czyścimy nazwę użytkownika z '@' dla poprawnego porównywania w filtrach
+        String xUsername = xUsernameRaw.replace("@", "").trim();
+        
+        log.info("Pobieranie najnowszych postów dla profilu @{}", xUsername);
         List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername);
+        log.info("Pobrano {} postów dla profilu @{}", recentTweets.size(), xUsername);
+
+        // Przetwarzamy od najstarszych do najnowszych, aby najpierw zapisać zakład, 
+        // a potem móc dokleić do niego link z komentarza (reply).
+        java.util.Collections.reverse(recentTweets);
+
+        int processed = 0;
+        int skippedReplies = 0;
+        int savedCount = 0;
+        int errorCount = 0;
 
         for (Map<String, Object> tweet : recentTweets) {
             String tweetId = (String) tweet.get("id_str");
-            String fullText = (String) tweet.get("full_text");
-            
-            // Ignoruj odpowiedzi do INNYCH użytkowników (jeśli in_reply_to_screen_name istnieje i nie jest to sam "guru")
-            String inReplyTo = (String) tweet.get("in_reply_to_screen_name");
-            if (inReplyTo != null && !inReplyTo.equalsIgnoreCase(xUsername)) {
-                continue;
-            }
-
-            Optional<Bet> existingBetOpt = betRepository.findBySourcePostId(tweetId);
-            
-            // Szukamy zdjęć
-            List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
-            List<String> localImagePaths = new ArrayList<>();
-            for (String url : imageUrls) {
-                String path = imageStorageService.downloadAndSaveImage(url, xUsername);
-                if (path != null) localImagePaths.add(path);
-            }
-
-            if (existingBetOpt.isPresent()) {
-                Bet existingBet = existingBetOpt.get();
-                if (!localImagePaths.isEmpty() && existingBet.getImageProofPath() == null) {
-                    log.info("Wykryto dodane zdjęcia do istniejącego posta {} od {}", tweetId, xUsername);
-                    existingBet.setImageProofPath(localImagePaths.get(0)); // Uproszczenie: zapisujemy ścieżkę pierwszego
-                    
-                    updateBetDataFromAI(existingBet, fullText, localImagePaths);
-                    
-                    // Defense-in-depth: Validate before saving to prevent rollback
-                    if (existingBet.getOdds() != null) {
-                        betRepository.save(existingBet);
-                    } else {
-                        log.warn("Pomijam zapis zaktualizowanego zakładu dla {} - AI nie zwróciło kursu (odds)", xUsername);
+            try {
+                String fullText = (String) tweet.get("full_text");
+                
+                // Ignoruj odpowiedzi do INNYCH użytkowników
+                String inReplyTo = (String) tweet.get("in_reply_to_screen_name");
+                if (inReplyTo != null && !inReplyTo.equalsIgnoreCase(xUsername)) {
+                    skippedReplies++;
+                    continue;
+                }
+                
+                processed++;
+                String sharingUrl = extractSharingUrl(tweet);
+                
+                // Jeśli to jest odpowiedź (komentarz) i zawiera link, to może być link do kuponu w wątku
+                String replyToId = (String) tweet.get("in_reply_to_status_id_str");
+                if (replyToId != null && sharingUrl != null) {
+                    Optional<Bet> parentBetOpt = betRepository.findBySourcePostId(replyToId);
+                    if (parentBetOpt.isPresent()) {
+                        Bet parentBet = parentBetOpt.get();
+                        if (parentBet.getSharingUrl() == null) {
+                            parentBet.setSharingUrl(sharingUrl);
+                            betRepository.save(parentBet);
+                            log.info("🔗 Doklejono link do kuponu z komentarza {} do zakładu {}", tweetId, replyToId);
+                        }
                     }
                 }
-                continue;
-            }
 
-            Bet newBet = Bet.builder()
-                    .user(user)
-                    .sourcePostId(tweetId)
-                    .imageProofPath(localImagePaths.isEmpty() ? null : localImagePaths.get(0))
-                    .isAiExtracted(true)
-                    .betType(BetType.SINGLE)
-                    .status(BetStatus.PENDING)
-                    .placedAt(LocalDateTime.now())
-                    .build();
+                Optional<Bet> existingBetOpt = betRepository.findBySourcePostId(tweetId);
+                
+                // Szukamy zdjęć
+                List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
+                List<String> localImagePaths = new ArrayList<>();
+                for (String url : imageUrls) {
+                    String path = imageStorageService.downloadAndSaveImage(url, xUsername);
+                    if (path != null) localImagePaths.add(path);
+                }
 
-            updateBetDataFromAI(newBet, fullText, localImagePaths);
-            
-            // Defense-in-depth: Validate before saving
-            if (newBet.getOdds() != null && newBet.getEventName() != null) {
-                 betRepository.save(newBet);
-                 log.info("Zapisano nowy zakład wyciągnięty przez AI dla użytkownika {}", xUsername);
-            } else {
-                 log.warn("Odrzucono nowy zakład z posta {} dla {} - brak wymaganych danych od AI (odds: {}, event: {})", 
-                          tweetId, xUsername, newBet.getOdds(), newBet.getEventName());
+                if (existingBetOpt.isPresent()) {
+                    Bet existingBet = existingBetOpt.get();
+                    
+                    // Uzupełnij link, jeśli wcześniej go nie było
+                    if (sharingUrl != null && existingBet.getSharingUrl() == null) {
+                        existingBet.setSharingUrl(sharingUrl);
+                        betRepository.save(existingBet);
+                    }
+                    
+                    if (!localImagePaths.isEmpty() && existingBet.getImageProofPath() == null) {
+                        log.info("Wykryto dodane zdjęcia do istniejącego posta {} od {}", tweetId, xUsername);
+                        existingBet.setImageProofPath(localImagePaths.get(0));
+                        updateBetDataFromAI(existingBet, fullText, localImagePaths);
+                        
+                        if (isBetValid(existingBet)) {
+                            betRepository.save(existingBet);
+                            log.info("Zaktualizowano istniejący zakład z posta {}", tweetId);
+                        }
+                    }
+                    continue;
+                }
+
+                log.info("Analizuję nowy post {} dla użytkownika @{}", tweetId, xUsername);
+                Bet newBet = Bet.builder()
+                        .user(user)
+                        .sourcePostId(tweetId)
+                        .imageProofPath(localImagePaths.isEmpty() ? null : localImagePaths.get(0))
+                        .isAiExtracted(true)
+                        .betType(BetType.SINGLE)
+                        .status(BetStatus.PENDING)
+                        .sharingUrl(sharingUrl)
+                        .placedAt(LocalDateTime.now())
+                        .build();
+
+                updateBetDataFromAI(newBet, fullText, localImagePaths);
+                
+                if (isBetValid(newBet)) {
+                     betRepository.save(newBet);
+                     savedCount++;
+                     log.info("✅ Zapisano nowy zakład z posta {} (@{})", tweetId, xUsername);
+                } else {
+                     log.warn("❌ Odrzucono post {} (@{}) - nie-zakład lub błąd danych (odds: {})", 
+                              tweetId, xUsername, newBet.getOdds());
+                }
+            } catch (Exception e) {
+                errorCount++;
+                log.error("Błąd podczas przetwarzania konkretnego posta {} dla {}: {}", tweetId, xUsername, e.getMessage());
+                // NIE rzucamy wyjątku dalej, aby pętla mogła sprawdzić następne tweety
             }
         }
+        log.info("Zakończono analizę @{}. Razem tweetów: {}, Przetworzono (nie-replies): {}, Zapisano: {}, Pominięto replies: {}, Błędy: {}", 
+                xUsername, recentTweets.size(), processed, savedCount, skippedReplies, errorCount);
+    }
+
+    private boolean isBetValid(Bet bet) {
+        if (bet.getOdds() == null || bet.getEventName() == null) return false;
+        if (bet.getEventName().equalsIgnoreCase("null") || bet.getEventName().isEmpty()) return false;
+        
+        // Minimalny kurs musi być większy niż 1.00 (walidacja w encji Bet ma @DecimalMin("1.01"))
+        return bet.getOdds().compareTo(new BigDecimal("1.00")) > 0;
     }
 
     private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths) {
+        log.info("Wysyłam post (id: {}) do analizy przez Gemini (zdjęcia: {})...", bet.getSourcePostId(), imagePaths.size());
         String aiResponseJson = geminiVisionClient.analyzeBet(text, imagePaths);
         
         if (aiResponseJson != null && !aiResponseJson.isEmpty()) {
+            log.debug("Otrzymano odpowiedź z Gemini dla posta {}: {}", bet.getSourcePostId(), aiResponseJson);
             try {
                 // Usuwamy ewentualne formatowanie markdown od Gemini
                 String cleanJson = aiResponseJson.replaceAll("```json", "").replaceAll("```", "").trim();
@@ -149,27 +213,61 @@ public class ProfileAnalysisOrchestrator {
                 
                 if (jsonNode.has("status") && !jsonNode.get("status").isNull()) {
                     try {
-                        bet.setStatus(BetStatus.valueOf(jsonNode.get("status").asText().toUpperCase()));
+                        BetStatus status = BetStatus.valueOf(jsonNode.get("status").asText().toUpperCase());
+                        bet.setStatus(status);
+                        
+                        // Jeśli zakład jest już rozliczony w momencie pierwszego wykrycia przez AI,
+                        // oznaczamy go jako retroactive (nie-pre-match), aby nie psuć statystyk.
+                        if (status != BetStatus.PENDING && bet.getId() == null) {
+                            bet.setPreMatch(false);
+                            log.info("Detected retroactive bet (status: {}) for post {}. Marking isPreMatch = false.", 
+                                     status, bet.getSourcePostId());
+                        }
                     } catch (IllegalArgumentException ignored) {}
+                }
+
+                // Sprawdzamy czy AI uznało to za prawdziwy zakład, a nie promocję
+                if (jsonNode.has("isPlacedBet") && !jsonNode.get("isPlacedBet").asBoolean()) {
+                    log.warn("Gemini uznało post {} za promocję lub nie-zakład (isPlacedBet: false)", bet.getSourcePostId());
+                    bet.setEventName(null); // To spowoduje odrzucenie przez isBetValid
+                    return;
                 }
                 
                 if (jsonNode.has("odds") && !jsonNode.get("odds").isNull()) {
                     bet.setOdds(new BigDecimal(jsonNode.get("odds").asText()));
                 }
                 
-                if (jsonNode.has("units") && !jsonNode.get("units").isNull()) {
-                    bet.setUnits(new BigDecimal(jsonNode.get("units").asText()));
+                BigDecimal extractedUnits = jsonNode.has("units") && !jsonNode.get("units").isNull() ? new BigDecimal(jsonNode.get("units").asText()) : null;
+                BigDecimal extractedStake = jsonNode.has("stake") && !jsonNode.get("stake").isNull() ? new BigDecimal(jsonNode.get("stake").asText()) : null;
+
+                if (extractedStake != null) {
+                    bet.setStake(extractedStake);
+                    // Zawsze synchronizujemy jednostki: 10 PLN = 1u
+                    bet.setUnits(extractedStake.divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP));
+                } else if (extractedUnits != null) {
+                    bet.setUnits(extractedUnits);
+                    // Jeśli mamy tylko jednostki, przeliczamy na PLN: 1u = 10 PLN
+                    bet.setStake(extractedUnits.multiply(new BigDecimal("10")));
                 } else {
-                    bet.setUnits(BigDecimal.ONE); // Domyślnie 1u
-                }
-                
-                if (jsonNode.has("stake") && !jsonNode.get("stake").isNull()) {
-                    bet.setStake(new BigDecimal(jsonNode.get("stake").asText()));
-                } else {
-                    bet.setStake(bet.getUnits()); // Fallback dla wyliczeń, jeśli nie ma jawnej waluty
+                    bet.setUnits(BigDecimal.ONE);
+                    bet.setStake(new BigDecimal("10"));
                 }
                 
                 bet.calculatePotentialWinnings();
+
+                // Obliczanie finalProfit dla zakładów już rozliczonych (WON/LOST)
+                if (bet.getStatus() != BetStatus.PENDING) {
+                    if (bet.getStatus() == BetStatus.WON && bet.getPotentialWinnings() != null) {
+                        bet.setFinalProfit(bet.getPotentialWinnings().subtract(bet.getStake()));
+                    } else if (bet.getStatus() == BetStatus.LOST) {
+                        bet.setFinalProfit(bet.getStake().negate());
+                    } else if (bet.getStatus() == BetStatus.VOID) {
+                        bet.setFinalProfit(BigDecimal.ZERO);
+                    }
+                    if (bet.getSettledAt() == null) {
+                        bet.setSettledAt(LocalDateTime.now());
+                    }
+                }
                 
                 // Obsługa Parlay (AKO) z nowej struktury JSON
                 if (jsonNode.has("legs") && jsonNode.get("legs").isArray() && jsonNode.get("legs").size() > 0) {
@@ -204,6 +302,31 @@ public class ProfileAnalysisOrchestrator {
                 log.error("Nie udało się sparsować odpowiedzi JSON od Gemini: {}", e.getMessage());
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractSharingUrl(Map<String, Object> tweet) {
+        // 1. Szukamy w encjach (najpewniejsze źródło)
+        try {
+            Map<String, Object> entities = (Map<String, Object>) tweet.get("entities");
+            if (entities != null && entities.containsKey("urls")) {
+                List<Map<String, Object>> urls = (List<Map<String, Object>>) entities.get("urls");
+                if (urls != null && !urls.isEmpty()) {
+                    return (String) urls.get(0).get("expanded_url");
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // 2. Fallback: szukamy w tekście
+        String text = (String) tweet.get("full_text");
+        if (text != null) {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("https?://\\S+");
+            java.util.regex.Matcher matcher = pattern.matcher(text);
+            if (matcher.find()) {
+                return matcher.group();
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

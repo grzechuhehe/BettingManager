@@ -113,8 +113,8 @@ export default function TrackedProfileView() {
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Total Staked {displayMode === 'units' ? '(u)' : '(PLN)'}</p>
                     <p className="text-3xl font-black text-on-dark font-numeric">
                         {displayMode === 'units' 
-                            ? (stats?.totalStaked?.toFixed(2) || 0)
-                            : ((stats?.totalStaked || 0) * 10).toFixed(2)
+                            ? (stats?.totalStaked ? (stats.totalStaked / 10).toFixed(2) : '0.00')
+                            : (stats?.totalStaked?.toFixed(2) || '0.00')
                         }
                     </p>
                 </div>
@@ -123,8 +123,8 @@ export default function TrackedProfileView() {
                     <p className={`text-3xl font-black font-numeric ${(stats?.totalProfitLoss || 0) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
                         {(stats?.totalProfitLoss || 0) > 0 ? '+' : ''}
                         {displayMode === 'units'
-                            ? (stats?.totalProfitLoss?.toFixed(2) || '0.00')
-                            : ((stats?.totalProfitLoss || 0) * 10).toFixed(2)
+                            ? (stats?.totalProfitLoss ? (stats.totalProfitLoss / 10).toFixed(2) : '0.00')
+                            : (stats?.totalProfitLoss?.toFixed(2) || '0.00')
                         }
                     </p>
                 </div>

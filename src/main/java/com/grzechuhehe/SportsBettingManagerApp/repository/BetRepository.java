@@ -15,7 +15,10 @@ import java.util.Optional;
 @Repository
 public interface BetRepository extends JpaRepository<Bet, Long>{
     List<Bet> findByUser(User user);
-    Long countByUserAndStatus(User user, BetStatus status); // Zmieniono Bet.BetStatus na BetStatus
+    List<Bet> findByUserId(Long userId);
+    Long countByUserAndStatus(User user, BetStatus status);
+    @Query("SELECT COUNT(b) FROM Bet b WHERE b.user = :user AND b.status = :status AND b.isPreMatch = true AND b.parentBet IS NULL")
+    Long countPreMatchByUserAndStatus(@Param("user") User user, @Param("status") BetStatus status);
     @Query("SELECT b FROM Bet b WHERE b.user = :user ORDER BY b.placedAt ASC")
     List<Bet> findByUserOrderByPlacedAtAsc(User user);
     @Query("SELECT b FROM Bet b WHERE b.user = :user AND b.placedAt >= :startDate")

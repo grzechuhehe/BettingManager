@@ -167,6 +167,7 @@ public class ProfileAnalysisController {
                 .selection(b.getSelection())
                 .odds(b.getOdds())
                 .units(b.getUnits())
+                .stake(b.getStake())
                 .bookmaker(b.getBookmaker())
                 .status(b.getStatus())
                 .imageProofPath(b.getImageProofPath())

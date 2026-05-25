@@ -22,6 +22,7 @@ public class ProfilePickDTO {
     private String selection;
     private BigDecimal odds;
     private BigDecimal units;
+    private BigDecimal stake;
     private String bookmaker;
     private BetStatus status;
     private String imageProofPath;

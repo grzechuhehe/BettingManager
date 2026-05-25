@@ -22,9 +22,11 @@ import java.util.stream.Collectors;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.EquityCurvePoint;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BettingService {
 
     private final BetRepository betRepository;
@@ -32,10 +34,13 @@ public class BettingService {
 
 
     public DashboardStatsDTO getDashboardStats(User user) {
+        log.info("Calculating dashboard stats for user: {} (ID: {})", user.getUsername(), user.getId());
         
         List<Bet> allBets = betRepository.findByUser(user).stream()
                 .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
                 .collect(Collectors.toList());
+        
+        log.info("Found {} root bets for user ID: {}", allBets.size(), user.getId());
 
         // Podstawowe statystyki
         BigDecimal totalProfitLoss = allBets.stream()
@@ -202,6 +207,7 @@ public class BettingService {
                 .betType(betType)
                 .status(BetStatus.PENDING)
                 .stake(stake)
+                .units(stake != null ? stake.divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP) : BigDecimal.ONE)
                 .odds(betRequest.getOdds())
                 .oddsType(betRequest.getOddsType() != null ? betRequest.getOddsType() : com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType.DECIMAL)
                 .sport(betRequest.getSport())
@@ -252,21 +258,21 @@ public class BettingService {
                 .sorted(Comparator.comparing(Bet::getPlacedAt).reversed())
                 .limit(5)
                 .collect(Collectors.toList());
+return Map.of(
+        "totalBets", bets.size(),
+        "wonBets", betRepository.countByUserAndStatus(user, BetStatus.WON),
+        "totalStake", totalStake,
+        "profitLoss", profitLoss,
+        "roi", roi,
+        "recentBets", recentBets
+);
+}
 
-        return Map.of(
-                "totalBets", bets.size(),
-                "wonBets", betRepository.countByUserAndStatus(user, BetStatus.WON),
-                "totalStake", totalStake,
-                "profitLoss", profitLoss,
-                "roi", roi,
-                "recentBets", recentBets
-        );
-    }
+public BetStatistics getAdvancedStatistics(User user) {
+List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
+        .filter(b -> b.getParentBet() == null) // Statystyki tylko dla zakładów nadrzędnych
+        .collect(Collectors.toList());
 
-    public BetStatistics getAdvancedStatistics(User user) {
-        List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
-                .filter(b -> b.getParentBet() == null) // Statystyki tylko dla zakładów nadrzędnych
-                .collect(Collectors.toList());
 
         BigDecimal totalInvestment = bets.stream()
                 .map(Bet::getStake)

@@ -43,7 +43,19 @@ public class GeminiVisionClient {
             
             // Część tekstowa
             Map<String, Object> textPart = new HashMap<>();
-            textPart.put("text", systemPrompt + "\n\nTekst posta: " + postText);
+            String enhancedPrompt = systemPrompt + "\n\n" +
+                "CRITICAL EXTRACTION RULES:\n" +
+                "1. Identify if this is a REAL PLACED BET. If it's an ad, promotion, or just a list of scores, set 'isPlacedBet' to false.\n" +
+                "2. STAKE vs UNITS: 'stake' is the CURRENCY amount (e.g., 50.0 for 50 PLN). 'units' is the relative size (e.g., 1.0 or 5.0).\n" +
+                "   - If you see a currency symbol (zł, PLN, $), that is the STAKE.\n" +
+                "   - If you see 'u' or 'jednostki', that is the UNITS.\n" +
+                "   - DO NOT multiply units by 10 yourself. Just extract what you see.\n" +
+                "3. STAKE vs WINNINGS: Ensure 'stake' is the amount gambled, NOT the 'to win' or 'payout' amount.\n" +
+                "4. If multiple bets are visible, extract the main one.\n" +
+                "5. Recognized Polish bookmakers: STS, Fortuna, Superbet, Betclic, TOTALbet, Forbet, Etoto, LV BET, PZBuk, Betfan.\n";
+
+            
+            textPart.put("text", enhancedPrompt + "\n\nTekst posta: " + postText);
             parts.add(textPart);
 
             // Część obrazkowa
@@ -92,6 +104,7 @@ public class GeminiVisionClient {
             Map<String, Object> marketType = new HashMap<>(); marketType.put("type", "STRING"); marketType.put("description", "Market type (e.g., MATCH_ODDS, OVER_UNDER).");
             Map<String, Object> oddsType = new HashMap<>(); oddsType.put("type", "STRING"); oddsType.put("description", "Odds format (e.g., DECIMAL, AMERICAN). Default to DECIMAL.");
             Map<String, Object> status = new HashMap<>(); status.put("type", "STRING"); status.put("description", "Bet status: PENDING, WON, LOST, VOID. Default to PENDING.");
+            Map<String, Object> isPlacedBet = new HashMap<>(); isPlacedBet.put("type", "BOOLEAN"); isPlacedBet.put("description", "True if this is a real bet placed by the user, false if it is a promotion/ad/score list.");
             
             // Dla kuponów AKO (Parlay)
             Map<String, Object> legs = new HashMap<>();
@@ -116,6 +129,7 @@ public class GeminiVisionClient {
             betProperties.put("marketType", marketType);
             betProperties.put("oddsType", oddsType);
             betProperties.put("status", status);
+            betProperties.put("isPlacedBet", isPlacedBet);
             betProperties.put("legs", legs);
             
             betSchema.put("properties", betProperties);
