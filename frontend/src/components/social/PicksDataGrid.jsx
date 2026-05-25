@@ -44,19 +44,21 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
     };
 
     return (
-        <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse table-fixed min-w-[800px]">
                 <thead>
                     <tr className="bg-surface-soft border-b border-hairline">
-                        <th className="w-1/3 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bet</th>
-                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
-                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
-                        <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">{displayMode === 'units' ? 'Units' : 'Stake'}</th>
-                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookmaker</th>
-                        <th className="w-1/6 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Status</th>
+                        <th className="w-[30%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bet</th>
+                        <th className="w-[25%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
+                        <th className="w-[8%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
+                        <th className="w-[12%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">{displayMode === 'units' ? 'Units' : 'Stake'}</th>
+                        <th className="w-[10%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookie</th>
+                        <th className="w-[5%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-center">Link</th>
+                        <th className="w-[10%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Status</th>
                     </tr>
                 </thead>
                 <tbody>
+
                     {picks.map((pick) => {
                         const isParlay = pick.legs && pick.legs.length > 0;
                         const isExpanded = expandedPicks[pick.id];
@@ -67,8 +69,8 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                     className={`border-b border-hairline transition-colors ${isParlay ? 'cursor-pointer hover:bg-surface-soft' : ''}`}
                                     onClick={() => isParlay && togglePick(pick.id)}
                                 >
-                                    <td className="px-4 font-bold text-on-dark h-16">
-                                        <div className="flex items-center gap-3 h-full">
+                                    <td className="px-4 py-4 font-bold text-on-dark h-16 align-middle">
+                                        <div className="flex items-center gap-3">
                                             {isParlay ? (
                                                 <span className={`text-[10px] text-muted transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                                             ) : (
@@ -77,35 +79,37 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                             <span className="truncate flex-1" title={pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}>
                                                 {pick.eventName || (isParlay ? 'Parlay' : 'Unknown')}
                                             </span>
-                                            {pick.sourcePostId && (
-                                                <a 
-                                                    href={`https://x.com/i/status/${pick.sourcePostId}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-muted hover:text-primary transition-colors p-1 flex items-center justify-center"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    title="View original post"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                                    </svg>
-                                                </a>
-                                            )}
                                         </div>
                                     </td>
-                                    <td className="px-4 text-muted font-bold text-primary h-16 truncate align-middle">
+                                    <td className="px-4 py-4 text-muted font-bold text-primary h-16 truncate align-middle" title={pick.selection || (isParlay ? 'Multiple Selections' : '-')}>
                                         {pick.selection || (isParlay ? 'Multiple Selections' : '-')}
                                     </td>
-                                    <td className="px-4 text-right font-numeric font-bold h-16 text-on-dark align-middle">
+                                    <td className="px-4 py-4 text-right font-numeric font-bold h-16 text-on-dark align-middle">
                                         {pick.odds ? pick.odds.toFixed(2) : '-'}
                                     </td>
-                                    <td className="px-4 text-right font-numeric text-muted h-16 align-middle">
+                                    <td className="px-4 py-4 text-right font-numeric text-muted h-16 align-middle">
                                         {formatStake(pick)}
                                     </td>
-                                    <td className="px-4 text-muted h-16 truncate align-middle">
+                                    <td className="px-4 py-4 text-muted h-16 truncate align-middle">
                                         {pick.bookmaker || 'Unknown'}
                                     </td>
-                                    <td className="px-4 text-right h-16 align-middle">
+                                    <td className="px-4 py-4 text-center h-16 align-middle">
+                                        {pick.sourcePostId ? (
+                                            <a 
+                                                href={`https://x.com/i/status/${pick.sourcePostId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-muted hover:text-primary transition-colors p-1 inline-flex items-center justify-center"
+                                                onClick={(e) => e.stopPropagation()}
+                                                title="View original post"
+                                            >
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                                </svg>
+                                            </a>
+                                        ) : '-'}
+                                    </td>
+                                    <td className="px-4 py-4 text-right h-16 align-middle">
                                         <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
                                             {pick.status || 'PENDING'}
                                         </span>
@@ -117,13 +121,13 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                         <td className="p-4 pl-10 text-muted italic flex items-center gap-2 h-14 truncate" title={leg.eventName || 'Unknown Event'}>
                                             ↳ {leg.eventName || 'Unknown Event'}
                                         </td>
-                                        <td className="p-4 text-muted font-bold h-14 truncate">
+                                        <td className="p-4 text-muted font-bold h-14 truncate" title={leg.selection || '-'}>
                                             {leg.selection || '-'}
                                         </td>
                                         <td className="p-4 text-right font-numeric text-muted h-14">
                                             {leg.odds ? leg.odds.toFixed(2) : '-'}
                                         </td>
-                                        <td colSpan="3" className="p-4 text-right text-muted italic h-14">
+                                        <td colSpan="4" className="p-4 text-right text-muted italic h-14">
                                             {/* Empty space for legs as they share units/status/bookmaker with parent */}
                                         </td>
                                     </tr>
@@ -132,7 +136,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                 {/* Image proof row if available (could be placed inside expansion, but keeping it visible for now or maybe expandable too) */}
                                 {isExpanded && pick.imageProofPath && (
                                     <tr className="border-b border-hairline bg-surface-soft/10 text-sm">
-                                        <td colSpan="6" className="p-4 pl-10 text-muted">
+                                        <td colSpan="7" className="p-4 pl-10 text-muted">
                                             <div className="flex flex-col gap-2">
                                                 <span className="text-[10px] uppercase tracking-wider font-bold">Proof Image</span>
                                                 <img 

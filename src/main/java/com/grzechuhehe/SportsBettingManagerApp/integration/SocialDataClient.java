@@ -68,18 +68,21 @@ public class SocialDataClient {
 
     /**
      * Pobiera ostatnie tweety użytkownika z X, pomijając odpowiedzi (replies).
-
+     *
      * @param username Nazwa użytkownika bez @ (np. elonmusk).
+     * @param sinceId ID tweeta, od którego (nie włącznie) chcemy pobierać nowe posty.
      * @return Lista map reprezentujących tweety.
      */
-    public List<Map<String, Object>> fetchRecentTweets(String username) {
+    public List<Map<String, Object>> fetchRecentTweets(String username, String sinceId) {
         try {
             // Budujemy zapytanie: from:username 
-            // Pobieramy wszystko od tego użytkownika (w tym jego odpowiedzi do własnych wątków).
-            // Niestety API Twittera/SocialData nie ma idealnego filtra "tylko odpowiedzi do siebie", 
-            // ale pobierając wszystko, w Orchestratorze możemy odfiltrować posty, które są
-            // odpowiedziami do innych użytkowników, sprawdzając pole 'in_reply_to_screen_name'.
-            String query = "from:" + username;
+            StringBuilder queryBuilder = new StringBuilder("from:").append(username);
+            
+            if (sinceId != null && !sinceId.isEmpty()) {
+                queryBuilder.append(" since_id:").append(sinceId);
+            }
+            
+            String query = queryBuilder.toString();
             
             String url = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
                     .queryParam("query", query)

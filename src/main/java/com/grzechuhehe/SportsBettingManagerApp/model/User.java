@@ -53,6 +53,8 @@ public class User implements UserDetails {
 
     private LocalDateTime registeredAt;
 
+    private String lastScrapedTweetId;
+
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles = new ArrayList<>();
 

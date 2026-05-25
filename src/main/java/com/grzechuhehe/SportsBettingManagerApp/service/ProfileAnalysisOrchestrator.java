@@ -67,15 +67,21 @@ public class ProfileAnalysisOrchestrator {
         // Czyścimy nazwę użytkownika z '@' dla poprawnego porównywania w filtrach
         String xUsername = xUsernameRaw.replace("@", "").trim();
         
-        log.info("Pobieranie najnowszych postów dla profilu @{}", xUsername);
-        List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername);
-        log.info("Pobrano {} postów dla profilu @{}", recentTweets.size(), xUsername);
+        log.info("Pobieranie najnowszych postów dla profilu @{} (od ID: {})", xUsername, user.getLastScrapedTweetId());
+        List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername, user.getLastScrapedTweetId());
+        log.info("Pobrano {} NOWYCH postów dla profilu @{}", recentTweets.size(), xUsername);
+
+        if (recentTweets.isEmpty()) return;
 
         // Przetwarzamy od najstarszych do najnowszych, aby najpierw zapisać zakład, 
         // a potem móc dokleić do niego link z komentarza (reply).
         java.util.Collections.reverse(recentTweets);
+        
+        // Śledzimy najnowszy ID w tej paczce, aby zaktualizować lastScrapedTweetId
+        String newestTweetId = user.getLastScrapedTweetId();
 
         int processed = 0;
+        int skippedNonBets = 0;
         int skippedReplies = 0;
         int savedCount = 0;
         int errorCount = 0;
@@ -90,6 +96,10 @@ public class ProfileAnalysisOrchestrator {
 
         for (Map<String, Object> tweet : recentTweets) {
             String tweetId = (String) tweet.get("id_str");
+            // Aktualizujemy newestTweetId (tweety są posortowane chronologicznie po odwróceniu, 
+            // więc ostatni w pętli będzie najnowszy).
+            newestTweetId = tweetId;
+
             try {
                 String fullText = (String) tweet.get("full_text");
                 
@@ -100,11 +110,18 @@ public class ProfileAnalysisOrchestrator {
                     continue;
                 }
                 
+                // HEURYSTYKA: Sprawdź czy post w ogóle wygląda na zakład przed wysłaniem do Gemini
+                List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
+                if (!isLikelyABet(fullText, imageUrls)) {
+                    skippedNonBets++;
+                    continue;
+                }
+
                 processed++;
                 String sharingUrl = extractSharingUrl(tweet);
                 String replyToId = (String) tweet.get("in_reply_to_status_id_str");
 
-                // Szukamy kontekstu z wątku (poprzedni post)
+                // ... reszta logiki bez zmian ...
                 String threadContext = null;
                 if (replyToId != null) {
                     threadContext = tweetIdToTextMap.get(replyToId);
@@ -134,8 +151,7 @@ public class ProfileAnalysisOrchestrator {
 
                 Optional<Bet> existingBetOpt = betRepository.findBySourcePostId(tweetId);
                 
-                // Szukamy zdjęć
-                List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
+                // Szukamy lokalnych ścieżek dla obrazków (już pobranych w kroku heurystyki)
                 List<String> localImagePaths = new ArrayList<>();
                 for (String url : imageUrls) {
                     String path = imageStorageService.downloadAndSaveImage(url, xUsername);
@@ -192,8 +208,35 @@ public class ProfileAnalysisOrchestrator {
                 // NIE rzucamy wyjątku dalej, aby pętla mogła sprawdzić następne tweety
             }
         }
-        log.info("Zakończono analizę @{}. Razem tweetów: {}, Przetworzono (nie-replies): {}, Zapisano: {}, Pominięto replies: {}, Błędy: {}", 
-                xUsername, recentTweets.size(), processed, savedCount, skippedReplies, errorCount);
+        
+        // Aktualizacja ID ostatnio zescrapowanego tweeta
+        if (newestTweetId != null && !newestTweetId.equals(user.getLastScrapedTweetId())) {
+            user.setLastScrapedTweetId(newestTweetId);
+            log.info("Zaktualizowano lastScrapedTweetId dla @{} na {}", xUsername, newestTweetId);
+        }
+
+        log.info("Zakończono analizę @{}. Nowych: {}, Przetworzono: {}, Zapisano: {}, Pominięto (nie-zakłady): {}, Pominięto (replies): {}, Błędy: {}", 
+                xUsername, recentTweets.size(), processed, savedCount, skippedNonBets, skippedReplies, errorCount);
+    }
+
+    private boolean isLikelyABet(String text, List<String> imageUrls) {
+        // Jeśli są zdjęcia, jest duża szansa że to kupon
+        if (imageUrls != null && !imageUrls.isEmpty()) return true;
+        
+        if (text == null || text.isEmpty()) return false;
+        
+        String lowerText = text.toLowerCase();
+        // Lista słów kluczowych sugerujących zakład
+        List<String> keywords = Arrays.asList(
+            "kurs", "stawka", "typ", "kupon", "jednostki", "bet", "ako", "singiel", 
+            "sts", "fortuna", "superbet", "betclic", "totalbet", "forbet", "etoto", "lvbet"
+        );
+        
+        for (String keyword : keywords) {
+            if (lowerText.contains(keyword)) return true;
+        }
+        
+        return false;
     }
 
     private boolean isBetValid(Bet bet) {
@@ -238,35 +281,45 @@ public class ProfileAnalysisOrchestrator {
                 String cleanJson = aiResponseJson.replaceAll("```json", "").replaceAll("```", "").trim();
                 JsonNode jsonNode = objectMapper.readTree(cleanJson);
 
-                if (jsonNode.has("eventName") && !jsonNode.get("eventName").isNull() && !jsonNode.get("eventName").asText().trim().isEmpty()) bet.setEventName(jsonNode.get("eventName").asText());
-                if (jsonNode.has("selection") && !jsonNode.get("selection").isNull() && !jsonNode.get("selection").asText().trim().isEmpty()) bet.setSelection(jsonNode.get("selection").asText());
-                if (jsonNode.has("bookmaker") && !jsonNode.get("bookmaker").isNull()) bet.setBookmaker(jsonNode.get("bookmaker").asText());
-                if (jsonNode.has("sport") && !jsonNode.get("sport").isNull()) bet.setSport(jsonNode.get("sport").asText());
+                if (jsonNode.has("eventName")) bet.setEventName(sanitizeAiString(jsonNode.get("eventName")));
+                if (jsonNode.has("selection")) bet.setSelection(sanitizeAiString(jsonNode.get("selection")));
+                if (jsonNode.has("bookmaker")) bet.setBookmaker(sanitizeAiString(jsonNode.get("bookmaker")));
+                if (jsonNode.has("sport")) bet.setSport(sanitizeAiString(jsonNode.get("sport")));
+                
                 if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
-                    try {
-                        bet.setMarketType(com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType.valueOf(jsonNode.get("marketType").asText().toUpperCase()));
-                    } catch (IllegalArgumentException ignored) {}
+                    String mt = sanitizeAiString(jsonNode.get("marketType"));
+                    if (mt != null) {
+                        try {
+                            bet.setMarketType(com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType.valueOf(mt.toUpperCase()));
+                        } catch (IllegalArgumentException ignored) {}
+                    }
                 }
                 
                 if (jsonNode.has("oddsType") && !jsonNode.get("oddsType").isNull()) {
-                    try {
-                        bet.setOddsType(OddsType.valueOf(jsonNode.get("oddsType").asText().toUpperCase()));
-                    } catch (IllegalArgumentException ignored) {}
+                    String ot = sanitizeAiString(jsonNode.get("oddsType"));
+                    if (ot != null) {
+                        try {
+                            bet.setOddsType(OddsType.valueOf(ot.toUpperCase()));
+                        } catch (IllegalArgumentException ignored) {}
+                    }
                 }
                 
                 if (jsonNode.has("status") && !jsonNode.get("status").isNull()) {
-                    try {
-                        BetStatus status = BetStatus.valueOf(jsonNode.get("status").asText().toUpperCase());
-                        bet.setStatus(status);
-                        
-                        // Jeśli zakład jest już rozliczony w momencie pierwszego wykrycia przez AI,
-                        // oznaczamy go jako retroactive (nie-pre-match), aby nie psuć statystyk.
-                        if (status != BetStatus.PENDING && bet.getId() == null) {
-                            bet.setPreMatch(false);
-                            log.info("Detected retroactive bet (status: {}) for post {}. Marking isPreMatch = false.", 
-                                     status, bet.getSourcePostId());
-                        }
-                    } catch (IllegalArgumentException ignored) {}
+                    String st = sanitizeAiString(jsonNode.get("status"));
+                    if (st != null) {
+                        try {
+                            BetStatus status = BetStatus.valueOf(st.toUpperCase());
+                            bet.setStatus(status);
+                            
+                            // Jeśli zakład jest już rozliczony w momencie pierwszego wykrycia przez AI,
+                            // oznaczamy go jako retroactive (nie-pre-match), aby nie psuć statystyk.
+                            if (status != BetStatus.PENDING && bet.getId() == null) {
+                                bet.setPreMatch(false);
+                                log.info("Detected retroactive bet (status: {}) for post {}. Marking isPreMatch = false.", 
+                                         status, bet.getSourcePostId());
+                            }
+                        } catch (IllegalArgumentException ignored) {}
+                    }
                 }
 
                 // Sprawdzamy czy AI uznało to za prawdziwy zakład, a nie promocję
@@ -322,7 +375,7 @@ public class ProfileAnalysisOrchestrator {
                         bet.setSelection("Multiple Selections");
                     }
                     
-                    Set<Bet> childBets = new HashSet<>();
+                    java.util.Set<Bet> childBets = new java.util.HashSet<>();
                     for (JsonNode legNode : jsonNode.get("legs")) {
                         Bet childBet = Bet.builder()
                             .user(bet.getUser())
@@ -332,8 +385,8 @@ public class ProfileAnalysisOrchestrator {
                             .parentBet(bet)
                             .build();
                             
-                        if (legNode.has("eventName") && !legNode.get("eventName").isNull()) childBet.setEventName(legNode.get("eventName").asText());
-                        if (legNode.has("selection") && !legNode.get("selection").isNull()) childBet.setSelection(legNode.get("selection").asText());
+                        if (legNode.has("eventName")) childBet.setEventName(sanitizeAiString(legNode.get("eventName")));
+                        if (legNode.has("selection")) childBet.setSelection(sanitizeAiString(legNode.get("selection")));
                         if (legNode.has("odds") && !legNode.get("odds").isNull()) childBet.setOdds(new BigDecimal(legNode.get("odds").asText()));
                         
                         childBets.add(childBet);
@@ -345,6 +398,15 @@ public class ProfileAnalysisOrchestrator {
                 log.error("Nie udało się sparsować odpowiedzi JSON od Gemini: {}", e.getMessage());
             }
         }
+    }
+
+    private String sanitizeAiString(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        String text = node.asText().trim();
+        if (text.equalsIgnoreCase("null") || text.equalsIgnoreCase("undefined") || text.isEmpty()) {
+            return null;
+        }
+        return text;
     }
 
     @SuppressWarnings("unchecked")
