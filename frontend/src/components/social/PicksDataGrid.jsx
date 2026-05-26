@@ -110,9 +110,19 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                         ) : '-'}
                                     </td>
                                     <td className="px-4 py-4 text-right h-16 align-middle">
-                                        <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
-                                            {pick.status || 'PENDING'}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
+                                                {pick.status || 'PENDING'}
+                                            </span>
+                                            {!pick.isPreMatch && (pick.status === 'WON' || pick.status === 'LOST') && (
+                                                <span 
+                                                    className="text-[8px] text-muted font-bold uppercase tracking-tighter cursor-help"
+                                                    title="This bet was already settled when it was posted/extracted. It does not count towards 'Pre-Match' performance statistics."
+                                                >
+                                                    ⚠️ Retroactive
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                                 

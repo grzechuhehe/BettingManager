@@ -94,7 +94,7 @@ public class SocialDataClient {
 
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-            log.info("Pobieram tweety z SocialData dla profilu: {}", username);
+            log.info("Pobieram tweety z SocialData. URL: {}, Query: {}", url, query);
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {

@@ -33,7 +33,6 @@ public class User implements UserDetails {
     private LocalDateTime joinedAt;
 
     @NotBlank(message = "Username is required")
-// ... rest of the class
     @Size(min = 3, max = 20)
     private String username;
 

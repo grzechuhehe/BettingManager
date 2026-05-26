@@ -12,6 +12,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.service.ProfileAnalysisOrchestrator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,6 +36,7 @@ public class ProfileAnalysisController {
     private final BetRepository betRepository;
     private final SocialDataClient socialDataClient;
     private final BettingService bettingService;
+    private final ProfileAnalysisOrchestrator profileAnalysisOrchestrator;
 
     @Operation(summary = "Get tracked profiles", description = "Returns a list of all profiles currently being tracked via X.")
     @GetMapping("/tracked")
@@ -79,9 +81,17 @@ public class ProfileAnalysisController {
         shadowProfile.setXProfileUrl("https://x.com/" + xUsername);
         shadowProfile.setActiveUser(false); 
         
-        userRepository.save(shadowProfile);
+        User savedProfile = userRepository.save(shadowProfile);
         
-        return ResponseEntity.ok("Profile " + xUsername + " added to tracking.");
+        // Trigger immediate analysis for new profile
+        try {
+            profileAnalysisOrchestrator.processSingleProfile(savedProfile);
+        } catch (Exception e) {
+            // Log error but don't fail the track request as the profile is already saved
+            // Orchestrator already logs errors, but we might want a simple message here
+        }
+        
+        return ResponseEntity.ok("Profile " + xUsername + " added to tracking and initial scan triggered.");
     }
 
     @Operation(summary = "Manual trigger scan", description = "Triggers an immediate analysis for a specific profile (max once per hour).")
@@ -101,10 +111,13 @@ public class ProfileAnalysisController {
         }
 
         // Trigger analysis
-        // W produkcyjnym kodzie lepiej wstrzyknąć serwis orkiestratora, 
-        // ale tutaj wywołamy metodę bezpośrednio lub przeniesiemy logikę analizy do osobnego serwisu.
-        // Zakładam, że przeniesiemy logikę analyzeProfile do osobnego serwisu w kolejnym kroku.
-        return ResponseEntity.ok("Scan for profile " + xUsername + " has been triggered.");
+        try {
+            profileAnalysisOrchestrator.processSingleProfile(user);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error during manual scan: " + e.getMessage());
+        }
+        
+        return ResponseEntity.ok("Scan for profile " + xUsername + " has been successfully completed.");
     }
 
     @Operation(summary = "Get picks for a profile", description = "Returns AI-extracted bets for the specified X profile.")
@@ -173,6 +186,7 @@ public class ProfileAnalysisController {
                 .imageProofPath(b.getImageProofPath())
                 .placedAt(b.getPlacedAt())
                 .sourcePostId(b.getSourcePostId())
+                .isPreMatch(b.isPreMatch())
                 .legs(b.getChildBets() != null ? b.getChildBets().stream().map(this::mapToProfilePickDTO).collect(Collectors.toList()) : null)
                 .build();
     }

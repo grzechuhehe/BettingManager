@@ -53,25 +53,49 @@ public class ProfileAnalysisOrchestrator {
         }
     }
 
-    @Transactional
     public void processSingleProfile(User user) {
-        analyzeProfile(user);
-        user.setLastXCheckAt(LocalDateTime.now());
-        userRepository.save(user);
+        try {
+            String newestId = analyzeProfile(user);
+            
+            // Zapisujemy metadane (czas i ostatni tweet) w małej transakcji
+            updateProfileMetadata(user.getId(), newestId);
+        } catch (Exception e) {
+            log.error("Błąd podczas analizy profilu {}: {}", user.getXUsername(), e.getMessage());
+        }
     }
 
-    private void analyzeProfile(User user) {
+    @Transactional
+    public void updateProfileMetadata(Long userId, String lastTweetId) {
+        userRepository.findById(userId).ifPresent(u -> {
+            u.setLastXCheckAt(LocalDateTime.now());
+            if (lastTweetId != null) {
+                u.setLastScrapedTweetId(lastTweetId);
+            }
+            userRepository.save(u);
+        });
+    }
+
+    private String analyzeProfile(User user) {
         String xUsernameRaw = user.getXUsername();
-        if (xUsernameRaw == null) return;
+        if (xUsernameRaw == null) return null;
         
         // Czyścimy nazwę użytkownika z '@' dla poprawnego porównywania w filtrach
         String xUsername = xUsernameRaw.replace("@", "").trim();
         
         log.info("Pobieranie najnowszych postów dla profilu @{} (od ID: {})", xUsername, user.getLastScrapedTweetId());
         List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername, user.getLastScrapedTweetId());
+        
+        if (recentTweets == null || recentTweets.isEmpty()) {
+            log.info("Brak nowych postów dla @{} (Search Query returned empty)", xUsername);
+            return user.getLastScrapedTweetId();
+        }
+        
         log.info("Pobrano {} NOWYCH postów dla profilu @{}", recentTweets.size(), xUsername);
 
-        if (recentTweets.isEmpty()) return;
+        // Debug: wypisz ID wszystkich pobranych tweetów
+        if (log.isDebugEnabled()) {
+            recentTweets.forEach(t -> log.debug("Tweet ID w paczce: {}", t.get("id_str")));
+        }
 
         // Przetwarzamy od najstarszych do najnowszych, aby najpierw zapisać zakład, 
         // a potem móc dokleić do niego link z komentarza (reply).
@@ -96,23 +120,30 @@ public class ProfileAnalysisOrchestrator {
 
         for (Map<String, Object> tweet : recentTweets) {
             String tweetId = (String) tweet.get("id_str");
+            if (tweetId == null) continue;
+            
             // Aktualizujemy newestTweetId (tweety są posortowane chronologicznie po odwróceniu, 
             // więc ostatni w pętli będzie najnowszy).
             newestTweetId = tweetId;
 
             try {
                 String fullText = (String) tweet.get("full_text");
+                List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
                 
+                log.info("Przetwarzam tweet {}. Obrazki: {}, Tekst: [{}]", 
+                         tweetId, imageUrls.size(), fullText != null ? fullText.substring(0, Math.min(fullText.length(), 40)).replace("\n", " ") : "null");
+
                 // Ignoruj odpowiedzi do INNYCH użytkowników
                 String inReplyTo = (String) tweet.get("in_reply_to_screen_name");
                 if (inReplyTo != null && !inReplyTo.equalsIgnoreCase(xUsername)) {
+                    log.info("Skip reply to another user: {} -> {}", tweetId, inReplyTo);
                     skippedReplies++;
                     continue;
                 }
                 
                 // HEURYSTYKA: Sprawdź czy post w ogóle wygląda na zakład przed wysłaniem do Gemini
-                List<String> imageUrls = extractAllImageUrlsFromTweet(tweet);
                 if (!isLikelyABet(fullText, imageUrls)) {
+                    log.info("Post {} odrzucony przez heurystykę.", tweetId);
                     skippedNonBets++;
                     continue;
                 }
@@ -209,27 +240,25 @@ public class ProfileAnalysisOrchestrator {
             }
         }
         
-        // Aktualizacja ID ostatnio zescrapowanego tweeta
-        if (newestTweetId != null && !newestTweetId.equals(user.getLastScrapedTweetId())) {
-            user.setLastScrapedTweetId(newestTweetId);
-            log.info("Zaktualizowano lastScrapedTweetId dla @{} na {}", xUsername, newestTweetId);
-        }
-
         log.info("Zakończono analizę @{}. Nowych: {}, Przetworzono: {}, Zapisano: {}, Pominięto (nie-zakłady): {}, Pominięto (replies): {}, Błędy: {}", 
                 xUsername, recentTweets.size(), processed, savedCount, skippedNonBets, skippedReplies, errorCount);
+        
+        return newestTweetId;
     }
 
     private boolean isLikelyABet(String text, List<String> imageUrls) {
-        // Jeśli są zdjęcia, jest duża szansa że to kupon
+        // Jeśli są zdjęcia, jest ogromna szansa że to kupon (najczęstszy przypadek)
         if (imageUrls != null && !imageUrls.isEmpty()) return true;
         
         if (text == null || text.isEmpty()) return false;
         
         String lowerText = text.toLowerCase();
-        // Lista słów kluczowych sugerujących zakład
+        // Rozszerzona lista słów kluczowych sugerujących zakład lub statystyki bettingowe
         List<String> keywords = Arrays.asList(
             "kurs", "stawka", "typ", "kupon", "jednostki", "bet", "ako", "singiel", 
-            "sts", "fortuna", "superbet", "betclic", "totalbet", "forbet", "etoto", "lvbet"
+            "sts", "fortuna", "superbet", "betclic", "totalbet", "forbet", "etoto", "lvbet", "fuksiarz",
+            "over", "under", "handicap", "zysk", "yield", "analiza", "pewniak", "lokata", "win", "lost", "void", "zwrot",
+            "ekstraklasa", "premier league", "laliga", "bundesliga", "serie a", "nba", "nhl", "popykane"
         );
         
         for (String keyword : keywords) {
@@ -240,11 +269,21 @@ public class ProfileAnalysisOrchestrator {
     }
 
     private boolean isBetValid(Bet bet) {
-        if (bet.getOdds() == null || bet.getEventName() == null) return false;
-        if (bet.getEventName().equalsIgnoreCase("null") || bet.getEventName().isEmpty()) return false;
+        if (bet.getEventName() == null || bet.getEventName().equalsIgnoreCase("null") || bet.getEventName().isEmpty()) {
+            log.warn("Bet z posta {} odrzucony: brak nazwy wydarzenia.", bet.getSourcePostId());
+            return false;
+        }
+        if (bet.getOdds() == null) {
+            log.warn("Bet z posta {} odrzucony: brak kursu.", bet.getSourcePostId());
+            return false;
+        }
         
         // Minimalny kurs musi być większy niż 1.00 (walidacja w encji Bet ma @DecimalMin("1.01"))
-        return bet.getOdds().compareTo(new BigDecimal("1.00")) > 0;
+        boolean oddsValid = bet.getOdds().compareTo(new BigDecimal("1.00")) > 0;
+        if (!oddsValid) {
+            log.warn("Bet z posta {} odrzucony: kurs {} jest za niski.", bet.getSourcePostId(), bet.getOdds());
+        }
+        return oddsValid;
     }
 
     private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths, String threadContext) {
@@ -437,21 +476,32 @@ public class ProfileAnalysisOrchestrator {
     @SuppressWarnings("unchecked")
     private List<String> extractAllImageUrlsFromTweet(Map<String, Object> tweet) {
         List<String> imageUrls = new ArrayList<>();
-        try {
-            Map<String, Object> entities = (Map<String, Object>) tweet.get("entities");
-            if (entities != null && entities.containsKey("media")) {
-                List<Map<String, Object>> media = (List<Map<String, Object>>) entities.get("media");
-                if (media != null) {
-                    for (Map<String, Object> item : media) {
-                        if ("photo".equals(item.get("type"))) {
-                            imageUrls.add((String) item.get("media_url_https"));
-                        }
+        
+        // 1. Sprawdzamy 'entities'
+        extractFromMediaList(imageUrls, (Map<String, Object>) tweet.get("entities"));
+        
+        // 2. Sprawdzamy 'extended_entities' (często tu są wszystkie zdjęcia jeśli jest ich > 1)
+        extractFromMediaList(imageUrls, (Map<String, Object>) tweet.get("extended_entities"));
+        
+        return imageUrls;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void extractFromMediaList(List<String> imageUrls, Map<String, Object> parent) {
+        if (parent == null || !parent.containsKey("media")) return;
+        
+        List<Map<String, Object>> media = (List<Map<String, Object>>) parent.get("media");
+        if (media != null) {
+            for (Map<String, Object> item : media) {
+                String type = (String) item.get("type");
+                // Obsługujemy zdjęcia i gify/wideo (jako obrazek podglądu)
+                if ("photo".equals(type) || "animated_gif".equals(type)) {
+                    String url = (String) item.get("media_url_https");
+                    if (url != null && !imageUrls.contains(url)) {
+                        imageUrls.add(url);
                     }
                 }
             }
-        } catch (Exception e) {
-            log.warn("Błąd podczas szukania obrazków w tweecie: {}", e.getMessage());
         }
-        return imageUrls;
     }
 }

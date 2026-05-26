@@ -7,6 +7,8 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.service.ProfileAnalysisOrchestrator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -40,6 +42,12 @@ class ProfileAnalysisControllerTest {
     @Mock
     private SocialDataClient socialDataClient;
 
+    @Mock
+    private BettingService bettingService;
+
+    @Mock
+    private ProfileAnalysisOrchestrator profileAnalysisOrchestrator;
+
     @InjectMocks
     private ProfileAnalysisController profileAnalysisController;
 
@@ -67,7 +75,7 @@ class ProfileAnalysisControllerTest {
                 .characterEncoding("UTF-8")
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Profile nowyguru added to tracking."));
+                .andExpect(content().string("Profile nowyguru added to tracking and initial scan triggered."));
 
         verify(userRepository, times(1)).save(argThat(user -> 
             !user.isActiveUser() && 
@@ -120,7 +128,7 @@ class ProfileAnalysisControllerTest {
         mockMvc.perform(post("/api/profiles/freshguru/scan")
                 .characterEncoding("UTF-8"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Scan for profile freshguru has been triggered."));
+                .andExpect(content().string("Scan for profile freshguru has been successfully completed."));
     }
 
     @Test

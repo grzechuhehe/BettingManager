@@ -28,5 +28,6 @@ public class ProfilePickDTO {
     private String imageProofPath;
     private LocalDateTime placedAt;
     private String sourcePostId;
+    private boolean isPreMatch;
     private List<ProfilePickDTO> legs;
 }
