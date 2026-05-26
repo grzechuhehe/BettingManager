@@ -13,8 +13,15 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 
 ## 🚀 Key Features
 
+### 📡 Social Betting Intelligence & AI Extraction
+- **Shadow Profile Tracking:** Track external sports traders' performance via X (formerly Twitter) shadow profiles without requiring them to register.
+- **AI-Powered Bet Extraction:** Automatic extraction of **Single** and **Parlay (AKO)** bets from tweets and images using **Google Gemini Pro Vision** for advanced OCR.
+- **Incremental Scraping Engine:** Efficient background sync using `since_id` pagination and image-presence heuristics to minimize API overhead and costs.
+- **Historical Backfilling:** Automatically fetches and analyzes the last 100 posts for any newly tracked profile to provide immediate performance history.
+- **Retroactive Analysis:** Intelligent detection of post-settlement bets with visual "Retroactive" badges and tooltips for transparency.
+
 ### 📈 Professional Analytics Dashboard
-- **Live +EV Feed:** Expandable, deduplicated feed of currently available positive Expected Value opportunities filtered by >2% profitability.
+- **Live +EV Feed:** Expandable, deduplicated feed of currently available positive Expected Value opportunities filtered by user-defined profitability threshold (default >2%).
 - **Equity Curve:** Interactive line chart visualizing cumulative profit over time (Lifetime Performance).
 - **Profit by Sport:** Breakdown of net profit across different sports disciplines to identify strengths.
 - **Key Metrics:** Real-time calculation of **ROI (Return on Investment)** and **Yield**.
@@ -26,9 +33,10 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 - **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates and safeguards against duplicate or invalid settlements.
 
 ### 📡 External Integrations & EV Engine
-- **Automated EV Scanner:** Background engine running 24/7 that cross-references traditional bookmaker odds against predictive markets to find mathematically profitable (+EV) bets.
-- **Predictive Probability:** Integration with **Polymarket Gamma API** to calculate "True Probability" based on the wisdom of the crowd, avoiding traditional vig-removal inaccuracies.
+- **Automated EV Scanner:** Background engine running 24/7 that cross-references traditional bookmaker odds against predictive markets (**Polymarket**, **Kalshi**) to find mathematically profitable (+EV) bets.
+- **Predictive Probability:** Integration with **Polymarket Gamma API** and **Kalshi** to calculate "True Probability" based on market liquidity and wisdom of the crowd.
 - **Live Odds:** Real-time sports data and market odds powered by **TheOddsAPI** integration.
+
 
 ### 🔐 Security & Architecture
 - **User Authentication:** Secure registration and login system based on **JWT**.
@@ -45,6 +53,8 @@ A professional-grade analytics platform for sports traders. This full-stack appl
 - **Language:** Java 21
 - **Framework:** Spring Boot 3.3.6
 - **Database:** MySQL 8.0
+- **AI/ML:** Google Gemini API (Vision Pro)
+- **Data Providers:** SocialData (X API), TheOddsAPI, Polymarket, Kalshi
 - **Security:** Spring Security + JWT
 - **Templating:** Thymeleaf (Email templates)
 - **Documentation:** Springdoc OpenAPI (Swagger)
@@ -80,6 +90,11 @@ DB_ROOTPASSWORD=your_db_root_password
 # Application Secrets
 JWT_SECRET=YourSuperSecretKeyForJwtTokens
 KEYSTORE_PASSWORD=your_p12_certificate_password
+
+# External APIs
+ODDS_API_KEY=your_the_odds_api_key
+SOCIALDATA_API_KEY=your_socialdata_tools_key
+GEMINI_API_KEY=your_google_gemini_key
 
 # Email Configuration (Mailtrap - for testing password reset)
 SMTP_MAILTRAP_USER=your_mailtrap_user

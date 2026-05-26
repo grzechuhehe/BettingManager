@@ -44,6 +44,8 @@ public class User implements UserDetails {
 
     private boolean isActiveUser = true;
 
+    private Integer evEdgeThreshold = 2; // Default 2%
+
     private String xUsername;
 
     private String xProfileUrl;

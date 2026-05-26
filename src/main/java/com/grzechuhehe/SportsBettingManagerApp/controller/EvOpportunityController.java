@@ -17,13 +17,17 @@ import java.util.List;
 public class EvOpportunityController {
     private final EvOpportunityRepository repository;
     private final com.grzechuhehe.SportsBettingManagerApp.service.EvScannerService evScannerService;
+    private final com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository userRepository;
 
     @GetMapping
-    @Operation(summary = "Get active EV opportunities", description = "Returns latest unique +EV opportunities detected in the last 2 hours")
+    @Operation(summary = "Get active EV opportunities", description = "Returns latest unique +EV opportunities detected in the last 2 hours, filtered by user preference")
     public List<EvOpportunity> getOpportunities() {
-        // Only return the latest scan for each unique (event, selection, bookmaker)
-        // Historical data stays in DB for ROI/Charts.
-        return repository.findLatestUniqueOpportunities(LocalDateTime.now().minusHours(2));
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Double minEdge = userRepository.findByUsername(username)
+                .map(u -> u.getEvEdgeThreshold().doubleValue())
+                .orElse(2.0);
+
+        return repository.findLatestUniqueOpportunitiesFiltered(LocalDateTime.now().minusHours(2), minEdge);
     }
 
 

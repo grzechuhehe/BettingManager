@@ -7,5 +7,6 @@ public record UserProfileDTO(
     String username,
     String email,
     LocalDateTime joinedAt,
-    List<String> roles
+    List<String> roles,
+    Integer evEdgeThreshold
 ) {}

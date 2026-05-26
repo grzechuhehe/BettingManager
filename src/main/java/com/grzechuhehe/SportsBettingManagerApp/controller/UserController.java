@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.controller;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.ChangePasswordRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.UserProfileDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.UserSettingsRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,8 +36,20 @@ public class UserController {
                 user.getUsername(),
                 user.getEmail(),
                 user.getJoinedAt(),
-                user.getRoles()
+                user.getRoles(),
+                user.getEvEdgeThreshold()
         ));
+    }
+
+    @Operation(summary = "Update User Settings", description = "Updates user preferences like +EV edge threshold")
+    @PostMapping("/settings")
+    public ResponseEntity<?> updateSettings(@RequestBody UserSettingsRequest request) {
+        User user = getCurrentUser();
+        if (request.getEvEdgeThreshold() != null) {
+            user.setEvEdgeThreshold(request.getEvEdgeThreshold());
+        }
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "Settings updated successfully"));
     }
 
     @Operation(summary = "Change Password", description = "Updates the password for the currently authenticated user")

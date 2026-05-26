@@ -12,10 +12,10 @@ import java.util.List;
 @Repository
 public interface EvOpportunityRepository extends JpaRepository<EvOpportunity, Long> {
     
-    @Query("SELECT e FROM EvOpportunity e WHERE e.detectedAt > :since AND e.evPercentage >= 2.0 AND e.id IN (" +
+    @Query("SELECT e FROM EvOpportunity e WHERE e.detectedAt > :since AND e.evPercentage >= :minEdge AND e.id IN (" +
            "SELECT MAX(e2.id) FROM EvOpportunity e2 GROUP BY e2.eventName, e2.targetSelection, e2.bookmaker" +
            ") ORDER BY e.evPercentage DESC")
-    List<EvOpportunity> findLatestUniqueOpportunities(@Param("since") LocalDateTime since);
+    List<EvOpportunity> findLatestUniqueOpportunitiesFiltered(@Param("since") LocalDateTime since, @Param("minEdge") Double minEdge);
 
     List<EvOpportunity> findByDetectedAtAfterOrderByEvPercentageDesc(LocalDateTime detectedAt);
 }
