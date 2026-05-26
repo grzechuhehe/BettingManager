@@ -82,8 +82,11 @@ public class ProfileAnalysisOrchestrator {
         // Czyścimy nazwę użytkownika z '@' dla poprawnego porównywania w filtrach
         String xUsername = xUsernameRaw.replace("@", "").trim();
         
-        log.info("Pobieranie najnowszych postów dla profilu @{} (od ID: {})", xUsername, user.getLastScrapedTweetId());
-        List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername, user.getLastScrapedTweetId());
+        String lastId = user.getLastScrapedTweetId();
+        int limit = (lastId == null || lastId.isEmpty()) ? 100 : 20;
+
+        log.info("Pobieranie postów dla profilu @{} (od ID: {}, limit: {})", xUsername, lastId, limit);
+        List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername, lastId, limit);
         
         if (recentTweets == null || recentTweets.isEmpty()) {
             log.info("Brak nowych postów dla @{} (Search Query returned empty)", xUsername);

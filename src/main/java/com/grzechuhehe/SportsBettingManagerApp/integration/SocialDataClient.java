@@ -71,9 +71,10 @@ public class SocialDataClient {
      *
      * @param username Nazwa użytkownika bez @ (np. elonmusk).
      * @param sinceId ID tweeta, od którego (nie włącznie) chcemy pobierać nowe posty.
+     * @param limit Maksymalna liczba tweetów do pobrania.
      * @return Lista map reprezentujących tweety.
      */
-    public List<Map<String, Object>> fetchRecentTweets(String username, String sinceId) {
+    public List<Map<String, Object>> fetchRecentTweets(String username, String sinceId, int limit) {
         try {
             // Budujemy zapytanie: from:username 
             StringBuilder queryBuilder = new StringBuilder("from:").append(username);
@@ -86,6 +87,7 @@ public class SocialDataClient {
             
             String url = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
                     .queryParam("query", query)
+                    .queryParam("limit", limit) // Dodajemy parametr limitu
                     .toUriString();
 
             HttpHeaders headers = new HttpHeaders();
