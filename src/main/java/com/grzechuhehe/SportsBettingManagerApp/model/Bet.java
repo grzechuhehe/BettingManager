@@ -86,6 +86,11 @@ public class Bet {
     private LocalDateTime placedAt = LocalDateTime.now(); // Data postawienia zakładu
     private LocalDateTime settledAt; // Data rozliczenia zakładu
 
+    // Auto-rozliczanie (audyt)
+    private String resolutionSource;   // np. "APIFY_SOFASCORE"
+    private Double matchConfidence;    // pewność dopasowania 0.0–1.0
+    private String resolvedEventUrl;   // link do meczu w SofaScore
+
     // Notatki użytkownika
     @Lob
     private String notes;
