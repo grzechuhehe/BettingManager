@@ -184,6 +184,15 @@ class BetResolutionTransactionService {
             return;
         }
 
+        if (lost == 0 && pending == 0 && won > 0 && voided > 0) {
+            applyParlayWonWithVoids(parlay);
+            betRepository.save(parlay);
+            log.info(
+                    "Auto-rozliczono kupon {} → WON (WON={}, VOID={} — nogi VOID pominięte w kursie)",
+                    parlay.getId(), won, voided);
+            return;
+        }
+
         log.info(
                 "Kupon {} pozostaje PENDING — nie wszystkie nogi WON (WON={}, VOID={}, LOST={}, total={})",
                 parlay.getId(),
@@ -192,6 +201,32 @@ class BetResolutionTransactionService {
                 lost,
                 totalLegs
         );
+    }
+
+    /**
+     * Kupon z nogami VOID: kurs efektywny = iloczyn kursów nóg WON (VOID liczone jak 1.0).
+     * Gdy brak kursów nóg, fallback do pełnego kursu kuponu (potentialWinnings).
+     */
+    private void applyParlayWonWithVoids(Bet parlay) {
+        BigDecimal effectiveOdds = BigDecimal.ONE;
+        boolean hasLegOdds = false;
+        if (parlay.getChildBets() != null) {
+            for (Bet leg : parlay.getChildBets()) {
+                if (leg.getStatus() == BetStatus.WON && leg.getOdds() != null) {
+                    effectiveOdds = effectiveOdds.multiply(leg.getOdds());
+                    hasLegOdds = true;
+                }
+            }
+        }
+        parlay.setStatus(BetStatus.WON);
+        parlay.setSettledAt(LocalDateTime.now());
+        parlay.setResolutionSource(RESOLUTION_SOURCE);
+        if (hasLegOdds && parlay.getStake() != null) {
+            BigDecimal payout = parlay.getStake().multiply(effectiveOdds);
+            parlay.setFinalProfit(payout.subtract(parlay.getStake()));
+        } else if (parlay.getPotentialWinnings() != null && parlay.getStake() != null) {
+            parlay.setFinalProfit(parlay.getPotentialWinnings().subtract(parlay.getStake()));
+        }
     }
 
     boolean resolveSingle(

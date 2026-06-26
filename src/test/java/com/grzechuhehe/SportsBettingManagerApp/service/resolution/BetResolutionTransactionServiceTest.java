@@ -217,8 +217,46 @@ class BetResolutionTransactionServiceTest {
 
         assertEquals(BetStatus.WON, legWon.getStatus());
         assertEquals(BetStatus.VOID, legVoid.getStatus());
-        assertEquals(BetStatus.PENDING, parlay.getStatus(), "kupon WON dopiero gdy wszystkie nogi WON");
-        verify(betRepository, never()).save(parlay);
+        assertEquals(BetStatus.WON, parlay.getStatus());
+        assertEquals(0, new BigDecimal("10.00").compareTo(parlay.getFinalProfit()));
+        verify(betRepository).save(parlay);
+    }
+
+    @Test
+    void parlayWonWithVoidFallsBackToCouponOddsWhenLegsHaveNoOdds() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 1, 12, 0);
+        Bet parlay = Bet.builder()
+                .id(610L).betType(BetType.PARLAY).status(BetStatus.PENDING)
+                .stake(new BigDecimal("10")).odds(new BigDecimal("3.00"))
+                .potentialWinnings(new BigDecimal("30.00"))
+                .placedAt(placed)
+                .build();
+        Bet legWon = Bet.builder()
+                .id(611L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .eventName("Legia Warszawa - Lech Poznan").selection("1")
+                .marketType(MarketType.MONEYLINE_1X2)
+                .parentBet(parlay).placedAt(placed)
+                .build();
+        Bet legVoid = Bet.builder()
+                .id(612L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .eventName("Brighton - Manchester United").selection("1")
+                .marketType(MarketType.MONEYLINE_1X2)
+                .parentBet(parlay).placedAt(placed)
+                .build();
+        parlay.setChildBets(new LinkedHashSet<>(List.of(legWon, legVoid)));
+
+        List<SofaScoreEventDto> pool = List.of(
+                finishedEvent("Legia Warszawa", "Lech Poznan", 2, 0, placed.plusHours(4)),
+                canceledEvent("Brighton", "Manchester United", placed.plusHours(4))
+        );
+        when(betRepository.findByIdWithChildBets(610L)).thenReturn(java.util.Optional.of(parlay));
+
+        service.processRoot(
+                610L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
+                Set.of(611L, 612L), Set.of(611L, 612L), 0.85, 4);
+
+        assertEquals(BetStatus.WON, parlay.getStatus());
+        assertEquals(0, new BigDecimal("20.00").compareTo(parlay.getFinalProfit()));
     }
 
     @Test
