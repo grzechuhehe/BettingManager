@@ -17,9 +17,11 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ public class BetResolutionService {
     private final ResolutionNameTranslator nameTranslator;
     private final BetResolutionTransactionService resolutionTx;
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
+    private final SofaScoreCacheService sofaScoreCacheService;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -53,7 +56,7 @@ public class BetResolutionService {
     @Value("${bet.resolution.scheduled-max-items:400}")
     private int scheduledMaxItems;
 
-    @Value("${bet.resolution.search-batch-size:15}")
+    @Value("${bet.resolution.search-batch-size:8}")
     private int searchBatchSize;
 
     @Value("${bet.resolution.max-search-queries:20}")
@@ -243,7 +246,7 @@ public class BetResolutionService {
      */
     private EventPoolFetch fetchBySearchBatch(List<Bet> eligibleLeaves) {
         LinkedHashSet<String> allQueries = new LinkedHashSet<>();
-        java.util.Map<String, Set<Long>> queryToBetIds = new java.util.LinkedHashMap<>();
+        Map<String, Set<Long>> queryToBetIds = new LinkedHashMap<>();
 
         for (Bet bet : eligibleLeaves) {
             String raw = bet.getEventName().trim();
@@ -271,51 +274,67 @@ public class BetResolutionService {
             );
         }
 
-        List<SofaScoreEventDto> all = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        SofaScoreCacheService.CacheLookupResult cacheLookup =
+                sofaScoreCacheService.getFresh(new ArrayList<>(allQueries), now);
+
+        List<SofaScoreEventDto> all = new ArrayList<>(cacheLookup.events());
         Set<Long> fetchedBetIds = new HashSet<>();
+        for (String query : allQueries) {
+            if (!cacheLookup.missingQueries().contains(query)) {
+                fetchedBetIds.addAll(queryToBetIds.getOrDefault(query, Set.of()));
+            }
+        }
+
+        int cacheHits = allQueries.size() - cacheLookup.missingQueries().size();
         int calls = 0;
         List<String> batch = new ArrayList<>(searchBatchSize);
 
-        for (String query : allQueries) {
+        for (String query : cacheLookup.missingQueries()) {
             batch.add(query);
             if (batch.size() >= searchBatchSize) {
                 if (calls >= maxApifyCallsPerCycle) {
-                    int processedQueries = calls * searchBatchSize;
+                    int processedMissing = calls * searchBatchSize;
                     log.warn(
-                            "Apify search: limit {} wywołań/cykl — pominięto ~{} zapytań",
+                            "Apify search: limit {} wywołań/cykl — pominięto ~{} zapytań bez cache",
                             maxApifyCallsPerCycle,
-                            Math.max(0, allQueries.size() - processedQueries)
+                            Math.max(0, cacheLookup.missingQueries().size() - processedMissing)
                     );
                     break;
                 }
-                if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch)) {
+                if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch, now)) {
                     calls++;
                 }
                 batch.clear();
             }
         }
         if (!batch.isEmpty() && calls < maxApifyCallsPerCycle) {
-            if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch)) {
+            if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch, now)) {
                 calls++;
             }
         }
 
+        List<SofaScoreEventDto> deduped = dedupEventsByUrl(all);
+
         log.info(
-                "Apify batch search: {} unikalnych query, {} wywołań actora, {} meczów w puli, {} nóg z danymi Apify",
+                "Apify batch search: {} unikalnych query, cacheHits={}, wywołań actora={}, {} meczów w puli ({} przed dedup), {} nóg z danymi",
                 allQueries.size(),
+                cacheHits,
                 calls,
+                deduped.size(),
                 all.size(),
                 fetchedBetIds.size()
         );
 
-        return new EventPoolFetch(all, calls, fetchedBetIds);
+        return new EventPoolFetch(deduped, calls, fetchedBetIds);
     }
 
     private boolean appendBatchSearchResult(
             List<SofaScoreEventDto> all,
-            java.util.Map<String, Set<Long>> queryToBetIds,
+            Map<String, Set<Long>> queryToBetIds,
             Set<Long> fetchedBetIds,
-            List<String> batch) {
+            List<String> batch,
+            LocalDateTime now) {
         var result = apifySofaScoreClient.searchMatchesBatch(batch);
         if (!result.successful()) {
             log.warn(
@@ -325,10 +344,27 @@ public class BetResolutionService {
             return false;
         }
         all.addAll(result.matches());
+        Map<String, List<SofaScoreEventDto>> toCache = new LinkedHashMap<>();
         for (String q : batch) {
             fetchedBetIds.addAll(queryToBetIds.getOrDefault(q, Set.of()));
+            toCache.put(q, result.matches());
         }
+        sofaScoreCacheService.putAll(toCache, now);
         return true;
+    }
+
+    private static List<SofaScoreEventDto> dedupEventsByUrl(List<SofaScoreEventDto> events) {
+        List<SofaScoreEventDto> deduped = new ArrayList<>();
+        Set<String> seenUrls = new HashSet<>();
+        for (SofaScoreEventDto event : events) {
+            String url = event.getUrl();
+            if (url == null || url.isBlank()) {
+                deduped.add(event);
+            } else if (seenUrls.add(url)) {
+                deduped.add(event);
+            }
+        }
+        return deduped;
     }
 
     private record EventPoolFetch(List<SofaScoreEventDto> events, int apifyCalls, Set<Long> fetchedBetIds) {}
