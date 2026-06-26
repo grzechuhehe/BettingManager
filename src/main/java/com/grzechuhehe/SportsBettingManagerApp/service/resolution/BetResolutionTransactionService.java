@@ -25,15 +25,6 @@ import java.util.Set;
 class BetResolutionTransactionService {
 
     private static final String RESOLUTION_SOURCE = "APIFY_SOFASCORE";
-    private static final Set<MarketType> SUPPORTED_MARKETS = Set.of(
-            MarketType.MONEYLINE_1X2,
-            MarketType.MONEYLINE_12,
-            MarketType.TOTALS_OVER_UNDER,
-            MarketType.BOTH_TEAMS_TO_SCORE,
-            MarketType.CORRECT_SCORE,
-            MarketType.HANDICAP,
-            MarketType.ASIAN_HANDICAP
-    );
 
     private final BetRepository betRepository;
     private final BetMatcher betMatcher;

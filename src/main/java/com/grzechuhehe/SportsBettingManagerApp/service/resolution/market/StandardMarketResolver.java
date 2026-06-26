@@ -97,13 +97,6 @@ public class StandardMarketResolver implements MarketResolver {
         if (!sel.isEmpty() && !away.isEmpty() && (away.contains(sel) || sel.contains(away))) {
             return "away";
         }
-        String lastName = sel.contains(" ") ? sel.substring(0, sel.indexOf(' ')) : sel;
-        if (!lastName.isEmpty() && away.contains(lastName)) {
-            return "away";
-        }
-        if (!lastName.isEmpty() && home.contains(lastName)) {
-            return "home";
-        }
         return null;
     }
 

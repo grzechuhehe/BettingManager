@@ -29,16 +29,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BetResolutionService {
 
-    private static final Set<MarketType> SUPPORTED_MARKETS = Set.of(
-            MarketType.MONEYLINE_1X2,
-            MarketType.MONEYLINE_12,
-            MarketType.TOTALS_OVER_UNDER,
-            MarketType.BOTH_TEAMS_TO_SCORE,
-            MarketType.CORRECT_SCORE,
-            MarketType.HANDICAP,
-            MarketType.ASIAN_HANDICAP
-    );
-
     private final ApifySofaScoreClient apifySofaScoreClient;
     private final SofaScoreSportMapper sportMapper;
     private final ResolutionNameTranslator nameTranslator;
@@ -179,7 +169,7 @@ public class BetResolutionService {
         if (market == null) {
             return false;
         }
-        if (!SUPPORTED_MARKETS.contains(market) && !isBetBuilderLeg(bet)) {
+        if (!ResolutionSupportedMarkets.VALUES.contains(market) && !isBetBuilderLeg(bet)) {
             return false;
         }
         if (bet.getPlacedAt() != null && bet.getPlacedAt().isAfter(now.minusHours(minHoursAfterPlaced))) {
@@ -290,10 +280,11 @@ public class BetResolutionService {
             batch.add(query);
             if (batch.size() >= searchBatchSize) {
                 if (calls >= maxApifyCallsPerCycle) {
+                    int processedQueries = calls * searchBatchSize;
                     log.warn(
-                            "Apify search: limit {} wywołań/cykl — pominięto {} query",
+                            "Apify search: limit {} wywołań/cykl — pominięto ~{} zapytań",
                             maxApifyCallsPerCycle,
-                            allQueries.size() - fetchedBetIds.size()
+                            Math.max(0, allQueries.size() - processedQueries)
                     );
                     break;
                 }

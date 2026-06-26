@@ -1,7 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
-import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.BetBuilderMarketResolver;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.CompositeSelectionParser;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.HandicapMarketResolver;
@@ -37,10 +36,6 @@ public class SelectionResolvabilityChecker {
         }
 
         if (HANDICAP_IN_SELECTION.matcher(selection).matches()) {
-            MarketType market = bet.getMarketType();
-            if (market == MarketType.HANDICAP || market == MarketType.ASIAN_HANDICAP) {
-                return handicapMarketResolver.supports(bet);
-            }
             return handicapMarketResolver.supports(bet);
         }
         return true;

@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -174,13 +173,6 @@ public class HandicapMarketResolver implements MarketResolver {
         }
         if (!away.isEmpty() && (away.contains(sel) || sel.contains(away))) {
             return Optional.of("away");
-        }
-        String lastName = sel.split(" ")[0];
-        if (!lastName.isEmpty() && away.contains(lastName)) {
-            return Optional.of("away");
-        }
-        if (!lastName.isEmpty() && home.contains(lastName)) {
-            return Optional.of("home");
         }
         return Optional.empty();
     }
