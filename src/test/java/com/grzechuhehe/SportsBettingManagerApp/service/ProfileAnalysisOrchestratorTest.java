@@ -58,7 +58,7 @@ class ProfileAnalysisOrchestratorTest {
     }
 
     @Test
-    void processSingleProfile_ShouldFetchDefault20Tweets_WhenAlreadyScanned() {
+    void processSingleProfile_ShouldFetchDefault40Tweets_WhenAlreadyScanned() {
         // Given
         User user = new User();
         user.setId(2L);
@@ -66,13 +66,13 @@ class ProfileAnalysisOrchestratorTest {
         user.setLastScrapedTweetId("12345");
 
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-        // Przekazujemy limit 20
-        when(socialDataClient.fetchRecentTweets(eq("old_user"), eq("12345"), eq(20))).thenReturn(Collections.emptyList());
+        // Skan przyrostowy pobiera 40 najnowszych postów (od ostatniego znanego ID)
+        when(socialDataClient.fetchRecentTweets(eq("old_user"), eq("12345"), eq(40))).thenReturn(Collections.emptyList());
 
         // When
         orchestrator.processSingleProfile(user);
 
         // Then
-        verify(socialDataClient).fetchRecentTweets(eq("old_user"), eq("12345"), eq(20));
+        verify(socialDataClient).fetchRecentTweets(eq("old_user"), eq("12345"), eq(40));
     }
 }

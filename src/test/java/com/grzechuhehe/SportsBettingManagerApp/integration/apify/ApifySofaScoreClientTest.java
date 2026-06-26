@@ -1,12 +1,12 @@
 package com.grzechuhehe.SportsBettingManagerApp.integration.apify;
 
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
@@ -16,14 +16,26 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-@RestClientTest(ApifySofaScoreClient.class)
 class ApifySofaScoreClientTest {
 
-    @Autowired
     private ApifySofaScoreClient client;
-
-    @Autowired
     private MockRestServiceServer server;
+
+    @BeforeEach
+    void setUp() {
+        RestClient.Builder builder = RestClient.builder();
+        server = MockRestServiceServer.bindTo(builder).build();
+        // connect/read timeout = 0 → klient nie nadpisuje request factory,
+        // dzięki czemu MockRestServiceServer podpięty pod builder pozostaje aktywny.
+        client = new ApifySofaScoreClient(
+                builder,
+                "https://api.apify.com/v2",
+                "test-token",
+                "abotapi~sofascore-scraper",
+                true,
+                0,
+                0);
+    }
 
     @Test
     void shouldReturnOnlyMatchRecords() {

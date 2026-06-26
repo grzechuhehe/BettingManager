@@ -37,6 +37,24 @@ class BetOutcomeEvaluatorTest {
     }
 
     @Test
+    void moneyline12DrawIsVoid() {
+        Bet bet = Bet.builder().marketType(MarketType.MONEYLINE_12).selection("1").build();
+        assertEquals(Optional.of(BetStatus.VOID), evaluator.evaluate(bet, finished(1, 1)));
+    }
+
+    @Test
+    void moneyline12HomeWin() {
+        Bet bet = Bet.builder().marketType(MarketType.MONEYLINE_12).selection("1").build();
+        assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, finished(2, 1)));
+    }
+
+    @Test
+    void totalsPushIsVoid() {
+        Bet bet = Bet.builder().marketType(MarketType.TOTALS_OVER_UNDER).selection("Over").line("3").build();
+        assertEquals(Optional.of(BetStatus.VOID), evaluator.evaluate(bet, finished(2, 1)));
+    }
+
+    @Test
     void totalsOverWon() {
         Bet bet = Bet.builder().marketType(MarketType.TOTALS_OVER_UNDER).selection("Over").line("2.5").build();
         assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, finished(2, 1)));

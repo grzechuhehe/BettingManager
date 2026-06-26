@@ -8,6 +8,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,9 +40,12 @@ class BetResolutionTransactionService {
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
-        return betRepository.findPendingRootsWithLegs(BetStatus.PENDING).stream()
-                .limit(limit)
-                .toList();
+        // Limit po stronie bazy (najnowsze zakłady pierwsze), potem dociągnięcie nóg.
+        List<Long> rootIds = betRepository.findPendingRootIds(BetStatus.PENDING, PageRequest.of(0, limit));
+        if (rootIds.isEmpty()) {
+            return List.of();
+        }
+        return betRepository.findRootsWithLegsByIds(rootIds);
     }
 
     @Transactional
@@ -83,6 +87,7 @@ class BetResolutionTransactionService {
         int lost = 0;
         int voided = 0;
         int pending = 0;
+        int ambiguous = 0; // CASHED_OUT / HALF_WON / HALF_LOST — wymaga ręcznej decyzji
 
         for (Bet leg : parlay.getChildBets()) {
             if (leg.getStatus() == BetStatus.PENDING) {
@@ -112,22 +117,25 @@ class BetResolutionTransactionService {
                 case WON -> won++;
                 case LOST -> lost++;
                 case VOID -> voided++;
-                default -> pending++;
+                case PENDING -> pending++;
+                default -> ambiguous++; // CASHED_OUT, HALF_WON, HALF_LOST
             }
         }
 
         int decided = totalLegs - pending;
         log.info(
-                "Kupon {}: {}/{} nóg rozstrzygniętych (WON={}, LOST={}, VOID={}, PENDING={})",
+                "Kupon {}: {}/{} nóg rozstrzygniętych (WON={}, LOST={}, VOID={}, PENDING={}, inne={})",
                 parlay.getId(),
                 decided,
                 totalLegs,
                 won,
                 lost,
                 voided,
-                pending
+                pending,
+                ambiguous
         );
 
+        // Przegrana noga przesądza o kuponie nawet gdy reszta jeszcze PENDING.
         if (lost > 0) {
             applyOutcome(parlay, BetStatus.LOST, null, null);
             betRepository.save(parlay);
@@ -135,15 +143,81 @@ class BetResolutionTransactionService {
             return;
         }
 
-        if (pending == 0 && won + voided == totalLegs) {
-            applyOutcome(parlay, BetStatus.WON, null, null);
-            betRepository.save(parlay);
-            log.info("Auto-rozliczono kupon {} → WON (wszystkie {} nóg wygrane/void)", parlay.getId(), totalLegs);
-        } else {
-            log.info(
-                    "Kupon {} pozostaje PENDING — czekam na rozstrzygnięcie {} nóg",
+        // Stany niejednoznaczne (HALF_*/CASHED_OUT) — nie potrafimy bezpiecznie auto-rozliczyć.
+        if (ambiguous > 0) {
+            log.warn(
+                    "Kupon {}: {} nóg w stanie niejednoznacznym (HALF_*/CASHED_OUT) — wymaga ręcznego rozliczenia",
                     parlay.getId(),
-                    pending
+                    ambiguous
+            );
+            return;
+        }
+
+        if (pending > 0) {
+            log.info("Kupon {} pozostaje PENDING — czekam na rozstrzygnięcie {} nóg", parlay.getId(), pending);
+            return;
+        }
+
+        // Wszystkie nogi rozstrzygnięte (won + voided == totalLegs).
+        if (won == 0) {
+            // Same zwroty — kupon też jest zwracany (stawka oddana), a nie wygrany.
+            applyOutcome(parlay, BetStatus.VOID, null, null);
+            betRepository.save(parlay);
+            log.info("Auto-rozliczono kupon {} → VOID (wszystkie {} nóg zwrócone)", parlay.getId(), totalLegs);
+        } else {
+            applyParlayWon(parlay, voided);
+            betRepository.save(parlay);
+        }
+    }
+
+    /**
+     * Rozlicza wygrany kupon. Przy nogach VOID kurs kuponu liczymy tylko z nóg wygranych
+     * (noga VOID „wypada”, jej kurs = 1.0), więc nie zawyżamy wygranej.
+     */
+    private void applyParlayWon(Bet parlay, int voidedLegs) {
+        if (voidedLegs == 0) {
+            applyOutcome(parlay, BetStatus.WON, null, null);
+            log.info("Auto-rozliczono kupon {} → WON (wszystkie nogi wygrane)", parlay.getId());
+            return;
+        }
+
+        BigDecimal effectiveOdds = BigDecimal.ONE;
+        boolean haveAllOdds = true;
+        for (Bet leg : parlay.getChildBets()) {
+            if (leg.getStatus() == BetStatus.WON) {
+                if (leg.getOdds() == null) {
+                    haveAllOdds = false;
+                    break;
+                }
+                effectiveOdds = effectiveOdds.multiply(leg.getOdds());
+            }
+        }
+
+        parlay.setStatus(BetStatus.WON);
+        parlay.setSettledAt(LocalDateTime.now());
+        parlay.setResolutionSource(RESOLUTION_SOURCE);
+
+        if (haveAllOdds && parlay.getStake() != null) {
+            BigDecimal winnings = parlay.getStake().multiply(effectiveOdds);
+            parlay.setPotentialWinnings(winnings);
+            parlay.setFinalProfit(winnings.subtract(parlay.getStake()));
+            log.info(
+                    "Auto-rozliczono kupon {} → WON ({} nóg VOID): skorygowany kurs={}, zysk={}",
+                    parlay.getId(),
+                    voidedLegs,
+                    effectiveOdds,
+                    parlay.getFinalProfit()
+            );
+        } else {
+            // Brak kursów nóg — nie potrafimy skorygować kursu o nogi VOID.
+            // Zostawiamy zachowawczo profit z oryginalnej potencjalnej wygranej i oznaczamy w logu.
+            if (parlay.getPotentialWinnings() != null && parlay.getStake() != null) {
+                parlay.setFinalProfit(parlay.getPotentialWinnings().subtract(parlay.getStake()));
+            }
+            log.warn(
+                    "Auto-rozliczono kupon {} → WON ({} nóg VOID), ale brak kursów nóg do korekty — finalProfit może być zawyżony",
+                    parlay.getId(),
+                    voidedLegs
             );
         }
     }

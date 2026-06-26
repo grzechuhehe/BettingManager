@@ -81,7 +81,8 @@ class BetResolutionServiceTest {
                 .potentialWinnings(new BigDecimal("20")).placedAt(placed)
                 .build();
 
-        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(1L)).thenReturn(Optional.of(bet));
         when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
                 .thenReturn(List.of(finishedEvent(placed.plusDays(1))));
@@ -106,7 +107,8 @@ class BetResolutionServiceTest {
                 .placedAt(LocalDateTime.of(2026, 5, 1, 12, 0))
                 .build();
 
-        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(2L)).thenReturn(Optional.of(bet));
         when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
                 .thenReturn(List.of());
@@ -128,12 +130,48 @@ class BetResolutionServiceTest {
                 .lastResolutionAttemptAt(LocalDateTime.now().minusHours(1))
                 .build();
 
-        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
 
         service.resolvePendingBets();
 
         verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
         verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
         verify(betRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldUseBatchSearchAndRespectQueryLimit() {
+        ReflectionTestUtils.setField(service, "apifyMode", "search");
+        ReflectionTestUtils.setField(service, "maxSearchQueries", 2);
+
+        LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
+        Bet b1 = searchableSingle(10L, "Legia Warszawa - Lech Poznan", placed);
+        Bet b2 = searchableSingle(11L, "Brighton - Manchester United", placed);
+        Bet b3 = searchableSingle(12L, "Germany - Norway", placed);
+
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any()))
+                .thenReturn(List.of(10L, 11L, 12L));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(b1, b2, b3));
+        when(betRepository.findByIdWithChildBets(10L)).thenReturn(Optional.of(b1));
+        when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
+        when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
+        when(apifySofaScoreClient.searchMatchesBatch(anyList())).thenReturn(List.of());
+
+        service.resolvePendingBets();
+
+        // Limit 2 unikalnych query → jeden batch z dokładnie 2 zapytaniami, scheduled nieużywane.
+        verify(apifySofaScoreClient).searchMatchesBatch(argThat(q -> q.size() == 2));
+        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+    }
+
+    private Bet searchableSingle(Long id, String eventName, LocalDateTime placed) {
+        return Bet.builder()
+                .id(id).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .selection("1")
+                .eventName(eventName)
+                .stake(new BigDecimal("10")).odds(new BigDecimal("2.00"))
+                .placedAt(placed)
+                .build();
     }
 }

@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.repository;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus; // Nowy import
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,8 +29,14 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
 
     List<Bet> findByStatusAndParentBetIsNull(BetStatus status);
 
-    @Query("SELECT DISTINCT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.status = :status AND b.parentBet IS NULL")
-    List<Bet> findPendingRootsWithLegs(@Param("status") BetStatus status);
+    // Dwustopniowo, by uniknąć paginacji w pamięci przy JOIN FETCH (HHH000104):
+    // 1) ID korzeni (najnowsze pierwsze) z limitem po stronie bazy,
+    // 2) dociągnięcie nóg dla wybranych ID.
+    @Query("SELECT b.id FROM Bet b WHERE b.status = :status AND b.parentBet IS NULL ORDER BY b.placedAt DESC")
+    List<Long> findPendingRootIds(@Param("status") BetStatus status, Pageable pageable);
+
+    @Query("SELECT DISTINCT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.id IN :ids")
+    List<Bet> findRootsWithLegsByIds(@Param("ids") List<Long> ids);
 
     @Query("SELECT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.id = :id")
     Optional<Bet> findByIdWithChildBets(@Param("id") Long id);

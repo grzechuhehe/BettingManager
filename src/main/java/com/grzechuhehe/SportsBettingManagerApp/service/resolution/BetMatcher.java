@@ -72,6 +72,7 @@ public class BetMatcher {
         String normalized = Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
+                .replace("ł", "l") // NFD nie rozkłada ł
                 .replaceAll("[^a-z0-9 ]", " ");
         Set<String> tokens = new HashSet<>();
         for (String token : normalized.split("\\s+")) {

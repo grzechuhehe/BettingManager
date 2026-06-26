@@ -5,9 +5,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,10 +34,26 @@ public class ApifySofaScoreClient {
             @Value("${apify.api.base-url:https://api.apify.com/v2}") String baseUrl,
             @Value("${apify.api.token:dummy-apify-token}") String token,
             @Value("${apify.actor.sofascore:abotapi~sofascore-scraper}") String actor,
-            @Value("${apify.sofascore.use-apify-proxy:false}") boolean useApifyProxy) {
+            @Value("${apify.sofascore.use-apify-proxy:false}") boolean useApifyProxy,
+            @Value("${apify.api.connect-timeout-ms:15000}") long connectTimeoutMs,
+            @Value("${apify.api.read-timeout-ms:300000}") long readTimeoutMs) {
         this.token = token;
         this.actor = actor;
         this.useApifyProxy = useApifyProxy;
+        // run-sync actora trwa minuty — bez read-timeout zawieszone połączenie
+        // zablokowałoby jednowątkowy scheduler na czas nieokreślony.
+        // Wartości <= 0 pomijają own factory (np. w testach z MockRestServiceServer
+        // podpiętym pod request factory buildera).
+        if (connectTimeoutMs > 0 || readTimeoutMs > 0) {
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            if (connectTimeoutMs > 0) {
+                requestFactory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+            }
+            if (readTimeoutMs > 0) {
+                requestFactory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
+            }
+            restClientBuilder = restClientBuilder.requestFactory(requestFactory);
+        }
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         if (token == null || token.isBlank()) {
             logger.warn("Brak tokenu Apify — Apify zwróci 402. Dodaj APIFY_API_TOKEN=apify_api_... do .env i uruchom: docker compose up -d --force-recreate backend");

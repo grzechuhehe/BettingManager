@@ -74,6 +74,7 @@ public class SofaScoreSportMapper {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
+                .replace("ł", "l") // NFD nie rozkłada ł — bez tego "piłka" → "pika"
                 .replaceAll("[^a-z0-9 ]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();

@@ -33,7 +33,10 @@ public class BetOutcomeEvaluator {
         String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT).trim();
 
         return switch (bet.getMarketType()) {
-            case MONEYLINE_1X2, MONEYLINE_12 -> evaluateMoneyline(event, home, away, selection);
+            // 1X2 = rynek trójdrogowy (remis to osobna opcja, więc remis przy 1/2 = LOST).
+            case MONEYLINE_1X2 -> evaluateMoneyline(event, home, away, selection, false);
+            // 12 = "zwycięzca bez remisu" (DNB): przy remisie zakład jest zwracany (VOID).
+            case MONEYLINE_12 -> evaluateMoneyline(event, home, away, selection, true);
             case TOTALS_OVER_UNDER -> evaluateTotals(bet, home, away, selection);
             case BOTH_TEAMS_TO_SCORE -> evaluateBtts(home, away, selection);
             case CORRECT_SCORE -> evaluateCorrectScore(bet, home, away, selection);
@@ -41,8 +44,12 @@ public class BetOutcomeEvaluator {
         };
     }
 
-    private Optional<BetStatus> evaluateMoneyline(SofaScoreEventDto event, int home, int away, String selection) {
+    private Optional<BetStatus> evaluateMoneyline(
+            SofaScoreEventDto event, int home, int away, String selection, boolean drawVoids) {
         String winner = home > away ? "home" : (away > home ? "away" : "draw");
+        if (drawVoids && winner.equals("draw")) {
+            return Optional.of(BetStatus.VOID);
+        }
         String picked = mapMoneylineSelection(event, selection);
         if (picked == null) {
             return Optional.empty();
@@ -132,6 +139,7 @@ public class BetOutcomeEvaluator {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
+                .replace("ł", "l") // NFD nie rozkłada ł
                 .replaceAll("[^a-z0-9]", "");
     }
 }

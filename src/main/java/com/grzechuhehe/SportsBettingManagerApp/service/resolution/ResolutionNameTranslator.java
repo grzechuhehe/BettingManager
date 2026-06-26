@@ -185,6 +185,7 @@ public class ResolutionNameTranslator {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
+                .replace("ł", "l") // NFD nie rozkłada ł — bez tego "Korea Płd." → "korea pd"
                 .replaceAll("\\(k\\)", " women ")
                 .replaceAll("[^a-z0-9 ]", " ")
                 .replaceAll("\\s+", " ")
