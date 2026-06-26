@@ -7,6 +7,7 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.SettleBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
@@ -38,6 +39,7 @@ public class BetController {
     private final BetResolutionService betResolutionService;
     private final BetResolutionAttemptRepository resolutionAttemptRepository;
     private final UserRepository userRepository;
+    private final BetRepository betRepository;
 
     @Value("${bet.resolution.debug-endpoints:false}")
     private boolean debugEndpoints;
@@ -141,6 +143,18 @@ public class BetController {
         if (!debugEndpoints) {
             return ResponseEntity.notFound().build();
         }
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Bet bet = betRepository.findById(id).orElse(null);
+        if (bet == null || bet.getUser() == null
+                || !bet.getUser().getId().equals(currentUser.getId())) {
+            // 404 zamiast 403, by nie ujawniać istnienia cudzego zasobu
+            return ResponseEntity.notFound().build();
+        }
+
         return ResponseEntity.ok(resolutionAttemptRepository.findTop10ByBetIdOrderByAttemptedAtDesc(id));
     }
 

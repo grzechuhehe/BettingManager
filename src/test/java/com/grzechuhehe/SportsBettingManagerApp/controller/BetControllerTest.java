@@ -10,6 +10,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
@@ -25,6 +26,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -58,6 +60,9 @@ class BetControllerTest {
     private UserRepository userRepository;
 
     @MockBean
+    private BetRepository betRepository;
+
+    @MockBean
     private JwtUtils jwtUtils;
 
     @MockBean
@@ -68,6 +73,9 @@ class BetControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private BetController betController;
 
     private User testUser;
 
@@ -154,5 +162,50 @@ class BetControllerTest {
                 .andExpect(status().isOk());
 
         Mockito.verify(bettingService).deleteBet(eq(10L), any(User.class));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getResolutionAttempts_ShouldReturnOk_WhenBetBelongsToUser() throws Exception {
+        ReflectionTestUtils.setField(betController, "debugEndpoints", true);
+        Bet bet = new Bet();
+        bet.setId(5L);
+        bet.setUser(testUser);
+
+        Mockito.when(betRepository.findById(5L)).thenReturn(Optional.of(bet));
+        Mockito.when(resolutionAttemptRepository.findTop10ByBetIdOrderByAttemptedAtDesc(5L))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/bets/{id}/resolution-attempts", 5L))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getResolutionAttempts_ShouldReturnNotFound_WhenBetBelongsToAnotherUser() throws Exception {
+        ReflectionTestUtils.setField(betController, "debugEndpoints", true);
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername("otheruser");
+        Bet bet = new Bet();
+        bet.setId(5L);
+        bet.setUser(otherUser);
+
+        Mockito.when(betRepository.findById(5L)).thenReturn(Optional.of(bet));
+
+        mockMvc.perform(get("/api/bets/{id}/resolution-attempts", 5L))
+                .andExpect(status().isNotFound());
+
+        Mockito.verify(resolutionAttemptRepository, Mockito.never())
+                .findTop10ByBetIdOrderByAttemptedAtDesc(any());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getResolutionAttempts_ShouldReturnNotFound_WhenDebugDisabled() throws Exception {
+        ReflectionTestUtils.setField(betController, "debugEndpoints", false);
+
+        mockMvc.perform(get("/api/bets/{id}/resolution-attempts", 5L))
+                .andExpect(status().isNotFound());
     }
 }
