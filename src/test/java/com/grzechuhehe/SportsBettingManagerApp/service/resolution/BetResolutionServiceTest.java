@@ -106,6 +106,51 @@ class BetResolutionServiceTest {
         return e;
     }
 
+    private SofaScoreEventDto inprogressEvent(LocalDateTime start) {
+        SofaScoreEventDto e = new SofaScoreEventDto();
+        e.setType("match");
+        e.setStatusType("inprogress");
+        e.setHomeTeam("Legia Warszawa");
+        e.setAwayTeam("Lech Poznan");
+        e.setStartTimestamp(start.toEpochSecond(ZoneOffset.UTC));
+        e.setUrl("https://www.sofascore.com/x#id:2");
+        return e;
+    }
+
+    @Test
+    void shouldNotCacheNonTerminalApifyResultsAndRefetchNextCycle() {
+        ReflectionTestUtils.setField(service, "apifyMode", "search");
+
+        LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
+        Bet bet = Bet.builder()
+                .id(21L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Legia Warszawa")
+                .eventName("Legia Warszawa - Lech Poznan")
+                .stake(new BigDecimal("10")).odds(new BigDecimal("2.00"))
+                .potentialWinnings(new BigDecimal("20")).placedAt(placed)
+                .build();
+        SofaScoreEventDto event = inprogressEvent(placed.plusDays(1));
+
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
+        when(betRepository.findByIdWithChildBets(21L)).thenReturn(Optional.of(bet));
+        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
+                .thenReturn(ApifyBatchResult.success(List.of(event)));
+
+        service.resolvePendingBets(true);
+        verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
+        assertTrue(cacheStore.isEmpty(), "niefinished/niedokończony wynik nie powinien trafiać do cache");
+
+        reset(apifySofaScoreClient);
+        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
+                .thenReturn(ApifyBatchResult.success(List.of(event)));
+        bet.setStatus(BetStatus.PENDING);
+        bet.setLastResolutionAttemptAt(null);
+
+        service.resolvePendingBets(true);
+        verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
+    }
+
     @Test
     void shouldSettleSingleLostBetFromScraperData() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);

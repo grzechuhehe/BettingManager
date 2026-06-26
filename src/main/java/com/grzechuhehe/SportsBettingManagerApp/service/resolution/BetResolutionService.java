@@ -155,9 +155,9 @@ public class BetResolutionService {
             double failureRate = (double) fetch.apifyFailures() / apifyAttempts;
             if (failureRate > 0.30) {
                 log.warn(
-                        "Apify cycle {}: failure rate {:.0f}% ({} failures / {} batch attempts) exceeds 30% threshold",
+                        "Apify cycle {}: failure rate {}% ({} failures / {} batch attempts) exceeds 30% threshold",
                         cycleId,
-                        failureRate * 100,
+                        String.format(Locale.ROOT, "%.0f", failureRate * 100),
                         fetch.apifyFailures(),
                         apifyAttempts
                 );
@@ -379,13 +379,27 @@ public class BetResolutionService {
             return false;
         }
         all.addAll(result.matches());
+        List<SofaScoreEventDto> cacheable = result.matches().stream()
+                .filter(BetResolutionService::isCacheableEvent)
+                .toList();
         Map<String, List<SofaScoreEventDto>> toCache = new LinkedHashMap<>();
         for (String q : batch) {
             fetchedBetIds.addAll(queryToBetIds.getOrDefault(q, Set.of()));
-            toCache.put(q, result.matches());
+            if (!cacheable.isEmpty()) {
+                toCache.put(q, cacheable);
+            }
         }
         sofaScoreCacheService.putAll(toCache, now);
         return true;
+    }
+
+    private static final Set<String> CACHEABLE_STATUS_TYPES = Set.of("finished", "canceled", "postponed");
+
+    private static boolean isCacheableEvent(SofaScoreEventDto event) {
+        if (event == null || event.getStatusType() == null) {
+            return false;
+        }
+        return CACHEABLE_STATUS_TYPES.contains(event.getStatusType().toLowerCase(Locale.ROOT));
     }
 
     private static List<SofaScoreEventDto> dedupEventsByUrl(List<SofaScoreEventDto> events) {
