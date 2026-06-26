@@ -74,6 +74,8 @@ public class ProfileAnalysisOrchestrator {
         Bet bet = Bet.builder()
                 .user(user)
                 .isAiExtracted(true)
+                .isPreMatch(true)
+                .retroactiveAtImport(false)
                 .imageProofPath(imagePaths.isEmpty() ? null : imagePaths.get(0))
                 .betType(BetType.SINGLE)
                 .status(BetStatus.PENDING)
@@ -435,6 +437,8 @@ public class ProfileAnalysisOrchestrator {
                         bet.setSettledAt(LocalDateTime.now());
                     }
                 }
+
+                applyRootBuilderConditions(bet, jsonNode);
                 
                 // Obsługa Parlay (AKO) z nowej struktury JSON
                 if (jsonNode.has("legs") && jsonNode.get("legs").isArray() && jsonNode.get("legs").size() > 0) {
@@ -483,6 +487,18 @@ public class ProfileAnalysisOrchestrator {
             } catch (Exception e) {
                 log.error("Nie udało się sparsować odpowiedzi JSON od Gemini: {}", e.getMessage());
             }
+        }
+    }
+
+    private void applyRootBuilderConditions(Bet bet, JsonNode jsonNode) {
+        boolean isParlay = jsonNode.has("legs") && jsonNode.get("legs").isArray()
+                && jsonNode.get("legs").size() > 0;
+        if (isParlay) {
+            return;
+        }
+        if (jsonNode.has("builderConditions") && jsonNode.get("builderConditions").isArray()
+                && !jsonNode.get("builderConditions").isEmpty()) {
+            bet.setBuilderConditionsJson(jsonNode.get("builderConditions").toString());
         }
     }
 

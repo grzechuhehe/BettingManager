@@ -139,14 +139,30 @@ public class BetResolutionService {
         }
 
         log.info(
-                "Apify cycle summary: cycleId={}, eligible={}, apifyCalls={}, events={}, fetchedBetIds={}, costUsd={}",
+                "Apify cycle summary: cycleId={}, eligible={}, cacheHits={}, apifyCalls={}, apifyFailures={}, events={}, fetchedBetIds={}, costUsd={}",
                 cycleId,
                 eligibleLeaves.size(),
+                fetch.cacheHits(),
                 fetch.apifyCalls(),
+                fetch.apifyFailures(),
                 fetch.events().size(),
                 fetchedBetIds.size(),
                 String.format("%.2f", fetch.apifyCalls() * 0.08)
         );
+
+        int apifyAttempts = fetch.apifyCalls() + fetch.apifyFailures();
+        if (apifyAttempts > 0) {
+            double failureRate = (double) fetch.apifyFailures() / apifyAttempts;
+            if (failureRate > 0.30) {
+                log.warn(
+                        "Apify cycle {}: failure rate {:.0f}% ({} failures / {} batch attempts) exceeds 30% threshold",
+                        cycleId,
+                        failureRate * 100,
+                        fetch.apifyFailures(),
+                        apifyAttempts
+                );
+            }
+        }
     }
 
     private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now, boolean force) {
@@ -207,7 +223,7 @@ public class BetResolutionService {
 
     private EventPoolFetch fetchEventPool(List<Bet> eligibleLeaves, LocalDateTime now) {
         if (eligibleLeaves.isEmpty()) {
-            return new EventPoolFetch(List.of(), 0, Set.of());
+            return EventPoolFetch.empty();
         }
 
         if ("search".equalsIgnoreCase(apifyMode)) {
@@ -250,7 +266,7 @@ public class BetResolutionService {
         List<SofaScoreEventDto> events = apifySofaScoreClient.fetchScheduledMatches(
                 start, daysAhead, sports, scheduledMaxItems);
         Set<Long> fetchedBetIds = eligibleLeaves.stream().map(Bet::getId).collect(Collectors.toSet());
-        return new EventPoolFetch(events, 1, fetchedBetIds);
+        return new EventPoolFetch(events, 1, fetchedBetIds, 0, 0);
     }
 
     /**
@@ -276,7 +292,7 @@ public class BetResolutionService {
 
         if (allQueries.isEmpty()) {
             log.warn("Apify search: brak zapytań ({} kwalifikujących)", eligibleLeaves.size());
-            return new EventPoolFetch(List.of(), 0, Set.of());
+            return EventPoolFetch.empty();
         }
 
         if (allQueries.size() > maxSearchQueries) {
@@ -301,6 +317,7 @@ public class BetResolutionService {
 
         int cacheHits = allQueries.size() - cacheLookup.missingQueries().size();
         int calls = 0;
+        int apifyFailures = 0;
         List<String> batch = new ArrayList<>(searchBatchSize);
 
         for (String query : cacheLookup.missingQueries()) {
@@ -317,6 +334,8 @@ public class BetResolutionService {
                 }
                 if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch, now)) {
                     calls++;
+                } else {
+                    apifyFailures++;
                 }
                 batch.clear();
             }
@@ -324,22 +343,25 @@ public class BetResolutionService {
         if (!batch.isEmpty() && calls < maxApifyCallsPerCycle) {
             if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch, now)) {
                 calls++;
+            } else {
+                apifyFailures++;
             }
         }
 
         List<SofaScoreEventDto> deduped = dedupEventsByUrl(all);
 
         log.info(
-                "Apify batch search: {} unikalnych query, cacheHits={}, wywołań actora={}, {} meczów w puli ({} przed dedup), {} nóg z danymi",
+                "Apify batch search: {} unikalnych query, cacheHits={}, wywołań actora={}, apifyFailures={}, {} meczów w puli ({} przed dedup), {} nóg z danymi",
                 allQueries.size(),
                 cacheHits,
                 calls,
+                apifyFailures,
                 deduped.size(),
                 all.size(),
                 fetchedBetIds.size()
         );
 
-        return new EventPoolFetch(deduped, calls, fetchedBetIds);
+        return new EventPoolFetch(deduped, calls, fetchedBetIds, apifyFailures, cacheHits);
     }
 
     private boolean appendBatchSearchResult(
@@ -380,5 +402,15 @@ public class BetResolutionService {
         return deduped;
     }
 
-    private record EventPoolFetch(List<SofaScoreEventDto> events, int apifyCalls, Set<Long> fetchedBetIds) {}
+    private record EventPoolFetch(
+            List<SofaScoreEventDto> events,
+            int apifyCalls,
+            Set<Long> fetchedBetIds,
+            int apifyFailures,
+            int cacheHits) {
+
+        static EventPoolFetch empty() {
+            return new EventPoolFetch(List.of(), 0, Set.of(), 0, 0);
+        }
+    }
 }

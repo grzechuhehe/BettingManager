@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 
 const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
@@ -164,9 +165,11 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
 
 
 const BetList = () => {
+    const location = useLocation();
     const [bets, setBets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [flashMessage, setFlashMessage] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingBet, setEditingBet] = useState(null);
     const [expandedParlays, setExpandedParlays] = useState({});
@@ -189,6 +192,20 @@ const BetList = () => {
     useEffect(() => {
         fetchBets();
     }, []);
+
+    useEffect(() => {
+        if (location.state?.flashMessage) {
+            setFlashMessage(location.state.flashMessage);
+            fetchBets();
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
+    useEffect(() => {
+        if (!flashMessage) return undefined;
+        const timer = window.setTimeout(() => setFlashMessage(null), 5000);
+        return () => window.clearTimeout(timer);
+    }, [flashMessage]);
 
     const handleSettle = async (id, status) => {
         try {
@@ -299,6 +316,13 @@ const BetList = () => {
                     </button>
                  </div>
             </div>
+
+            {flashMessage && (
+                <div className="bg-primary/10 border border-primary/50 p-4 rounded-lg flex items-center gap-3">
+                    <span className="text-xl">✅</span>
+                    <p className="font-bold text-sm text-primary uppercase tracking-wider">{flashMessage}</p>
+                </div>
+            )}
            
             {topLevelBets.length === 0 ? (
                 <div className="surface-card py-20 text-center border-dashed">

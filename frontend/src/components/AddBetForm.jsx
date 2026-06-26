@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { addBet } from '../api';
 import ImportBetFromImage from './ImportBetFromImage';
 
@@ -19,6 +20,7 @@ const bookmakers = ['STS', 'Fortuna', 'Betclic', 'Superbet', 'forBET', 'eTOTO', 
 const sports = ['Football', 'Basketball', 'Tennis', 'Ice Hockey', 'MMA', 'Boxing', 'F1', 'CS:GO', 'LoL', 'Valorant', 'Other'];
 
 const AddBetForm = () => {
+    const navigate = useNavigate();
     const [legs, setLegs] = useState([createInitialLeg()]);
     const [stake, setStake] = useState('');
     const [message, setMessage] = useState('');
@@ -96,6 +98,14 @@ const AddBetForm = () => {
         }
     };
 
+    const handleImported = (importedBet) => {
+        navigate('/bets', {
+            state: {
+                flashMessage: `Zaimportowano zakład: ${importedBet.eventName} (${importedBet.selection})`,
+            },
+        });
+    };
+
     return (
         <div className="surface-card max-w-4xl mx-auto">
             <h2 className="display-sm mb-8 pb-4 border-b border-hairline">Place a New Bet</h2>
@@ -103,7 +113,7 @@ const AddBetForm = () => {
             <div className="mb-12 p-8 border border-hairline rounded-lg bg-surface-soft/50 space-y-4">
                 <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest">Import from Screenshot</h3>
                 <p className="text-sm text-muted">Upload a bet slip photo — AI will extract event, selection and odds.</p>
-                <ImportBetFromImage />
+                <ImportBetFromImage onImported={handleImported} />
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
