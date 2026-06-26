@@ -6,7 +6,9 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.dto.CreateBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.SettleBetRequest;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.model.BetResolutionAttempt;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BetController {
     private final BettingService bettingService;
     private final BetResolutionService betResolutionService;
+    private final BetResolutionAttemptRepository resolutionAttemptRepository;
     private final UserRepository userRepository;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
     private static final AtomicBoolean RESOLUTION_RUNNING =
@@ -128,6 +131,12 @@ public class BetController {
         return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
     }
 
+
+    @GetMapping("/{id}/resolution-attempts")
+    @Operation(summary = "List recent resolution attempts for a bet (debug)")
+    public ResponseEntity<List<BetResolutionAttempt>> getResolutionAttempts(@PathVariable Long id) {
+        return ResponseEntity.ok(resolutionAttemptRepository.findTop10ByBetIdOrderByAttemptedAtDesc(id));
+    }
 
     @PostMapping("/run-auto-resolution")
     @Operation(summary = "Trigger auto-resolution", description = "Starts one cycle of automatic bet settlement from SofaScore (Apify). Runs in background (~2–5 min). Use force=true to ignore cooldown.")

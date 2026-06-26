@@ -10,6 +10,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
@@ -49,6 +50,9 @@ class BetControllerTest {
 
     @MockBean
     private BetResolutionService betResolutionService;
+
+    @MockBean
+    private BetResolutionAttemptRepository resolutionAttemptRepository;
 
     @MockBean
     private UserRepository userRepository;

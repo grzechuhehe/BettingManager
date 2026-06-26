@@ -2,7 +2,10 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
+
+import static org.mockito.Mockito.mock;
 
 public final class ResolutionTestFixtures {
 
@@ -29,6 +32,7 @@ public final class ResolutionTestFixtures {
         ResolutionComponents c = components();
         return new BetResolutionTransactionService(
                 betRepository,
+                mock(BetResolutionAttemptRepository.class),
                 c.matcher(),
                 c.evaluator(),
                 c.nameTranslator(),

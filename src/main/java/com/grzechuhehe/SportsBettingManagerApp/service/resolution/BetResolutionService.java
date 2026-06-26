@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -91,6 +92,7 @@ public class BetResolutionService {
         log.info("Auto-rozliczanie: {} korzeniowych zakładów PENDING (force={})", rootsToProcess.size(), force);
 
         LocalDateTime now = LocalDateTime.now();
+        String cycleId = UUID.randomUUID().toString();
         List<Bet> eligibleLeaves = collectEligibleLeaves(rootsToProcess, now, force);
         Set<Long> eligibleIds = eligibleLeaves.stream().map(Bet::getId).collect(Collectors.toSet());
 
@@ -128,12 +130,23 @@ public class BetResolutionService {
                         eligibleIds,
                         fetchedBetIds,
                         confidenceThreshold,
-                        dateWindowDays
+                        dateWindowDays,
+                        cycleId
                 );
             } catch (Exception e) {
                 log.error("Błąd auto-rozliczania zakładu {}: {}", root.getId(), e.getMessage(), e);
             }
         }
+
+        log.info(
+                "Apify cycle summary: cycleId={}, eligible={}, apifyCalls={}, events={}, fetchedBetIds={}, costUsd={}",
+                cycleId,
+                eligibleLeaves.size(),
+                fetch.apifyCalls(),
+                fetch.events().size(),
+                fetchedBetIds.size(),
+                String.format("%.2f", fetch.apifyCalls() * 0.08)
+        );
     }
 
     private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now, boolean force) {

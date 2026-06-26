@@ -2,10 +2,12 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.model.BetResolutionAttempt;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +29,7 @@ class BetResolutionTransactionService {
     private static final String RESOLUTION_SOURCE = "APIFY_SOFASCORE";
 
     private final BetRepository betRepository;
+    private final BetResolutionAttemptRepository attemptRepository;
     private final BetMatcher betMatcher;
     private final BetOutcomeEvaluator betOutcomeEvaluator;
     private final ResolutionNameTranslator nameTranslator;
@@ -50,15 +53,16 @@ class BetResolutionTransactionService {
             Set<Long> eligibleIds,
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
-            int dateWindowDays) {
+            int dateWindowDays,
+            String cycleId) {
         Bet root = betRepository.findByIdWithChildBets(rootId).orElse(null);
         if (root == null || root.getStatus() != BetStatus.PENDING) {
             return;
         }
         if (root.getBetType() == BetType.PARLAY) {
-            processParlay(root, eventPool, now, eligibleIds, fetchedBetIds, confidenceThreshold, dateWindowDays);
+            processParlay(root, eventPool, now, eligibleIds, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId);
         } else if (eligibleIds.contains(root.getId())) {
-            if (resolveSingle(root, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays)) {
+            if (resolveSingle(root, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId)) {
                 log.info("Auto-rozliczono zakład {} → {}", root.getId(), root.getStatus());
             }
             betRepository.save(root);
@@ -72,7 +76,8 @@ class BetResolutionTransactionService {
             Set<Long> eligibleIds,
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
-            int dateWindowDays) {
+            int dateWindowDays,
+            String cycleId) {
         if (parlay.getChildBets() == null || parlay.getChildBets().isEmpty()) {
             log.warn("Kupon {}: brak nóg — pomijam auto-rozliczanie", parlay.getId());
             return;
@@ -102,7 +107,8 @@ class BetResolutionTransactionService {
                             leg.getEventName()
                     );
                 } else {
-                    boolean settled = resolveSingle(leg, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays);
+                    boolean settled = resolveSingle(
+                            leg, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId);
                     betRepository.save(leg);
                     if (settled) {
                         log.info(
@@ -226,18 +232,29 @@ class BetResolutionTransactionService {
             LocalDateTime now,
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
-            int dateWindowDays) {
-        if (!fetchedBetIds.contains(bet.getId())) {
+            int dateWindowDays,
+            String cycleId) {
+        boolean apifyDataAvailable = fetchedBetIds.contains(bet.getId());
+        Optional<BetMatcher.MatchCandidate> match = Optional.empty();
+        String errorCode = "SUCCESS";
+
+        if (!apifyDataAvailable) {
+            errorCode = "NO_APIFY_DATA";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
         if (eventPool == null || eventPool.isEmpty()) {
             log.debug("Zakład {}: pusta pula Apify — bez cooldownu, spróbujemy w kolejnym cyklu", bet.getId());
+            errorCode = "EMPTY_POOL";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
 
         ensureMarketType(bet);
 
         if (bet.getEventName() == null || bet.getEventName().isBlank()) {
+            errorCode = "NO_EVENT_NAME";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
 
@@ -247,10 +264,12 @@ class BetResolutionTransactionService {
                     bet.getId(),
                     bet.getSelection()
             );
+            errorCode = "MANUAL_ONLY";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
 
-        Optional<BetMatcher.MatchCandidate> match = betMatcher.findBestMatch(bet, eventPool, dateWindowDays);
+        match = betMatcher.findBestMatch(bet, eventPool, dateWindowDays);
         if (match.isEmpty()) {
             log.info(
                     "Zakład {} ({}): brak dopasowania w puli {} meczów Apify",
@@ -258,6 +277,8 @@ class BetResolutionTransactionService {
                     bet.getEventName(),
                     eventPool.size()
             );
+            errorCode = "NO_MATCH";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
         if (match.get().confidence() < confidenceThreshold) {
@@ -270,6 +291,8 @@ class BetResolutionTransactionService {
                     String.format("%.2f", confidenceThreshold),
                     match.get().event().getHomeTeam() + " vs " + match.get().event().getAwayTeam()
             );
+            errorCode = "BELOW_THRESHOLD";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
 
@@ -286,12 +309,36 @@ class BetResolutionTransactionService {
         Optional<BetStatus> outcome = betOutcomeEvaluator.evaluate(bet, event);
         if (outcome.isEmpty()) {
             bet.setLastResolutionAttemptAt(now);
+            errorCode = "UNRESOLVED_MARKET";
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
 
         applyOutcome(bet, outcome.get(), match.get().confidence(), event.getUrl());
         bet.setLastResolutionAttemptAt(now);
+        recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
         return true;
+    }
+
+    private void recordAttempt(
+            String cycleId,
+            Long betId,
+            boolean apifyDataAvailable,
+            Optional<BetMatcher.MatchCandidate> match,
+            String errorCode,
+            LocalDateTime now) {
+        if (cycleId == null) {
+            return;
+        }
+        BetResolutionAttempt attempt = new BetResolutionAttempt();
+        attempt.setBetId(betId);
+        attempt.setCycleId(cycleId);
+        attempt.setApifyDataAvailable(apifyDataAvailable);
+        attempt.setMatchFound(match.isPresent());
+        attempt.setMatchConfidence(match.map(BetMatcher.MatchCandidate::confidence).orElse(null));
+        attempt.setErrorCode(errorCode);
+        attempt.setAttemptedAt(now);
+        attemptRepository.save(attempt);
     }
 
     MarketType inferMarketType(Bet bet) {

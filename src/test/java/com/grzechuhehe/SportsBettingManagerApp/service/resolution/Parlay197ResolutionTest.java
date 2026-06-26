@@ -64,7 +64,7 @@ class Parlay197ResolutionTest {
 
         service.processRoot(
                 197L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
-                Set.of(200L, 201L, 204L), Set.of(200L, 201L, 204L), 0.85, 4);
+                Set.of(200L, 201L, 204L), Set.of(200L, 201L, 204L), 0.85, 4, null);
 
         assertEquals(BetStatus.WON, croatia.getStatus());
         assertEquals(BetStatus.WON, morocco.getStatus(), "BetBuilder: over 1.5 + handicap Norwegia 0:2");
@@ -98,7 +98,7 @@ class Parlay197ResolutionTest {
 
         service.processRoot(
                 197L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
-                Set.of(199L, 203L), Set.of(199L, 203L), 0.85, 4);
+                Set.of(199L, 203L), Set.of(199L, 203L), 0.85, 4, null);
 
         assertEquals(BetStatus.WON, usaWomen.getStatus());
         assertEquals(BetStatus.WON, zverevHandicap.getStatus(), "Zverev -1.5 gemów vs 4-6");
