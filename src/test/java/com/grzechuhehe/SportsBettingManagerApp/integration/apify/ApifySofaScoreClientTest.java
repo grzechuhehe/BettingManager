@@ -68,7 +68,7 @@ class ApifySofaScoreClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
 
-        List<SofaScoreEventDto> result = client.searchMatchesBatch(List.of("A vs B", "C vs D"));
+        List<SofaScoreEventDto> result = client.searchMatchesBatch(List.of("A vs B", "C vs D")).matches();
 
         assertEquals(1, result.size());
     }

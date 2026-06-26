@@ -41,6 +41,22 @@ class BetMatcherTest {
     }
 
     @Test
+    void shouldMatchTranslatedNationalTeamNamesAboveThreshold() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 7, 18, 0);
+        Bet bet = Bet.builder()
+                .eventName("Chorwacja - Słowenia")
+                .placedAt(placed)
+                .build();
+        List<SofaScoreEventDto> events = List.of(
+                event("Croatia", "Slovenia", placed.plusHours(2)));
+
+        Optional<BetMatcher.MatchCandidate> result = matcher.findBestMatch(bet, events, 4);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().confidence() >= 0.85);
+    }
+
+    @Test
     void shouldRejectEventOutsideDateWindow() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet bet = Bet.builder()
@@ -51,6 +67,41 @@ class BetMatcherTest {
                 event("Legia Warszawa", "Lech Poznan", placed.plusDays(30)));
 
         assertTrue(matcher.findBestMatch(bet, events, 4).isEmpty());
+    }
+
+    @Test
+    void shouldMatchWomensNationalTeamsAboveThreshold() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 7, 18, 0);
+        Bet bet = Bet.builder()
+                .eventName("Brazylia (K) - Włochy (K)")
+                .placedAt(placed)
+                .build();
+        List<SofaScoreEventDto> events = List.of(
+                event("Brazil", "Italy", placed.plusHours(4)));
+
+        Optional<BetMatcher.MatchCandidate> result = matcher.findBestMatch(bet, events, 4);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().confidence() >= 0.85);
+    }
+
+    @Test
+    void shouldPreferWomensEventOverMensWhenBetIsWomens() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 7, 18, 0);
+        Bet bet = Bet.builder()
+                .eventName("USA (K) - Niemcy (K)")
+                .placedAt(placed)
+                .build();
+        SofaScoreEventDto mens = event("United States", "Germany", placed.plusHours(2));
+        mens.setTournament("International Friendly Men");
+        SofaScoreEventDto womens = event("United States", "Germany", placed.plusHours(2));
+        womens.setTournament("International Friendly Women");
+
+        Optional<BetMatcher.MatchCandidate> result = matcher.findBestMatch(bet, List.of(mens, womens), 4);
+
+        assertTrue(result.isPresent());
+        assertEquals("International Friendly Women", result.get().event().getTournament());
+        assertTrue(result.get().confidence() >= 0.85);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
+import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifyBatchResult;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifySofaScoreClient;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
@@ -37,7 +38,7 @@ class BetResolutionServiceTest {
     void setUp() {
         ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
         BetMatcher matcher = new BetMatcher(nameTranslator);
-        BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator();
+        BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(nameTranslator);
         resolutionTx = new BetResolutionTransactionService(betRepository, matcher, evaluator, nameTranslator);
         service = new BetResolutionService(
                 apifySofaScoreClient,
@@ -52,6 +53,7 @@ class BetResolutionServiceTest {
         ReflectionTestUtils.setField(service, "scheduledMaxItems", 400);
         ReflectionTestUtils.setField(service, "searchBatchSize", 15);
         ReflectionTestUtils.setField(service, "maxSearchQueries", 20);
+        ReflectionTestUtils.setField(service, "maxApifyCallsPerCycle", 5);
         ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
         ReflectionTestUtils.setField(service, "scheduledMaxDaysBack", 7);
@@ -68,6 +70,32 @@ class BetResolutionServiceTest {
         e.setStartTimestamp(start.toEpochSecond(ZoneOffset.UTC));
         e.setUrl("https://www.sofascore.com/x#id:1");
         return e;
+    }
+
+    @Test
+    void shouldSettleSingleLostBetFromScraperData() {
+        LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
+        Bet bet = Bet.builder()
+                .id(4L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Lech Poznan")
+                .eventName("Legia Warszawa vs Lech Poznan")
+                .stake(new BigDecimal("10")).odds(new BigDecimal("3.00"))
+                .potentialWinnings(new BigDecimal("30")).placedAt(placed)
+                .build();
+
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
+        when(betRepository.findByIdWithChildBets(4L)).thenReturn(Optional.of(bet));
+        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
+                .thenReturn(List.of(finishedEvent(placed.plusDays(1))));
+
+        service.resolvePendingBets();
+
+        assertEquals(BetStatus.LOST, bet.getStatus());
+        assertEquals(0, new BigDecimal("-10").compareTo(bet.getFinalProfit()));
+        assertEquals("APIFY_SOFASCORE", bet.getResolutionSource());
+        assertNotNull(bet.getSettledAt());
+        verify(betRepository).save(bet);
     }
 
     @Test
@@ -116,7 +144,7 @@ class BetResolutionServiceTest {
         service.resolvePendingBets();
 
         assertEquals(BetStatus.PENDING, bet.getStatus());
-        assertNotNull(bet.getLastResolutionAttemptAt());
+        assertNull(bet.getLastResolutionAttemptAt(), "pusta pula Apify nie powinna ustawiać cooldownu");
         verify(betRepository).save(bet);
     }
 
@@ -141,9 +169,9 @@ class BetResolutionServiceTest {
     }
 
     @Test
-    void shouldUseBatchSearchAndRespectQueryLimit() {
+    void shouldFetchAllUniqueQueriesInMultipleApifyBatches() {
         ReflectionTestUtils.setField(service, "apifyMode", "search");
-        ReflectionTestUtils.setField(service, "maxSearchQueries", 2);
+        ReflectionTestUtils.setField(service, "searchBatchSize", 2);
 
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet b1 = searchableSingle(10L, "Legia Warszawa - Lech Poznan", placed);
@@ -156,13 +184,58 @@ class BetResolutionServiceTest {
         when(betRepository.findByIdWithChildBets(10L)).thenReturn(Optional.of(b1));
         when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
         when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
-        when(apifySofaScoreClient.searchMatchesBatch(anyList())).thenReturn(List.of());
+        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
+                .thenReturn(ApifyBatchResult.success(List.of()));
+
+        service.resolvePendingBets(true);
+
+        verify(apifySofaScoreClient, atLeast(1)).searchMatchesBatch(anyList());
+        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+    }
+
+    @Test
+    void shouldSkipBetsWhenApifyCallLimitReached() {
+        ReflectionTestUtils.setField(service, "apifyMode", "search");
+        ReflectionTestUtils.setField(service, "maxApifyCallsPerCycle", 0);
+
+        LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
+        Bet b1 = searchableSingle(10L, "Legia Warszawa - Lech Poznan", placed);
+        Bet b2 = searchableSingle(11L, "Brighton - Manchester United", placed);
+        Bet b3 = searchableSingle(12L, "Germany - Norway", placed);
+
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any()))
+                .thenReturn(List.of(10L, 11L, 12L));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(b1, b2, b3));
+        when(betRepository.findByIdWithChildBets(10L)).thenReturn(Optional.of(b1));
+        when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
+        when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
+
+        service.resolvePendingBets(true);
+
+        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
+        assertNull(b1.getLastResolutionAttemptAt());
+        assertNull(b2.getLastResolutionAttemptAt());
+        assertNull(b3.getLastResolutionAttemptAt());
+    }
+
+    @Test
+    void shouldRejectBetBuilderSelectionFromAutoResolution() {
+        Bet bet = Bet.builder()
+                .id(50L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.TOTALS_OVER_UNDER)
+                .selection("BetBuilder: Suma: powyżej 1.5, Handicap 0:2: Norwegia (0:2)")
+                .eventName("Maroko - Norwegia")
+                .placedAt(LocalDateTime.of(2026, 6, 1, 12, 0))
+                .build();
+
+        when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
+        when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
 
         service.resolvePendingBets();
 
-        // Limit 2 unikalnych query → jeden batch z dokładnie 2 zapytaniami, scheduled nieużywane.
-        verify(apifySofaScoreClient).searchMatchesBatch(argThat(q -> q.size() == 2));
+        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
         verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+        assertNull(bet.getLastResolutionAttemptAt());
     }
 
     private Bet searchableSingle(Long id, String eventName, LocalDateTime placed) {

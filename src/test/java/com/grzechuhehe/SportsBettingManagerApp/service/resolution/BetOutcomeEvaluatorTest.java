@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BetOutcomeEvaluatorTest {
 
-    private final BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator();
+    private final ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
+    private final BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(nameTranslator);
 
     private SofaScoreEventDto finished(int home, int away) {
         SofaScoreEventDto e = new SofaScoreEventDto();
@@ -92,6 +93,18 @@ class BetOutcomeEvaluatorTest {
         SofaScoreEventDto e = finished(0, 0);
         e.setStatusType("inprogress");
         assertTrue(evaluator.evaluate(bet, e).isEmpty());
+    }
+
+    @Test
+    void shouldMatchPolishSelectionAgainstEnglishTeamNames() {
+        Bet bet = Bet.builder().marketType(MarketType.MONEYLINE_1X2).selection("Chorwacja").build();
+        SofaScoreEventDto e = new SofaScoreEventDto();
+        e.setStatusType("finished");
+        e.setHomeTeam("Croatia");
+        e.setAwayTeam("Slovenia");
+        e.setHomeScore(2);
+        e.setAwayScore(0);
+        assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, e));
     }
 
     @Test

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getBets, settleBet, deleteBet, updateBet } from '../api';
+import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 
 const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
     const [formData, setFormData] = useState({ ...bet });
@@ -87,12 +87,29 @@ const BetStatusBadge = ({ status }) => {
     );
 };
 
-const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false }) => (
+const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayParent = false, isExpanded = false, onToggleParlay, legSummary }) => (
     <tr className={`${isChild ? 'bg-surface-soft/30' : 'bg-surface-card hover:bg-surface-elevated/50 transition-colors'} border-b border-hairline`}>
         <td className={`px-6 py-5 whitespace-nowrap ${isChild ? 'pl-12' : ''}`}>
-            <div className="font-bold text-on-dark text-sm">{bet.eventName}</div>
-            <div className="text-muted text-[10px] font-bold uppercase tracking-wider mt-0.5">{bet.sport} · {bet.marketType}</div>
-            <div className="text-primary font-bold text-xs mt-1">{bet.selection}</div>
+            <div className="flex items-start gap-2">
+                {isParlayParent && (
+                    <button
+                        type="button"
+                        onClick={onToggleParlay}
+                        className="mt-0.5 text-muted hover:text-on-dark text-[10px]"
+                        aria-label={isExpanded ? 'Collapse parlay legs' : 'Expand parlay legs'}
+                    >
+                        {isExpanded ? '▼' : '▶'}
+                    </button>
+                )}
+                <div>
+                    <div className="font-bold text-on-dark text-sm">{bet.eventName}</div>
+                    {legSummary && (
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-wider mt-1">{legSummary}</div>
+                    )}
+                    <div className="text-muted text-[10px] font-bold uppercase tracking-wider mt-0.5">{bet.sport} · {bet.marketType}</div>
+                    <div className="text-primary font-bold text-xs mt-1">{bet.selection}</div>
+                </div>
+            </div>
         </td>
         <td className="px-6 py-5 whitespace-nowrap text-xs font-bold text-body uppercase tracking-wider">{bet.bookmaker}</td>
         <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric">{bet.stake ? `$${bet.stake.toFixed(2)}` : ''}</td>
@@ -152,6 +169,8 @@ const BetList = () => {
     const [error, setError] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingBet, setEditingBet] = useState(null);
+    const [expandedParlays, setExpandedParlays] = useState({});
+    const [resolving, setResolving] = useState(false);
 
     const fetchBets = async () => {
         try {
@@ -209,6 +228,37 @@ const BetList = () => {
             console.error(err);
         }
     };
+
+    const toggleParlay = (parlayId) => {
+        setExpandedParlays(prev => ({ ...prev, [parlayId]: !prev[parlayId] }));
+    };
+
+    const handleRunAutoResolution = async () => {
+        try {
+            setResolving(true);
+            await runAutoResolution();
+            alert('Rozliczanie uruchomione w tle (Apify ~2–5 min). Lista odświeży się automatycznie.');
+            window.setTimeout(() => fetchBets(), 120_000);
+            window.setTimeout(() => fetchBets(), 300_000);
+        } catch (err) {
+            const msg = err.response?.status === 409
+                ? 'Rozliczanie już trwa — poczekaj kilka minut.'
+                : 'Nie udało się uruchomić auto-rozliczania.';
+            alert(msg);
+            console.error(err);
+        } finally {
+            setResolving(false);
+        }
+    };
+
+    const parlayLegSummary = (bet) => {
+        if (!bet.childBets?.length) return null;
+        const legs = bet.childBets;
+        const won = legs.filter(l => l.status === 'WON').length;
+        const lost = legs.filter(l => l.status === 'LOST').length;
+        const pending = legs.filter(l => l.status === 'PENDING').length;
+        return `${won}W / ${lost}L / ${pending}P · ${legs.length} legs`;
+    };
     
     // Filter out child bets to only show parent (PARLAY) and single bets
     const topLevelBets = useMemo(() => {
@@ -237,7 +287,17 @@ const BetList = () => {
         <div className="space-y-8">
             <div className="flex justify-between items-center mb-2">
                  <h2 className="display-sm">Market Ledger</h2>
-                 <p className="text-xs font-bold text-muted uppercase tracking-widest">{topLevelBets.length} Registered Positions</p>
+                 <div className="flex items-center gap-4">
+                    <p className="text-xs font-bold text-muted uppercase tracking-widest">{topLevelBets.length} Registered Positions</p>
+                    <button
+                        type="button"
+                        onClick={handleRunAutoResolution}
+                        disabled={resolving}
+                        className="button-secondary text-xs disabled:opacity-50"
+                    >
+                        {resolving ? 'Resolving…' : 'Run auto-resolution'}
+                    </button>
+                 </div>
             </div>
            
             {topLevelBets.length === 0 ? (
@@ -259,15 +319,26 @@ const BetList = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-hairline">
-                            {topLevelBets.map((bet) => (
+                            {topLevelBets.map((bet) => {
+                                const isParlay = bet.betType === 'PARLAY' && bet.childBets?.length > 0;
+                                const isExpanded = !!expandedParlays[bet.id];
+                                const sortedLegs = isParlay
+                                    ? [...bet.childBets].sort((a, b) => (a.id || 0) - (b.id || 0))
+                                    : [];
+
+                                return (
                                 <React.Fragment key={bet.id}>
                                     <BetRow 
                                         bet={bet} 
                                         onSettle={handleSettle} 
                                         onDelete={handleDelete}
                                         onEdit={handleEditClick}
+                                        isParlayParent={isParlay}
+                                        isExpanded={isExpanded}
+                                        onToggleParlay={() => toggleParlay(bet.id)}
+                                        legSummary={isParlay ? parlayLegSummary(bet) : null}
                                     />
-                                    {bet.betType === 'PARLAY' && bet.childBets && bet.childBets.map(childBet => (
+                                    {isParlay && isExpanded && sortedLegs.map(childBet => (
                                         <BetRow 
                                             bet={childBet} 
                                             key={childBet.id} 
@@ -278,7 +349,7 @@ const BetList = () => {
                                         />
                                     ))}
                                 </React.Fragment>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                 </div>

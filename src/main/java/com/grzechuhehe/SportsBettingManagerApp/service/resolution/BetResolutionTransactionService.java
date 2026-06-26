@@ -54,6 +54,7 @@ class BetResolutionTransactionService {
             List<SofaScoreEventDto> eventPool,
             LocalDateTime now,
             Set<Long> eligibleIds,
+            Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays) {
         Bet root = betRepository.findByIdWithChildBets(rootId).orElse(null);
@@ -61,9 +62,9 @@ class BetResolutionTransactionService {
             return;
         }
         if (root.getBetType() == BetType.PARLAY) {
-            processParlay(root, eventPool, now, eligibleIds, confidenceThreshold, dateWindowDays);
+            processParlay(root, eventPool, now, eligibleIds, fetchedBetIds, confidenceThreshold, dateWindowDays);
         } else if (eligibleIds.contains(root.getId())) {
-            if (resolveSingle(root, eventPool, now, confidenceThreshold, dateWindowDays)) {
+            if (resolveSingle(root, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays)) {
                 log.info("Auto-rozliczono zakład {} → {}", root.getId(), root.getStatus());
             }
             betRepository.save(root);
@@ -75,6 +76,7 @@ class BetResolutionTransactionService {
             List<SofaScoreEventDto> eventPool,
             LocalDateTime now,
             Set<Long> eligibleIds,
+            Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays) {
         if (parlay.getChildBets() == null || parlay.getChildBets().isEmpty()) {
@@ -91,8 +93,22 @@ class BetResolutionTransactionService {
 
         for (Bet leg : parlay.getChildBets()) {
             if (leg.getStatus() == BetStatus.PENDING) {
-                if (eligibleIds.contains(leg.getId())) {
-                    boolean settled = resolveSingle(leg, eventPool, now, confidenceThreshold, dateWindowDays);
+                if (!eligibleIds.contains(leg.getId())) {
+                    log.debug(
+                            "Kupon {} — noga {} ({}): pominięta (cooldown / niedozwolony typ selekcji)",
+                            parlay.getId(),
+                            leg.getId(),
+                            leg.getEventName()
+                    );
+                } else if (!fetchedBetIds.contains(leg.getId())) {
+                    log.info(
+                            "Kupon {} — noga {} ({}): query nie weszło do Apify w tym cyklu — czekam",
+                            parlay.getId(),
+                            leg.getId(),
+                            leg.getEventName()
+                    );
+                } else {
+                    boolean settled = resolveSingle(leg, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays);
                     betRepository.save(leg);
                     if (settled) {
                         log.info(
@@ -103,13 +119,6 @@ class BetResolutionTransactionService {
                                 leg.getStatus()
                         );
                     }
-                } else {
-                    log.debug(
-                            "Kupon {} — noga {} ({}): PENDING, nie kwalifikuje się do Apify w tym cyklu",
-                            parlay.getId(),
-                            leg.getId(),
-                            leg.getEventName()
-                    );
                 }
             }
 
@@ -158,95 +167,80 @@ class BetResolutionTransactionService {
             return;
         }
 
-        // Wszystkie nogi rozstrzygnięte (won + voided == totalLegs).
-        if (won == 0) {
-            // Same zwroty — kupon też jest zwracany (stawka oddana), a nie wygrany.
-            applyOutcome(parlay, BetStatus.VOID, null, null);
-            betRepository.save(parlay);
-            log.info("Auto-rozliczono kupon {} → VOID (wszystkie {} nóg zwrócone)", parlay.getId(), totalLegs);
-        } else {
-            applyParlayWon(parlay, voided);
-            betRepository.save(parlay);
-        }
-    }
-
-    /**
-     * Rozlicza wygrany kupon. Przy nogach VOID kurs kuponu liczymy tylko z nóg wygranych
-     * (noga VOID „wypada”, jej kurs = 1.0), więc nie zawyżamy wygranej.
-     */
-    private void applyParlayWon(Bet parlay, int voidedLegs) {
-        if (voidedLegs == 0) {
+        if (won == totalLegs) {
             applyOutcome(parlay, BetStatus.WON, null, null);
-            log.info("Auto-rozliczono kupon {} → WON (wszystkie nogi wygrane)", parlay.getId());
+            betRepository.save(parlay);
+            log.info("Auto-rozliczono kupon {} → WON (wszystkie {} nóg wygrane)", parlay.getId(), totalLegs);
             return;
         }
 
-        BigDecimal effectiveOdds = BigDecimal.ONE;
-        boolean haveAllOdds = true;
-        for (Bet leg : parlay.getChildBets()) {
-            if (leg.getStatus() == BetStatus.WON) {
-                if (leg.getOdds() == null) {
-                    haveAllOdds = false;
-                    break;
-                }
-                effectiveOdds = effectiveOdds.multiply(leg.getOdds());
-            }
+        if (voided == totalLegs) {
+            applyOutcome(parlay, BetStatus.VOID, null, null);
+            betRepository.save(parlay);
+            log.info("Auto-rozliczono kupon {} → VOID (wszystkie {} nóg zwrócone)", parlay.getId(), totalLegs);
+            return;
         }
 
-        parlay.setStatus(BetStatus.WON);
-        parlay.setSettledAt(LocalDateTime.now());
-        parlay.setResolutionSource(RESOLUTION_SOURCE);
-
-        if (haveAllOdds && parlay.getStake() != null) {
-            BigDecimal winnings = parlay.getStake().multiply(effectiveOdds);
-            parlay.setPotentialWinnings(winnings);
-            parlay.setFinalProfit(winnings.subtract(parlay.getStake()));
-            log.info(
-                    "Auto-rozliczono kupon {} → WON ({} nóg VOID): skorygowany kurs={}, zysk={}",
-                    parlay.getId(),
-                    voidedLegs,
-                    effectiveOdds,
-                    parlay.getFinalProfit()
-            );
-        } else {
-            // Brak kursów nóg — nie potrafimy skorygować kursu o nogi VOID.
-            // Zostawiamy zachowawczo profit z oryginalnej potencjalnej wygranej i oznaczamy w logu.
-            if (parlay.getPotentialWinnings() != null && parlay.getStake() != null) {
-                parlay.setFinalProfit(parlay.getPotentialWinnings().subtract(parlay.getStake()));
-            }
-            log.warn(
-                    "Auto-rozliczono kupon {} → WON ({} nóg VOID), ale brak kursów nóg do korekty — finalProfit może być zawyżony",
-                    parlay.getId(),
-                    voidedLegs
-            );
-        }
+        log.info(
+                "Kupon {} pozostaje PENDING — nie wszystkie nogi WON (WON={}, VOID={}, LOST={}, total={})",
+                parlay.getId(),
+                won,
+                voided,
+                lost,
+                totalLegs
+        );
     }
 
     boolean resolveSingle(
             Bet bet,
             List<SofaScoreEventDto> eventPool,
             LocalDateTime now,
+            Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays) {
-        bet.setLastResolutionAttemptAt(now);
+        if (!fetchedBetIds.contains(bet.getId())) {
+            return false;
+        }
+        if (eventPool == null || eventPool.isEmpty()) {
+            log.debug("Zakład {}: pusta pula Apify — bez cooldownu, spróbujemy w kolejnym cyklu", bet.getId());
+            return false;
+        }
+
         ensureMarketType(bet);
 
         if (bet.getEventName() == null || bet.getEventName().isBlank()) {
             return false;
         }
 
+        if (!isAutoResolvableSelection(bet)) {
+            log.info(
+                    "Zakład {} ({}): selekcja wymaga ręcznego rozliczenia — pomijam",
+                    bet.getId(),
+                    bet.getSelection()
+            );
+            return false;
+        }
+
         Optional<BetMatcher.MatchCandidate> match = betMatcher.findBestMatch(bet, eventPool, dateWindowDays);
-        if (match.isEmpty() || match.get().confidence() < confidenceThreshold) {
-            if (match.isPresent()) {
-                log.info(
-                        "Zakład {} ({}): dopasowanie {} < próg {} → {}",
-                        bet.getId(),
-                        bet.getEventName(),
-                        String.format("%.2f", match.get().confidence()),
-                        String.format("%.2f", confidenceThreshold),
-                        match.get().event().getHomeTeam() + " vs " + match.get().event().getAwayTeam()
-                );
-            }
+        if (match.isEmpty()) {
+            log.info(
+                    "Zakład {} ({}): brak dopasowania w puli {} meczów Apify",
+                    bet.getId(),
+                    bet.getEventName(),
+                    eventPool.size()
+            );
+            return false;
+        }
+        if (match.get().confidence() < confidenceThreshold) {
+            bet.setLastResolutionAttemptAt(now);
+            log.info(
+                    "Zakład {} ({}): dopasowanie {} < próg {} → {}",
+                    bet.getId(),
+                    bet.getEventName(),
+                    String.format("%.2f", match.get().confidence()),
+                    String.format("%.2f", confidenceThreshold),
+                    match.get().event().getHomeTeam() + " vs " + match.get().event().getAwayTeam()
+            );
             return false;
         }
 
@@ -262,10 +256,12 @@ class BetResolutionTransactionService {
         SofaScoreEventDto event = match.get().event();
         Optional<BetStatus> outcome = betOutcomeEvaluator.evaluate(bet, event);
         if (outcome.isEmpty()) {
+            bet.setLastResolutionAttemptAt(now);
             return false;
         }
 
         applyOutcome(bet, outcome.get(), match.get().confidence(), event.getUrl());
+        bet.setLastResolutionAttemptAt(now);
         return true;
     }
 
@@ -293,6 +289,17 @@ class BetResolutionTransactionService {
         if (inferred != null) {
             bet.setMarketType(inferred);
         }
+    }
+
+    private boolean isAutoResolvableSelection(Bet bet) {
+        String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
+        if (selection.contains("bet builder") || selection.contains("betbuilder")) {
+            return false;
+        }
+        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
+            return false;
+        }
+        return true;
     }
 
     private void applyOutcome(Bet bet, BetStatus status, Double confidence, String eventUrl) {

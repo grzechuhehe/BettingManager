@@ -59,8 +59,8 @@ public class ResolutionNameTranslator {
             if (isUnknownAbbrev(sides.home()) || isUnknownAbbrev(sides.away())) {
                 return Optional.empty();
             }
-            String home = translateSegment(sides.home());
-            String away = translateSegment(sides.away());
+            String home = apifySearchSegment(sides.home());
+            String away = apifySearchSegment(sides.away());
             if (home.isBlank() || away.isBlank()) {
                 return Optional.empty();
             }
@@ -179,6 +179,17 @@ public class ResolutionNameTranslator {
             }
         }
         return segment.trim();
+    }
+
+    /** Reprezentacje (K) — SofaScore w search wymaga sufiksu Women. */
+    private String apifySearchSegment(String segment) {
+        String translated = translateSegment(segment);
+        if (segment != null && segment.toLowerCase(Locale.ROOT).contains("(k)")) {
+            if (!translated.toLowerCase(Locale.ROOT).contains("women")) {
+                translated = translated + " Women";
+            }
+        }
+        return translated;
     }
 
     private static String normalize(String text) {

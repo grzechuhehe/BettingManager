@@ -137,8 +137,10 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                         <td className="p-4 text-right font-numeric text-muted h-14">
                                             {leg.odds ? leg.odds.toFixed(2) : '-'}
                                         </td>
-                                        <td colSpan="4" className="p-4 text-right text-muted italic h-14">
-                                            {/* Empty space for legs as they share units/status/bookmaker with parent */}
+                                        <td colSpan="4" className="p-4 text-right h-14 align-middle">
+                                            <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(leg.status || 'PENDING')}`}>
+                                                {leg.status || 'PENDING'}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))}

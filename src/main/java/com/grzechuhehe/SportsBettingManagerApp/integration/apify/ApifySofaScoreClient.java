@@ -64,13 +64,14 @@ public class ApifySofaScoreClient {
     }
 
     public List<SofaScoreEventDto> searchMatches(String query) {
-        return searchMatchesBatch(List.of(query));
+        ApifyBatchResult result = searchMatchesBatch(List.of(query));
+        return result.successful() ? result.matches() : List.of();
     }
 
-    public List<SofaScoreEventDto> searchMatchesBatch(List<String> queries) {
+    public ApifyBatchResult searchMatchesBatch(List<String> queries) {
         List<String> normalized = normalizeQueries(queries);
         if (normalized.isEmpty()) {
-            return List.of();
+            return ApifyBatchResult.success(List.of());
         }
         logger.info("Apify SofaScore batch search: {} zapytań", normalized.size());
         Map<String, Object> body = baseBody();
@@ -95,7 +96,8 @@ public class ApifySofaScoreClient {
         body.put("daysAhead", Math.max(daysAhead, 0));
         body.put("sports", sportList);
         body.put("maxItems", maxItems);
-        return runActor(body, "scheduled " + startDate + " +" + daysAhead + "d");
+        ApifyBatchResult result = runActor(body, "scheduled " + startDate + " +" + daysAhead + "d");
+        return result.successful() ? result.matches() : List.of();
     }
 
     private Map<String, Object> baseBody() {
@@ -108,7 +110,7 @@ public class ApifySofaScoreClient {
         return body;
     }
 
-    private List<SofaScoreEventDto> runActor(Map<String, Object> body, String label) {
+    private ApifyBatchResult runActor(Map<String, Object> body, String label) {
         Exception lastError = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
             try {
@@ -121,13 +123,13 @@ public class ApifySofaScoreClient {
                         .retrieve()
                         .body(MATCH_LIST);
                 if (items == null) {
-                    return List.of();
+                    return ApifyBatchResult.success(List.of());
                 }
                 List<SofaScoreEventDto> matches = items.stream()
                         .filter(e -> "match".equals(e.getType()))
                         .toList();
                 logger.info("Apify {}: {} rekordów match z {}", label, matches.size(), items.size());
-                return matches;
+                return ApifyBatchResult.success(matches);
             } catch (Exception e) {
                 lastError = e;
                 if (attempt == 1 && isRetryable(e)) {
@@ -144,12 +146,17 @@ public class ApifySofaScoreClient {
             }
         }
         logger.error("Błąd Apify SofaScore ({}): {}", label, lastError != null ? lastError.getMessage() : "unknown");
-        return List.of();
+        return ApifyBatchResult.failure();
     }
 
     private static boolean isRetryable(Exception e) {
         String msg = e.getMessage() == null ? "" : e.getMessage();
-        return msg.contains("502") || msg.contains("503") || msg.contains("504") || msg.contains("429");
+        return msg.contains("408")
+                || msg.contains("502")
+                || msg.contains("503")
+                || msg.contains("504")
+                || msg.contains("429")
+                || msg.contains("run-timeout-exceeded");
     }
 
     private static List<String> normalizeQueries(List<String> queries) {

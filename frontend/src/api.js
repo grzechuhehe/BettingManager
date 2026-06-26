@@ -98,6 +98,10 @@ export const deleteBet = (id) => {
   return apiClient.delete(`/bets/${id}`);
 };
 
+export const runAutoResolution = () => {
+  return apiClient.post('/bets/run-auto-resolution?force=true');
+};
+
 // --- Funkcje API dla kursów (Odds) ---
 export const getAvailableSports = () => {
   return apiClient.get('/odds/sports');

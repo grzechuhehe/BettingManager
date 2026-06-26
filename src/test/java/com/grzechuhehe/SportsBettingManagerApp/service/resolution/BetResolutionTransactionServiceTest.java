@@ -37,7 +37,7 @@ class BetResolutionTransactionServiceTest {
         service = new BetResolutionTransactionService(
                 betRepository,
                 new BetMatcher(nameTranslator),
-                new BetOutcomeEvaluator(),
+                new BetOutcomeEvaluator(nameTranslator),
                 nameTranslator);
     }
 
@@ -61,6 +61,92 @@ class BetResolutionTransactionServiceTest {
         e.setAwayTeam(away);
         e.setStartTimestamp(start.toEpochSecond(ZoneOffset.UTC));
         return e;
+    }
+
+    @Test
+    void shouldChangeSingleBetStatusFromPendingToWonUsingScraperPool() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 1, 12, 0);
+        Bet bet = Bet.builder()
+                .id(600L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Legia Warszawa")
+                .eventName("Legia Warszawa - Lech Poznan")
+                .stake(new BigDecimal("10")).potentialWinnings(new BigDecimal("20"))
+                .placedAt(placed)
+                .build();
+
+        List<SofaScoreEventDto> pool = List.of(
+                finishedEvent("Legia Warszawa", "Lech Poznan", 2, 1, placed.plusDays(1))
+        );
+
+        when(betRepository.findByIdWithChildBets(600L)).thenReturn(java.util.Optional.of(bet));
+
+        service.processRoot(600L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(600L), Set.of(600L), 0.85, 4);
+
+        assertEquals(BetStatus.WON, bet.getStatus());
+        assertEquals(0, new BigDecimal("10").compareTo(bet.getFinalProfit()));
+        assertEquals("APIFY_SOFASCORE", bet.getResolutionSource());
+        assertNotNull(bet.getSettledAt());
+        verify(betRepository).save(bet);
+    }
+
+    @Test
+    void shouldChangeSingleBetStatusFromPendingToLostUsingScraperPool() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 1, 12, 0);
+        Bet bet = Bet.builder()
+                .id(601L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Lech Poznan")
+                .eventName("Legia Warszawa - Lech Poznan")
+                .stake(new BigDecimal("10"))
+                .placedAt(placed)
+                .build();
+
+        List<SofaScoreEventDto> pool = List.of(
+                finishedEvent("Legia Warszawa", "Lech Poznan", 2, 1, placed.plusDays(1))
+        );
+
+        when(betRepository.findByIdWithChildBets(601L)).thenReturn(java.util.Optional.of(bet));
+
+        service.processRoot(601L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(601L), Set.of(601L), 0.85, 4);
+
+        assertEquals(BetStatus.LOST, bet.getStatus());
+        assertEquals(0, new BigDecimal("-10").compareTo(bet.getFinalProfit()));
+        assertEquals("APIFY_SOFASCORE", bet.getResolutionSource());
+        assertNotNull(bet.getSettledAt());
+        verify(betRepository).save(bet);
+    }
+
+    @Test
+    void shouldChangeParlayLegStatusFromPendingToLostUsingScraperPool() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 1, 12, 0);
+        Bet parlay = Bet.builder()
+                .id(700L).betType(BetType.PARLAY).status(BetStatus.PENDING)
+                .stake(new BigDecimal("10"))
+                .placedAt(placed)
+                .build();
+        Bet leg = Bet.builder()
+                .id(701L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Lech Poznan")
+                .eventName("Legia Warszawa - Lech Poznan")
+                .parentBet(parlay).placedAt(placed)
+                .build();
+        parlay.setChildBets(new LinkedHashSet<>(List.of(leg)));
+
+        when(betRepository.findByIdWithChildBets(700L)).thenReturn(java.util.Optional.of(parlay));
+
+        service.processRoot(
+                700L,
+                List.of(finishedEvent("Legia Warszawa", "Lech Poznan", 2, 1, placed.plusDays(1))),
+                LocalDateTime.of(2026, 6, 5, 12, 0),
+                Set.of(701L),
+                Set.of(701L),
+                0.85,
+                4
+        );
+
+        assertEquals(BetStatus.LOST, leg.getStatus());
+        assertEquals("APIFY_SOFASCORE", leg.getResolutionSource());
+        assertNotNull(leg.getSettledAt());
+        verify(betRepository).save(leg);
     }
 
     @Test
@@ -93,7 +179,7 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(400L)).thenReturn(java.util.Optional.of(parlay));
 
-        service.processRoot(400L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(401L, 402L), 0.85, 4);
+        service.processRoot(400L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(401L, 402L), Set.of(401L, 402L), 0.85, 4);
 
         assertEquals(BetStatus.VOID, leg1.getStatus());
         assertEquals(BetStatus.VOID, leg2.getStatus());
@@ -131,14 +217,12 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(500L)).thenReturn(java.util.Optional.of(parlay));
 
-        service.processRoot(500L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(501L, 502L), 0.85, 4);
+        service.processRoot(500L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(501L, 502L), Set.of(501L, 502L), 0.85, 4);
 
         assertEquals(BetStatus.WON, legWon.getStatus());
         assertEquals(BetStatus.VOID, legVoid.getStatus());
-        assertEquals(BetStatus.WON, parlay.getStatus());
-        // Kurs liczony tylko z nogi wygranej (2.0): wygrana 10*2=20, zysk 10.
-        assertEquals(0, new BigDecimal("20").compareTo(parlay.getPotentialWinnings()));
-        assertEquals(0, new BigDecimal("10").compareTo(parlay.getFinalProfit()));
+        assertEquals(BetStatus.PENDING, parlay.getStatus(), "kupon WON dopiero gdy wszystkie nogi WON");
+        verify(betRepository, never()).save(parlay);
     }
 
     @Test
@@ -177,6 +261,7 @@ class BetResolutionTransactionServiceTest {
                 100L,
                 pool,
                 LocalDateTime.of(2026, 6, 5, 12, 0),
+                Set.of(101L, 102L),
                 Set.of(101L, 102L),
                 0.85,
                 4
@@ -219,6 +304,7 @@ class BetResolutionTransactionServiceTest {
                 List.of(finishedEvent("Legia Warszawa", "Lech Poznan", 2, 1, placed.plusDays(1))),
                 LocalDateTime.of(2026, 6, 5, 12, 0),
                 Set.of(201L, 202L),
+                Set.of(201L, 202L),
                 0.85,
                 4
         );
@@ -259,6 +345,7 @@ class BetResolutionTransactionServiceTest {
                 300L,
                 List.of(finishedEvent("Legia Warszawa", "Lech Poznan", 2, 1, placed.plusDays(1))),
                 LocalDateTime.of(2026, 6, 5, 12, 0),
+                Set.of(301L),
                 Set.of(301L),
                 0.85,
                 4

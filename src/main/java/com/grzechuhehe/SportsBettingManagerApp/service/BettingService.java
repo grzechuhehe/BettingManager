@@ -236,10 +236,7 @@ public class BettingService {
     }
 
     public List<Bet> getUserBets(User user) {
-        // Filtrujemy, aby nie pokazywać "nóg" jako zakłady najwyższego poziomu
-        return betRepository.findByUser(user).stream()
-                .filter(bet -> bet.getParentBet() == null)
-                .collect(Collectors.toList());
+        return betRepository.findRootBetsWithLegsByUser(user);
     }
 
     public Map<String, Object> getStatistics(User user) {

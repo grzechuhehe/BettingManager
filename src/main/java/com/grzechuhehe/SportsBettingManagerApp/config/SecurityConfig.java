@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -39,6 +40,9 @@ public class SecurityConfig {
 
     @Value("${app.cors.allowed-origins}")
     private String[] allowedOrigins;
+
+    @Value("${bet.resolution.dev-open-endpoint:false}")
+    private boolean devOpenResolutionEndpoint;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -83,9 +87,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(
+                .authorizeHttpRequests(authorize -> {
+                    authorize.requestMatchers("/api/auth/**").permitAll();
+                    if (devOpenResolutionEndpoint) {
+                        authorize.requestMatchers(HttpMethod.POST, "/api/bets/run-auto-resolution").permitAll();
+                    }
+                    authorize.requestMatchers(
                                 "/",
                                 "/index.html",
                                 "/register.html",
@@ -103,8 +110,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .anyRequest().authenticated()
-                );
+                        .anyRequest().authenticated();
+                });
 
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);

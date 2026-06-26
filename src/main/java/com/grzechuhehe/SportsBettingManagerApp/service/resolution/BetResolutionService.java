@@ -16,8 +16,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -64,6 +66,9 @@ public class BetResolutionService {
     @Value("${bet.resolution.max-search-queries:20}")
     private int maxSearchQueries;
 
+    @Value("${bet.resolution.max-apify-calls-per-cycle:5}")
+    private int maxApifyCallsPerCycle;
+
     @Value("${bet.resolution.search-cooldown-hours:24}")
     private int searchCooldownHours;
 
@@ -78,11 +83,19 @@ public class BetResolutionService {
      */
     @Scheduled(fixedRateString = "${bet.resolution.interval-ms:21600000}")
     public void resolvePendingBets() {
+        resolvePendingBetsInternal(false);
+    }
+
+    public void resolvePendingBets(boolean force) {
+        resolvePendingBetsInternal(force);
+    }
+
+    private void resolvePendingBetsInternal(boolean force) {
         List<Bet> rootsToProcess = resolutionTx.loadPendingRoots(maxBetsPerRun);
-        log.info("Auto-rozliczanie: {} korzeniowych zakładów PENDING", rootsToProcess.size());
+        log.info("Auto-rozliczanie: {} korzeniowych zakładów PENDING (force={})", rootsToProcess.size(), force);
 
         LocalDateTime now = LocalDateTime.now();
-        List<Bet> eligibleLeaves = collectEligibleLeaves(rootsToProcess, now);
+        List<Bet> eligibleLeaves = collectEligibleLeaves(rootsToProcess, now, force);
         Set<Long> eligibleIds = eligibleLeaves.stream().map(Bet::getId).collect(Collectors.toSet());
 
         long apifyStart = System.currentTimeMillis();
@@ -90,6 +103,8 @@ public class BetResolutionService {
         long apifyMs = System.currentTimeMillis() - apifyStart;
         log.info("Apify HTTP: {} ms, {} wywołań actora (~${} przy $0.08/wywołanie)",
                 apifyMs, fetch.apifyCalls(), String.format("%.2f", fetch.apifyCalls() * 0.08));
+
+        Set<Long> fetchedBetIds = fetch.fetchedBetIds();
 
         if (!eligibleLeaves.isEmpty()) {
             log.info(
@@ -115,6 +130,7 @@ public class BetResolutionService {
                         fetch.events(),
                         now,
                         eligibleIds,
+                        fetchedBetIds,
                         confidenceThreshold,
                         dateWindowDays
                 );
@@ -124,20 +140,19 @@ public class BetResolutionService {
         }
     }
 
-    private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now) {
+    private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now, boolean force) {
         List<Bet> eligible = new ArrayList<>();
         for (Bet root : roots) {
             if (root.getBetType() == BetType.PARLAY) {
-                // Kupon/AKO: Apify i matcher tylko per noga — rodzic nigdy nie idzie do search
                 if (root.getChildBets() == null) {
                     continue;
                 }
                 for (Bet leg : root.getChildBets()) {
-                    if (leg.getStatus() == BetStatus.PENDING && isEligibleLeaf(leg, now)) {
+                    if (leg.getStatus() == BetStatus.PENDING && isEligibleLeaf(leg, now, force)) {
                         eligible.add(leg);
                     }
                 }
-            } else if (isEligibleLeaf(root, now)) {
+            } else if (isEligibleLeaf(root, now, force)) {
                 eligible.add(root);
             }
         }
@@ -145,11 +160,14 @@ public class BetResolutionService {
     }
 
     /** Pojedynczy mecz (SINGLE) lub jedna noga kuponu — nie złożony opis AKO w eventName. */
-    private boolean isEligibleLeaf(Bet bet, LocalDateTime now) {
+    private boolean isEligibleLeaf(Bet bet, LocalDateTime now, boolean force) {
         if (bet.getEventName() == null || bet.getEventName().isBlank()) {
             return false;
         }
         if (nameTranslator.resolveQueryForApify(bet.getEventName()).isEmpty()) {
+            return false;
+        }
+        if (!isAutoResolvableSelection(bet)) {
             return false;
         }
         MarketType market = bet.getMarketType() != null
@@ -162,7 +180,20 @@ public class BetResolutionService {
             return false;
         }
         if (bet.getLastResolutionAttemptAt() != null
-                && bet.getLastResolutionAttemptAt().isAfter(now.minusHours(searchCooldownHours))) {
+                && bet.getLastResolutionAttemptAt().isAfter(now.minusHours(searchCooldownHours))
+                && !force) {
+            return false;
+        }
+        return true;
+    }
+
+    /** BetBuilder, handicapy w selekcji itp. — tylko ręczne rozliczenie. */
+    private boolean isAutoResolvableSelection(Bet bet) {
+        String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
+        if (selection.contains("bet builder") || selection.contains("betbuilder")) {
+            return false;
+        }
+        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
             return false;
         }
         return true;
@@ -170,7 +201,7 @@ public class BetResolutionService {
 
     private EventPoolFetch fetchEventPool(List<Bet> eligibleLeaves, LocalDateTime now) {
         if (eligibleLeaves.isEmpty()) {
-            return new EventPoolFetch(List.of(), 0);
+            return new EventPoolFetch(List.of(), 0, Set.of());
         }
 
         if ("search".equalsIgnoreCase(apifyMode)) {
@@ -212,62 +243,102 @@ public class BetResolutionService {
 
         List<SofaScoreEventDto> events = apifySofaScoreClient.fetchScheduledMatches(
                 start, daysAhead, sports, scheduledMaxItems);
-        return new EventPoolFetch(events, 1);
+        Set<Long> fetchedBetIds = eligibleLeaves.stream().map(Bet::getId).collect(Collectors.toSet());
+        return new EventPoolFetch(events, 1, fetchedBetIds);
     }
 
     /**
-     * Batch search: wiele query w jednym wywołaniu actora (~$0.08), wspólna pula meczów dla wszystkich nóg.
+     * Batch search: unikalne query w jednym lub kilku wywołaniach actora (~$0.08 każde).
+     * Wszystkie zebrane query idą do Apify (w paczkach po searchBatchSize), nie tylko pierwsze N.
      */
     private EventPoolFetch fetchBySearchBatch(List<Bet> eligibleLeaves) {
-        Set<String> queries = new LinkedHashSet<>();
-        for (int i = 0; i < eligibleLeaves.size(); i++) {
-            Bet bet = eligibleLeaves.get(i);
+        LinkedHashSet<String> allQueries = new LinkedHashSet<>();
+        java.util.Map<String, Set<Long>> queryToBetIds = new java.util.LinkedHashMap<>();
+
+        for (Bet bet : eligibleLeaves) {
             String raw = bet.getEventName().trim();
             Optional<String> queryOpt = nameTranslator.resolveQueryForApify(raw);
             if (queryOpt.isEmpty()) {
                 continue;
             }
             String query = queryOpt.get();
-            if (queries.add(query)) {
+            queryToBetIds.computeIfAbsent(query, k -> new LinkedHashSet<>()).add(bet.getId());
+            if (allQueries.add(query)) {
                 log.info("Apify search query (noga/zakład {}): '{}' → '{}'", bet.getId(), raw, query);
             }
-            if (queries.size() >= maxSearchQueries) {
-                log.warn(
-                        "Apify search: limit {} unikalnych query — pominięto {} kolejnych zakładów",
-                        maxSearchQueries,
-                        eligibleLeaves.size() - i - 1
-                );
-                break;
-            }
         }
 
-        if (queries.isEmpty()) {
+        if (allQueries.isEmpty()) {
             log.warn("Apify search: brak zapytań ({} kwalifikujących)", eligibleLeaves.size());
-            return new EventPoolFetch(List.of(), 0);
+            return new EventPoolFetch(List.of(), 0, Set.of());
         }
 
-        log.info("Apify batch search: {} unikalnych query w {} batch(ach) po max {}",
-                queries.size(),
-                (queries.size() + searchBatchSize - 1) / searchBatchSize,
-                searchBatchSize);
+        if (allQueries.size() > maxSearchQueries) {
+            log.warn(
+                    "Apify search: {} unikalnych query (limit konfiguracyjny {} — nadmiarowe i tak pobieramy w batchach)",
+                    allQueries.size(),
+                    maxSearchQueries
+            );
+        }
 
         List<SofaScoreEventDto> all = new ArrayList<>();
+        Set<Long> fetchedBetIds = new HashSet<>();
         int calls = 0;
         List<String> batch = new ArrayList<>(searchBatchSize);
-        for (String query : queries) {
+
+        for (String query : allQueries) {
             batch.add(query);
             if (batch.size() >= searchBatchSize) {
-                all.addAll(apifySofaScoreClient.searchMatchesBatch(batch));
-                calls++;
+                if (calls >= maxApifyCallsPerCycle) {
+                    log.warn(
+                            "Apify search: limit {} wywołań/cykl — pominięto {} query",
+                            maxApifyCallsPerCycle,
+                            allQueries.size() - fetchedBetIds.size()
+                    );
+                    break;
+                }
+                if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch)) {
+                    calls++;
+                }
                 batch.clear();
             }
         }
-        if (!batch.isEmpty()) {
-            all.addAll(apifySofaScoreClient.searchMatchesBatch(batch));
-            calls++;
+        if (!batch.isEmpty() && calls < maxApifyCallsPerCycle) {
+            if (appendBatchSearchResult(all, queryToBetIds, fetchedBetIds, batch)) {
+                calls++;
+            }
         }
-        return new EventPoolFetch(all, calls);
+
+        log.info(
+                "Apify batch search: {} unikalnych query, {} wywołań actora, {} meczów w puli, {} nóg z danymi Apify",
+                allQueries.size(),
+                calls,
+                all.size(),
+                fetchedBetIds.size()
+        );
+
+        return new EventPoolFetch(all, calls, fetchedBetIds);
     }
 
-    private record EventPoolFetch(List<SofaScoreEventDto> events, int apifyCalls) {}
+    private boolean appendBatchSearchResult(
+            List<SofaScoreEventDto> all,
+            java.util.Map<String, Set<Long>> queryToBetIds,
+            Set<Long> fetchedBetIds,
+            List<String> batch) {
+        var result = apifySofaScoreClient.searchMatchesBatch(batch);
+        if (!result.successful()) {
+            log.warn(
+                    "Apify search: batch {} zapytań nieudany — nogi z tego batcha spróbują ponownie w kolejnym cyklu",
+                    batch.size()
+            );
+            return false;
+        }
+        all.addAll(result.matches());
+        for (String q : batch) {
+            fetchedBetIds.addAll(queryToBetIds.getOrDefault(q, Set.of()));
+        }
+        return true;
+    }
+
+    private record EventPoolFetch(List<SofaScoreEventDto> events, int apifyCalls, Set<Long> fetchedBetIds) {}
 }

@@ -9,6 +9,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
 @RequestMapping("/api/bets")
@@ -31,8 +33,11 @@ import java.util.stream.Collectors;
 @Tag(name = "Bet Management", description = "Endpoints for managing user bets, including single and parlay bets")
 public class BetController {
     private final BettingService bettingService;
+    private final BetResolutionService betResolutionService;
     private final UserRepository userRepository;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
+    private static final AtomicBoolean RESOLUTION_RUNNING =
+            new AtomicBoolean(false);
 
     @PostMapping("/add-bet")
     @Operation(summary = "Create a new bet", description = "Adds a new single bet or a parlay (if multiple selections are provided) to the user's portfolio")
@@ -123,6 +128,31 @@ public class BetController {
         return ResponseEntity.ok(bettingService.getHeatmapData(currentUser));
     }
 
+
+    @PostMapping("/run-auto-resolution")
+    @Operation(summary = "Trigger auto-resolution", description = "Starts one cycle of automatic bet settlement from SofaScore (Apify). Runs in background (~2–5 min). Use force=true to ignore cooldown.")
+    public ResponseEntity<Map<String, String>> runAutoResolution(
+            @RequestParam(defaultValue = "true") boolean force) {
+        if (!RESOLUTION_RUNNING.compareAndSet(false, true)) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "status", "busy",
+                    "message", "Auto-resolution is already running"));
+        }
+        Thread.startVirtualThread(() -> {
+            try {
+                logger.info("Manual auto-resolution started (force={})", force);
+                betResolutionService.resolvePendingBets(force);
+                logger.info("Manual auto-resolution finished (force={})", force);
+            } catch (Exception e) {
+                logger.error("Manual auto-resolution failed: {}", e.getMessage(), e);
+            } finally {
+                RESOLUTION_RUNNING.set(false);
+            }
+        });
+        return ResponseEntity.accepted().body(Map.of(
+                "status", "started",
+                "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min."));
+    }
 
     @PatchMapping("/{id}/settle")
     @Operation(summary = "Settle a bet", description = "Updates the status of a bet (e.g., WON, LOST, VOID) and calculates final profit")

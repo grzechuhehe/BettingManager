@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
@@ -12,7 +13,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
+@RequiredArgsConstructor
 public class BetOutcomeEvaluator {
+
+    private final ResolutionNameTranslator nameTranslator;
 
     private static final Pattern NUMBER = Pattern.compile("(\\d+(?:\\.\\d+)?)");
     private static final Pattern SCORE = Pattern.compile("(\\d+)\\s*[:\\-]\\s*(\\d+)");
@@ -64,9 +68,9 @@ public class BetOutcomeEvaluator {
         if (selection.equals("1") || selection.equals("home")) return "home";
         if (selection.equals("2") || selection.equals("away")) return "away";
         if (selection.equals("x") || selection.equals("draw") || selection.equals("remis")) return "draw";
-        String home = normalize(event.getHomeTeam());
-        String away = normalize(event.getAwayTeam());
-        String sel = normalize(selection);
+        String home = normalize(nameTranslator.translateSegment(event.getHomeTeam()));
+        String away = normalize(nameTranslator.translateSegment(event.getAwayTeam()));
+        String sel = normalize(nameTranslator.translateSegment(selection));
         if (!sel.isEmpty() && !home.isEmpty() && (home.contains(sel) || sel.contains(home))) return "home";
         if (!sel.isEmpty() && !away.isEmpty() && (away.contains(sel) || sel.contains(away))) return "away";
         return null;

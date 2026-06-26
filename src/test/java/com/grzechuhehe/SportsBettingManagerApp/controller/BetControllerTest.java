@@ -12,6 +12,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class BetControllerTest {
 
     @MockBean
     private BettingService bettingService;
+
+    @MockBean
+    private BetResolutionService betResolutionService;
 
     @MockBean
     private UserRepository userRepository;
