@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { addBet } from '../api';
+import ImportBetFromImage from './ImportBetFromImage';
 
 let nextId = 1;
 const createInitialLeg = () => ({
@@ -98,6 +99,12 @@ const AddBetForm = () => {
     return (
         <div className="surface-card max-w-4xl mx-auto">
             <h2 className="display-sm mb-8 pb-4 border-b border-hairline">Place a New Bet</h2>
+
+            <div className="mb-12 p-8 border border-hairline rounded-lg bg-surface-soft/50 space-y-4">
+                <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest">Import from Screenshot</h3>
+                <p className="text-sm text-muted">Upload a bet slip photo — AI will extract event, selection and odds.</p>
+                <ImportBetFromImage />
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
                 {legs.map((leg, index) => (

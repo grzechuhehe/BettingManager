@@ -78,6 +78,15 @@ export const addBet = (betData) => {
   return apiClient.post('/bets/add-bet', betData);
 };
 
+export const importBetFromImage = (file, note) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  if (note) formData.append('note', note);
+  return apiClient.post('/bets/import-from-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 export const settleBet = (id, status) => {
 
   return apiClient.patch(`/bets/${id}/settle`, { status });

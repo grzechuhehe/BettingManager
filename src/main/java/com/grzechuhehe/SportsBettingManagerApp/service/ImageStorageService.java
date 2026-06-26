@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -72,5 +74,46 @@ public class ImageStorageService {
             log.error("Błąd podczas pobierania lub zapisu obrazu z {}: {}", imageUrl, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Zapisuje wgrany obraz kuponu do uploads/profiles/<subdir>/ i zwraca ścieżkę
+     * w formacie /images/profiles/... (serwowaną przez WebMvcConfig).
+     */
+    public String saveUploadedImage(MultipartFile file, String subdir) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Pusty plik obrazu");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Nieobsługiwany typ pliku: " + contentType);
+        }
+        try {
+            String safeSub = (subdir == null || subdir.isBlank())
+                    ? "manual"
+                    : subdir.replaceAll("[^a-zA-Z0-9_/-]", "_");
+            String dirPath = UPLOAD_DIR + safeSub + "/";
+            File dir = new File(dirPath);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            String fileName = UUID.randomUUID() + resolveExtension(contentType);
+            Path filePath = Paths.get(dirPath + fileName);
+            Files.write(filePath, file.getBytes());
+            log.info("Zapisano wgrany dowód kuponu do: {}", filePath);
+            return "/images/profiles/" + safeSub + "/" + fileName;
+        } catch (IOException e) {
+            log.error("Błąd zapisu wgranego obrazu: {}", e.getMessage());
+            throw new RuntimeException("Nie udało się zapisać obrazu", e);
+        }
+    }
+
+    private String resolveExtension(String contentType) {
+        return switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            default -> ".jpg";
+        };
     }
 }

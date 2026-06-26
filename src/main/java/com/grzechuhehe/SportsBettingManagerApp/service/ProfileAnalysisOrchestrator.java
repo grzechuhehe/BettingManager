@@ -65,6 +65,33 @@ public class ProfileAnalysisOrchestrator {
         }
     }
 
+    /**
+     * Import zakładu z wgranych przez użytkownika obrazów (ten sam pipeline co posty X).
+     * Zwraca zapisany Bet lub Optional.empty() gdy AI nie wyciągnęło poprawnego zakładu.
+     */
+    @Transactional
+    public Optional<Bet> importBetFromImages(User user, List<String> imagePaths, String note) {
+        Bet bet = Bet.builder()
+                .user(user)
+                .isAiExtracted(true)
+                .imageProofPath(imagePaths.isEmpty() ? null : imagePaths.get(0))
+                .betType(BetType.SINGLE)
+                .status(BetStatus.PENDING)
+                .placedAt(LocalDateTime.now())
+                .build();
+
+        updateBetDataFromAI(bet, note, imagePaths, null);
+
+        if (!isBetValid(bet)) {
+            log.warn("Import z obrazu: AI nie wyciągnęło poprawnego zakładu (user {})",
+                    user.getId());
+            return Optional.empty();
+        }
+        Bet saved = betRepository.save(bet);
+        log.info("Import z obrazu: zapisano zakład {} (user {})", saved.getId(), user.getId());
+        return Optional.of(saved);
+    }
+
     @Transactional
     public void updateProfileMetadata(Long userId, String lastTweetId) {
         userRepository.findById(userId).ifPresent(u -> {
