@@ -19,13 +19,20 @@ public class BetMatcher {
 
     private static final Set<String> STOPWORDS = Set.of("vs", "the", "club");
 
+    private final ResolutionNameTranslator nameTranslator;
+
+    public BetMatcher(ResolutionNameTranslator nameTranslator) {
+        this.nameTranslator = nameTranslator;
+    }
+
     public record MatchCandidate(SofaScoreEventDto event, double confidence) {}
 
     public Optional<MatchCandidate> findBestMatch(Bet bet, List<SofaScoreEventDto> events, int dateWindowDays) {
         if (events == null || events.isEmpty() || bet.getEventName() == null) {
             return Optional.empty();
         }
-        Set<String> betTokens = tokenize(bet.getEventName());
+        Set<String> betTokens = nameTranslator.matchingTokens(
+                bet.getEventName(), tokenize(bet.getEventName()));
         if (betTokens.isEmpty()) {
             return Optional.empty();
         }

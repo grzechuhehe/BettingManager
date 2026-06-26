@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BetMatcherTest {
 
-    private final BetMatcher matcher = new BetMatcher();
+    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator());
 
     private SofaScoreEventDto event(String home, String away, LocalDateTime start) {
         SofaScoreEventDto e = new SofaScoreEventDto();
