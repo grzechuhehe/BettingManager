@@ -1,3 +1,5 @@
+-- Dokumentacja schematu (projekt używa ddl-auto=update, brak Flyway — ten plik nie jest wykonywany).
+-- Faktyczny typ payload_json zapewnia encja (columnDefinition=MEDIUMTEXT) + SofaScoreCacheSchemaRunner.
 CREATE TABLE sofascore_query_cache (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     query_hash CHAR(64) NOT NULL,

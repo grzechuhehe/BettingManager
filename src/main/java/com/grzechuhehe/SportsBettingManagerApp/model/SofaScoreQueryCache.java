@@ -22,8 +22,7 @@ public class SofaScoreQueryCache {
     @Column(name = "query_text", nullable = false, length = 512)
     private String queryText;
 
-    @Lob
-    @Column(name = "payload_json", nullable = false)
+    @Column(name = "payload_json", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String payloadJson;
 
     private int eventCount;
