@@ -18,7 +18,7 @@ class BetBuilderMarketResolverTest {
     @BeforeEach
     void setUp() {
         ResolutionNameTranslator translator = new ResolutionNameTranslator();
-        CompositeSelectionParser parser = new CompositeSelectionParser(translator);
+        CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(translator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(translator);
         resolver = new BetBuilderMarketResolver(parser, standard, handicap, new ObjectMapper());
@@ -44,6 +44,18 @@ class BetBuilderMarketResolverTest {
                 .build();
         SofaScoreEventDto event = finished("Morocco", "Norway", 0, 0);
         assertEquals(BetStatus.LOST, resolver.resolve(bet, event).orElseThrow());
+    }
+
+    @Test
+    void betBuilderEmptyWhenSelectionHasUnparseableFragment() {
+        Bet bet = Bet.builder()
+                .eventName("Maroko - Norwegia")
+                .marketType(MarketType.TOTALS_OVER_UNDER)
+                .selection("BetBuilder: Suma: powyżej 1.5, 1X2: Maroko, Handicap -1.5: Norwegia")
+                .build();
+        SofaScoreEventDto event = finished("Morocco", "Norway", 2, 1);
+        assertTrue(resolver.resolve(bet, event).isEmpty(),
+                "niepełny parse nie może dać WON — trafia do ręcznego rozliczenia");
     }
 
     private static SofaScoreEventDto finished(String home, String away, int homeScore, int awayScore) {

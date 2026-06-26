@@ -34,7 +34,9 @@ public class BetBuilderMarketResolver implements MarketResolver {
         if (!selection.contains("bet builder") && !selection.contains("betbuilder")) {
             return false;
         }
-        return compositeSelectionParser.parse(bet.getSelection()).size() >= 2;
+        return compositeSelectionParser.parseComplete(bet.getSelection())
+                .map(c -> c.size() >= 2)
+                .orElse(false);
     }
 
     @Override
@@ -68,7 +70,7 @@ public class BetBuilderMarketResolver implements MarketResolver {
                 log.warn("Bet {}: invalid builderConditionsJson — fallback to parser", bet.getId());
             }
         }
-        return compositeSelectionParser.parse(bet.getSelection());
+        return compositeSelectionParser.parseComplete(bet.getSelection()).orElse(List.of());
     }
 
     private Bet syntheticBet(Bet parent, AtomicCondition condition) {

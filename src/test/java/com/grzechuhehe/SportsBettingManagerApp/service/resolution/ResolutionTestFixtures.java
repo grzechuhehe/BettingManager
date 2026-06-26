@@ -10,7 +10,7 @@ public final class ResolutionTestFixtures {
 
     public static ResolutionComponents components() {
         ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
-        CompositeSelectionParser parser = new CompositeSelectionParser(nameTranslator);
+        CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(nameTranslator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(nameTranslator);
         ObjectMapper objectMapper = new ObjectMapper();

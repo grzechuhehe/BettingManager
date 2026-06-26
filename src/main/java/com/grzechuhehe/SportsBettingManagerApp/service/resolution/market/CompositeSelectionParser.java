@@ -1,7 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution.market;
 
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
-import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -15,29 +14,52 @@ public class CompositeSelectionParser {
 
     private static final Pattern HANDICAP_FRAGMENT =
             Pattern.compile("(?i)handicap\\s+(\\d+)\\s*:\\s*(\\d+)\\s*:\\s*(.+)");
-
-    private final ResolutionNameTranslator nameTranslator;
-
-    public CompositeSelectionParser(ResolutionNameTranslator nameTranslator) {
-        this.nameTranslator = nameTranslator;
-    }
+    private static final Pattern HANDICAP_NUMERIC_FRAGMENT =
+            Pattern.compile("(?i)handicap\\s+([+-]?\\d+(?:[.,]\\d+)?)\\s*:\\s*(.+)");
 
     public List<AtomicCondition> parse(String selection) {
         if (selection == null || selection.isBlank()) {
             return List.of();
         }
-        String text = selection.trim();
-        if (text.toLowerCase(Locale.ROOT).startsWith("betbuilder:")) {
-            text = text.substring("betbuilder:".length()).trim();
-        } else if (text.toLowerCase(Locale.ROOT).startsWith("bet builder:")) {
-            text = text.substring("bet builder:".length()).trim();
-        }
-
         List<AtomicCondition> conditions = new ArrayList<>();
-        for (String fragment : splitFragments(text)) {
+        for (String fragment : splitFragments(stripPrefix(selection))) {
             parseFragment(fragment).ifPresent(conditions::add);
         }
         return conditions;
+    }
+
+    /**
+     * Zwraca komplet warunków tylko gdy KAŻDY fragment jest rozpoznany.
+     * Pusty Optional = nie potrafimy bezpiecznie rozliczyć → ręczne rozliczenie.
+     */
+    public java.util.Optional<List<AtomicCondition>> parseComplete(String selection) {
+        if (selection == null || selection.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        List<String> fragments = splitFragments(stripPrefix(selection));
+        if (fragments.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        List<AtomicCondition> conditions = new ArrayList<>();
+        for (String fragment : fragments) {
+            java.util.Optional<AtomicCondition> parsed = parseFragment(fragment);
+            if (parsed.isEmpty()) {
+                return java.util.Optional.empty();
+            }
+            conditions.add(parsed.get());
+        }
+        return java.util.Optional.of(conditions);
+    }
+
+    private String stripPrefix(String selection) {
+        String text = selection.trim();
+        if (text.toLowerCase(Locale.ROOT).startsWith("betbuilder:")) {
+            return text.substring("betbuilder:".length()).trim();
+        }
+        if (text.toLowerCase(Locale.ROOT).startsWith("bet builder:")) {
+            return text.substring("bet builder:".length()).trim();
+        }
+        return text;
     }
 
     private java.util.Optional<AtomicCondition> parseFragment(String fragment) {
@@ -52,7 +74,7 @@ public class CompositeSelectionParser {
             boolean over = lower.contains("over") || lower.contains("powyzej") || lower.contains("powyżej");
             String sel = over ? "over " + line : "under " + line;
             return java.util.Optional.of(new AtomicCondition(
-                    MarketType.TOTALS_OVER_UNDER, sel, String.valueOf(line), null));
+                    MarketType.TOTALS_OVER_UNDER, sel, String.valueOf(line)));
         }
 
         Matcher handicap = HANDICAP_FRAGMENT.matcher(fragment);
@@ -60,20 +82,21 @@ public class CompositeSelectionParser {
             int homeStart = Integer.parseInt(handicap.group(1));
             int awayStart = Integer.parseInt(handicap.group(2));
             String teamPart = handicap.group(3).replaceAll("(?i)\\(\\d+\\s*:\\s*\\d+\\)", "").trim();
-            String side = inferSide(teamPart);
             String line = homeStart + ":" + awayStart;
             return java.util.Optional.of(new AtomicCondition(
-                    MarketType.HANDICAP, teamPart, line, side));
+                    MarketType.HANDICAP, teamPart, line));
         }
-        return java.util.Optional.empty();
-    }
 
-    private String inferSide(String teamPart) {
-        String normalized = MarketResolutionUtils.normalize(nameTranslator.translateSegment(teamPart));
-        if (normalized.isEmpty()) {
-            return null;
+        Matcher numericHandicap = HANDICAP_NUMERIC_FRAGMENT.matcher(fragment);
+        if (numericHandicap.find()) {
+            String rawLine = numericHandicap.group(1).replace(',', '.');
+            String teamPart = numericHandicap.group(2)
+                    .replaceAll("(?i)\\([+-]?\\d+(?:[.,]\\d+)?\\)", "").trim();
+            return java.util.Optional.of(new AtomicCondition(
+                    MarketType.HANDICAP, teamPart, rawLine));
         }
-        return normalized;
+
+        return java.util.Optional.empty();
     }
 
     static List<String> splitFragments(String text) {
