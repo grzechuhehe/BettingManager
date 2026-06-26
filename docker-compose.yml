@@ -45,6 +45,7 @@ services:
       - SOCIALDATA_API_KEY=${SOCIALDATA_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_SYSTEM_PROMPT=${GEMINI_SYSTEM_PROMPT}
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN}
     volumes:
       - .:/app
       - ~/.m2:/root/.m2

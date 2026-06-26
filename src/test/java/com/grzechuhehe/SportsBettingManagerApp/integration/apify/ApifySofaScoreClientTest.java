@@ -48,6 +48,35 @@ class ApifySofaScoreClientTest {
     }
 
     @Test
+    void shouldBatchSearchInSingleRequest() {
+        String json = """
+            [{"type":"match","homeTeam":"A","awayTeam":"B","statusType":"finished"}]
+            """;
+        server.expect(requestTo(containsString("/acts/")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+        List<SofaScoreEventDto> result = client.searchMatchesBatch(List.of("A vs B", "C vs D"));
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldFetchScheduledMatches() {
+        String json = """
+            [{"type":"match","homeTeam":"X","awayTeam":"Y","statusType":"finished"}]
+            """;
+        server.expect(requestTo(containsString("/acts/")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+        List<SofaScoreEventDto> result = client.fetchScheduledMatches(
+                java.time.LocalDate.of(2026, 6, 1), 2, List.of("football"), 100);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
     void shouldReturnEmptyListOnError() {
         server.expect(requestTo(containsString("/acts/")))
                 .andRespond(withSuccess("not-json", MediaType.APPLICATION_JSON));
