@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// ... imports
 
 @Entity
 @Getter
@@ -45,6 +44,10 @@ public class User implements UserDetails {
     private boolean isActiveUser = true;
 
     private Integer evEdgeThreshold = 2; // Default 2%
+
+    public Integer getEvEdgeThreshold() {
+        return evEdgeThreshold != null ? evEdgeThreshold : 2;
+    }
 
     private String xUsername;
 

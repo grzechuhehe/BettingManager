@@ -70,6 +70,10 @@ export const changePassword = (passwordData) => {
   return apiClient.post('/user/change-password', passwordData);
 };
 
+export const updateUserSettings = (settings) => {
+  return apiClient.post('/user/settings', settings);
+};
+
 export const addBet = (betData) => {
   return apiClient.post('/bets/add-bet', betData);
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getUserProfile, getDashboardStats, forgotPassword } from '../api';
+import { getUserProfile, getDashboardStats, forgotPassword, updateUserSettings } from '../api';
 
 const UserProfile = () => {
     const [profile, setProfile] = useState(null);
@@ -9,6 +9,10 @@ const UserProfile = () => {
     const [isResetting, setIsResetting] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [isPasswordExpanded, setIsPasswordExpanded] = useState(false);
+    
+    const [evThreshold, setEvThreshold] = useState(2);
+    const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+    const [settingsMessage, setSettingsSettingsMessage] = useState({ text: '', type: '' });
 
     useEffect(() => {
         fetchData();
@@ -23,10 +27,25 @@ const UserProfile = () => {
             setProfile(profileRes.data);
             setStats(statsRes.data);
             setResetEmail(profileRes.data.email || '');
+            setEvThreshold(profileRes.data.evEdgeThreshold || 2);
         } catch (error) {
             console.error("Error fetching profile data", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateSettings = async (e) => {
+        e.preventDefault();
+        setSettingsSettingsMessage({ text: '', type: '' });
+        setIsUpdatingSettings(true);
+        try {
+            await updateUserSettings({ evEdgeThreshold: parseInt(evThreshold) });
+            setSettingsSettingsMessage({ text: 'Settings updated successfully.', type: 'success' });
+        } catch (error) {
+            setSettingsSettingsMessage({ text: 'Failed to update settings.', type: 'error' });
+        } finally {
+            setIsUpdatingSettings(false);
         }
     };
 
@@ -117,8 +136,9 @@ const UserProfile = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Change Password (Collapsible) */}
-                <div className="md:col-span-2">
+                {/* Right Column: Settings & Security */}
+                <div className="md:col-span-2 space-y-10">
+                    {/* Change Password Card (Collapsible) */}
                     <div className="bg-surface-card rounded-lg border border-hairline overflow-hidden">
                         <button 
                             onClick={() => setIsPasswordExpanded(!isPasswordExpanded)}

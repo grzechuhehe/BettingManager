@@ -24,7 +24,7 @@ public class EvOpportunityController {
     public List<EvOpportunity> getOpportunities() {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         Double minEdge = userRepository.findByUsername(username)
-                .map(u -> u.getEvEdgeThreshold().doubleValue())
+                .map(u -> u.getEvEdgeThreshold() != null ? u.getEvEdgeThreshold().doubleValue() : 2.0)
                 .orElse(2.0);
 
         return repository.findLatestUniqueOpportunitiesFiltered(LocalDateTime.now().minusHours(2), minEdge);

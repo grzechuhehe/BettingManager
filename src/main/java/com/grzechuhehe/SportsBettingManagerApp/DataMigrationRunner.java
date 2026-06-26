@@ -20,6 +20,7 @@ public class DataMigrationRunner implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        // Migracja 1: Ustawienie xUsername dla starych shadow profilów
         List<User> shadowProfiles = userRepository.findAll().stream()
                 .filter(u -> !u.isActiveUser() && u.getXUsername() == null)
                 .toList();
@@ -27,6 +28,18 @@ public class DataMigrationRunner implements CommandLineRunner {
         for (User user : shadowProfiles) {
             user.setXUsername(user.getUsername());
             userRepository.save(user);
+        }
+
+        // Migracja 2: Ustawienie domyślnego progu EV dla istniejących użytkowników
+        List<User> usersWithNullThreshold = userRepository.findAll().stream()
+                .filter(u -> u.getEvEdgeThreshold() == null)
+                .toList();
+        
+        if (!usersWithNullThreshold.isEmpty()) {
+            for (User user : usersWithNullThreshold) {
+                user.setEvEdgeThreshold(2);
+                userRepository.save(user);
+            }
         }
     }
 }

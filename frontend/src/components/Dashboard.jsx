@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getDashboardStats, getEvOpportunities } from '../api';
+import { getDashboardStats, getEvOpportunities, getUserProfile, updateUserSettings } from '../api';
 import AdvancedAnalytics from './AdvancedAnalytics';
 import AdvancedStats from './AdvancedStats';
 import BettingHeatmap from './BettingHeatmap';
@@ -27,8 +27,10 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [opportunities, setOpportunities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isUpdating, setIsUpdating] = useState(false);
     const [expandedEvents, setExpandedEvents] = useState({});
     const [showAsProbability, setShowAsProbability] = useState(false);
+    const [minEdge, setMinEdge] = useState(2);
 
     const toggleEvent = (eventName) => {
         setExpandedEvents(prev => ({
@@ -38,6 +40,57 @@ const Dashboard = () => {
     };
 
     const getImpliedProb = (odds) => ((1 / odds) * 100).toFixed(1) + '%';
+
+    const fetchOpportunities = async () => {
+        setIsUpdating(true);
+        try {
+            const response = await getEvOpportunities();
+            setOpportunities(response.data || []);
+        } catch (error) {
+            console.error("Failed to fetch EV opportunities:", error);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    // Debounce effect for edge threshold
+    useEffect(() => {
+        if (loading) return;
+
+        const timer = setTimeout(async () => {
+            try {
+                await updateUserSettings({ evEdgeThreshold: minEdge });
+                await fetchOpportunities();
+            } catch (error) {
+                console.error("Failed to update edge threshold:", error);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [minEdge]);
+
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            setLoading(true);
+            try {
+                const [statsRes, profileRes] = await Promise.all([
+                    getDashboardStats(),
+                    getUserProfile()
+                ]);
+                setStats(statsRes.data);
+                if (profileRes.data.evEdgeThreshold !== undefined) {
+                    setMinEdge(profileRes.data.evEdgeThreshold);
+                }
+            } catch (error) {
+                console.error("Failed to fetch initial dashboard data:", error);
+            } finally {
+                setLoading(false);
+                fetchOpportunities();
+            }
+        };
+
+        fetchInitialData();
+    }, []);
 
     // Grouping logic
     const grouped = opportunities.reduce((acc, opp) => {
@@ -52,31 +105,6 @@ const Dashboard = () => {
         const maxEvB = Math.max(...grouped[b].map(o => o.evPercentage));
         return maxEvB - maxEvA;
     });
-
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await getDashboardStats();
-                setStats(response.data);
-            } catch (error) {
-                console.error("Failed to fetch dashboard stats:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const fetchOpportunities = async () => {
-            try {
-                const response = await getEvOpportunities();
-                setOpportunities(response.data);
-            } catch (error) {
-                console.error("Failed to fetch EV opportunities:", error);
-            }
-        };
-
-        fetchStats();
-        fetchOpportunities();
-    }, []);
 
     const formatCurrency = (val) => {
         if (val === null || val === undefined) return "$0.00";
@@ -156,9 +184,17 @@ const Dashboard = () => {
             </section>
 
             <section className="mt-12">
-                <div className="flex items-center gap-3 mb-10">
-                    <div className="w-1.5 h-6 bg-primary rounded-full animate-pulse"></div>
-                    <h3 className="text-xl font-bold text-on-dark">Live +EV Opportunities</h3>
+                <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-6 bg-primary rounded-full animate-pulse"></div>
+                        <h3 className="text-xl font-bold text-on-dark">Live +EV Opportunities</h3>
+                    </div>
+                    {isUpdating && (
+                        <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest animate-pulse">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            Syncing Markets...
+                        </div>
+                    )}
                 </div>
                 <div className="bg-surface-card border border-hairline rounded-lg overflow-hidden">
                     <table className="w-full text-left border-collapse table-fixed">
@@ -171,10 +207,30 @@ const Dashboard = () => {
                                     Odds {showAsProbability ? '(Prob)' : '(Decimal)'}
                                 </th>
                                 <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">True Prob</th>
-                                <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right text-primary">Expected Value</th>
+                                <th className="w-1/12 p-4 text-[10px] font-black text-muted uppercase tracking-widest text-center text-primary">
+                                    <div className="flex flex-col items-center">
+                                        <span>Expected Value</span>
+                                        <div className="mt-2 flex items-center gap-2 font-normal normal-case tracking-normal">
+                                            <div className="relative group">
+                                                <input 
+                                                    type="number" 
+                                                    min="0"
+                                                    max="50"
+                                                    className="w-14 bg-surface-elevated border border-hairline rounded px-2 py-1 text-xs text-primary font-black text-center focus:border-primary outline-none transition-all hover:border-primary/50"
+                                                    value={minEdge}
+                                                    onChange={(e) => setMinEdge(e.target.value)}
+                                                />
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-surface-elevated border border-hairline rounded text-[10px] text-muted opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-2xl z-20 leading-relaxed">
+                                                    Filter results. Table updates automatically <span className="text-primary font-bold">800ms</span> after your last change.
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground/80 font-bold">%</span>
+                                        </div>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className={isUpdating ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
                             {sortedEventNames.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="p-10 text-center text-muted italic">Scanning markets for opportunities...</td>
@@ -224,7 +280,7 @@ const Dashboard = () => {
                                                     {showAsProbability ? getImpliedProb(bestOpp.bookmakerOdds) : bestOpp.bookmakerOdds.toFixed(2)}
                                                 </td>
                                                 <td className="p-4 text-right font-numeric text-muted h-16">{(bestOpp.trueProbability * 100).toFixed(1)}%</td>
-                                                <td className="p-4 text-right font-numeric font-black text-primary h-16">+{bestOpp.evPercentage.toFixed(2)}%</td>
+                                                <td className="p-4 text-center font-numeric font-black text-primary h-16">+{bestOpp.evPercentage.toFixed(2)}%</td>
                                             </tr>
                                             {isExpanded && eventOpps.slice(1).map((opp) => (
                                                 <tr key={opp.id} className="border-b border-hairline bg-surface-soft/30 text-sm h-14">
@@ -260,7 +316,7 @@ const Dashboard = () => {
                                                         {showAsProbability ? getImpliedProb(opp.bookmakerOdds) : opp.bookmakerOdds.toFixed(2)}
                                                     </td>
                                                     <td className="p-4 text-right font-numeric text-muted h-14">{(opp.trueProbability * 100).toFixed(1)}%</td>
-                                                    <td className="p-4 text-right font-numeric font-bold text-primary/70 h-14">+{opp.evPercentage.toFixed(2)}%</td>
+                                                    <td className="p-4 text-center font-numeric font-bold text-primary/70 h-14">+{opp.evPercentage.toFixed(2)}%</td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>
