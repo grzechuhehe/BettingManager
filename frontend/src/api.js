@@ -82,9 +82,8 @@ export const importBetFromImage = (file, note) => {
   const formData = new FormData();
   formData.append('image', file);
   if (note) formData.append('note', note);
-  return apiClient.post('/bets/import-from-image', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  // Content-Type pomijamy celowo — axios sam ustawi multipart/form-data z boundary dla FormData.
+  return apiClient.post('/bets/import-from-image', formData);
 };
 
 export const settleBet = (id, status) => {
