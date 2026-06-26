@@ -20,25 +20,27 @@ class HandicapMarketResolverTest {
     }
 
     @Test
-    void awayMinusOnePointFiveGamesWon() {
+    void tennisGameHandicapMinusOnePointFiveWithApifySetScoreIsEmpty() {
+        // Apify search zwraca sety (np. Tabur–Mochizuki 2:3), nie gemy — gemowy -1.5 → manual
         Bet bet = Bet.builder()
                 .marketType(MarketType.HANDICAP)
-                .selection("Zverev, Alexander (-1.5)")
+                .selection("Mochizuki, Shintaro (-1.5)")
                 .line("-1.5")
                 .sport("Tennis")
                 .build();
-        SofaScoreEventDto event = tennisEvent("Cobolli", "Zverev", 4, 6);
-        assertEquals(BetStatus.WON, resolver.resolve(bet, event).orElseThrow());
+        SofaScoreEventDto event = tennisEvent("Clement Tabur", "Shintaro Mochizuki", 2, 3);
+        assertTrue(resolver.resolve(bet, event).isEmpty());
     }
 
     @Test
-    void awayMinusOnePointFiveGamesLost() {
+    void tennisSetHandicapWholeNumberCanResolveOnApifySetScore() {
         Bet bet = Bet.builder()
                 .marketType(MarketType.HANDICAP)
-                .selection("Zverev, Alexander (-1.5)")
-                .line("-1.5")
+                .selection("Shintaro Mochizuki (+1)")
+                .line("+1")
+                .sport("Tennis")
                 .build();
-        SofaScoreEventDto event = tennisEvent("Cobolli", "Zverev", 6, 4);
+        SofaScoreEventDto event = tennisEvent("Shintaro Mochizuki", "Clement Tabur", 0, 2);
         assertEquals(BetStatus.LOST, resolver.resolve(bet, event).orElseThrow());
     }
 
