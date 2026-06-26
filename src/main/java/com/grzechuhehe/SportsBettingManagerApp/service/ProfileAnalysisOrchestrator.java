@@ -8,6 +8,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
@@ -83,7 +84,7 @@ public class ProfileAnalysisOrchestrator {
         String xUsername = xUsernameRaw.replace("@", "").trim();
         
         String lastId = user.getLastScrapedTweetId();
-        int limit = (lastId == null || lastId.isEmpty()) ? 100 : 20;
+        int limit = (lastId == null || lastId.isEmpty()) ? 100 : 40;
 
         log.info("Pobieranie postów dla profilu @{} (od ID: {}, limit: {})", xUsername, lastId, limit);
         List<Map<String, Object>> recentTweets = socialDataClient.fetchRecentTweets(xUsername, lastId, limit);
@@ -430,6 +431,15 @@ public class ProfileAnalysisOrchestrator {
                         if (legNode.has("eventName")) childBet.setEventName(sanitizeAiString(legNode.get("eventName")));
                         if (legNode.has("selection")) childBet.setSelection(sanitizeAiString(legNode.get("selection")));
                         if (legNode.has("odds") && !legNode.get("odds").isNull()) childBet.setOdds(new BigDecimal(legNode.get("odds").asText()));
+                        if (legNode.has("marketType") && !legNode.get("marketType").isNull()) {
+                            String mt = sanitizeAiString(legNode.get("marketType"));
+                            if (mt != null) {
+                                try {
+                                    childBet.setMarketType(MarketType.valueOf(mt.toUpperCase()));
+                                } catch (IllegalArgumentException ignored) {}
+                            }
+                        }
+                        if (legNode.has("sport")) childBet.setSport(sanitizeAiString(legNode.get("sport")));
                         
                         childBets.add(childBet);
                     }
