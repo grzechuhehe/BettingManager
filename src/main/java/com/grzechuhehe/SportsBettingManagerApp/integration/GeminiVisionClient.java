@@ -116,6 +116,23 @@ public class GeminiVisionClient {
             legProperties.put("eventName", eventName);
             legProperties.put("selection", selection);
             legProperties.put("odds", odds);
+            legProperties.put("marketType", marketType);
+            legProperties.put("sport", sport);
+            Map<String, Object> builderConditions = new HashMap<>();
+            builderConditions.put("type", "ARRAY");
+            builderConditions.put("description", "Atomic BetBuilder conditions when selection is a builder combo.");
+            Map<String, Object> builderItem = new HashMap<>();
+            builderItem.put("type", "OBJECT");
+            Map<String, Object> builderItemProps = new HashMap<>();
+            builderItemProps.put("marketType", marketType);
+            builderItemProps.put("selection", selection);
+            Map<String, Object> lineField = new HashMap<>();
+            lineField.put("type", "STRING");
+            lineField.put("description", "Handicap/totals line when applicable.");
+            builderItemProps.put("line", lineField);
+            builderItem.put("properties", builderItemProps);
+            builderConditions.put("items", builderItem);
+            legProperties.put("builderConditions", builderConditions);
             legItems.put("properties", legProperties);
             legs.put("items", legItems);
             

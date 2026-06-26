@@ -29,5 +29,7 @@ public class ProfilePickDTO {
     private LocalDateTime placedAt;
     private String sourcePostId;
     private boolean isPreMatch;
+    /** Gemini Vision: kupon już rozliczony na screenie przy imporcie (nie Apify). */
+    private boolean retroactiveAtImport;
     private List<ProfilePickDTO> legs;
 }

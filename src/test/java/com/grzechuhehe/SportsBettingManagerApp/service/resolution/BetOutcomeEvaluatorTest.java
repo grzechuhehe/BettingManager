@@ -12,8 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BetOutcomeEvaluatorTest {
 
-    private final ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
-    private final BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(nameTranslator);
+    private final BetOutcomeEvaluator evaluator = ResolutionTestFixtures.components().evaluator();
 
     private SofaScoreEventDto finished(int home, int away) {
         SofaScoreEventDto e = new SofaScoreEventDto();
@@ -104,6 +103,39 @@ class BetOutcomeEvaluatorTest {
         e.setAwayTeam("Slovenia");
         e.setHomeScore(2);
         e.setAwayScore(0);
+        assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, e));
+    }
+
+    @Test
+    void tennisMoneylinePicksWinner() {
+        Bet bet = Bet.builder()
+                .marketType(MarketType.MONEYLINE_12)
+                .selection("Zverev, Alexander")
+                .sport("Tennis")
+                .build();
+        SofaScoreEventDto e = new SofaScoreEventDto();
+        e.setStatusType("finished");
+        e.setSport("tennis");
+        e.setHomeTeam("Cobolli, Flavio");
+        e.setAwayTeam("Zverev, Alexander");
+        e.setHomeScore(2);
+        e.setAwayScore(3);
+        assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, e));
+    }
+
+    @Test
+    void handicapResolvesThroughRegistry() {
+        Bet bet = Bet.builder()
+                .marketType(MarketType.HANDICAP)
+                .selection("Zverev, Alexander (-1.5)")
+                .line("-1.5")
+                .build();
+        SofaScoreEventDto e = new SofaScoreEventDto();
+        e.setStatusType("finished");
+        e.setHomeTeam("Cobolli");
+        e.setAwayTeam("Zverev");
+        e.setHomeScore(4);
+        e.setAwayScore(6);
         assertEquals(Optional.of(BetStatus.WON), evaluator.evaluate(bet, e));
     }
 

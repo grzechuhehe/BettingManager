@@ -30,13 +30,16 @@ class BetResolutionTransactionService {
             MarketType.MONEYLINE_12,
             MarketType.TOTALS_OVER_UNDER,
             MarketType.BOTH_TEAMS_TO_SCORE,
-            MarketType.CORRECT_SCORE
+            MarketType.CORRECT_SCORE,
+            MarketType.HANDICAP,
+            MarketType.ASIAN_HANDICAP
     );
 
     private final BetRepository betRepository;
     private final BetMatcher betMatcher;
     private final BetOutcomeEvaluator betOutcomeEvaluator;
     private final ResolutionNameTranslator nameTranslator;
+    private final SelectionResolvabilityChecker selectionResolvabilityChecker;
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
@@ -212,7 +215,7 @@ class BetResolutionTransactionService {
             return false;
         }
 
-        if (!isAutoResolvableSelection(bet)) {
+        if (!selectionResolvabilityChecker.isAutoResolvable(bet)) {
             log.info(
                     "Zakład {} ({}): selekcja wymaga ręcznego rozliczenia — pomijam",
                     bet.getId(),
@@ -273,12 +276,31 @@ class BetResolutionTransactionService {
             return null;
         }
         String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
+        if (isTennisBet(bet)) {
+            if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
+                return MarketType.HANDICAP;
+            }
+            return MarketType.MONEYLINE_12;
+        }
+        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
+            return MarketType.HANDICAP;
+        }
         if (selection.contains("over") || selection.contains("under")
                 || selection.contains("powyzej") || selection.contains("powyżej")
                 || selection.contains("ponizej") || selection.contains("poniżej")) {
             return MarketType.TOTALS_OVER_UNDER;
         }
         return MarketType.MONEYLINE_1X2;
+    }
+
+    private boolean isTennisBet(Bet bet) {
+        if (bet.getSport() != null) {
+            String sport = bet.getSport().toLowerCase(Locale.ROOT);
+            if (sport.contains("tennis") || sport.contains("tenis")) {
+                return true;
+            }
+        }
+        return bet.getEventName() != null && bet.getEventName().contains(",");
     }
 
     private void ensureMarketType(Bet bet) {
@@ -289,17 +311,6 @@ class BetResolutionTransactionService {
         if (inferred != null) {
             bet.setMarketType(inferred);
         }
-    }
-
-    private boolean isAutoResolvableSelection(Bet bet) {
-        String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
-        if (selection.contains("bet builder") || selection.contains("betbuilder")) {
-            return false;
-        }
-        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
-            return false;
-        }
-        return true;
     }
 
     private void applyOutcome(Bet bet, BetStatus status, Double confidence, String eventUrl) {

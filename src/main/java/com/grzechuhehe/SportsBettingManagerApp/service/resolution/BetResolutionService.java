@@ -34,13 +34,16 @@ public class BetResolutionService {
             MarketType.MONEYLINE_12,
             MarketType.TOTALS_OVER_UNDER,
             MarketType.BOTH_TEAMS_TO_SCORE,
-            MarketType.CORRECT_SCORE
+            MarketType.CORRECT_SCORE,
+            MarketType.HANDICAP,
+            MarketType.ASIAN_HANDICAP
     );
 
     private final ApifySofaScoreClient apifySofaScoreClient;
     private final SofaScoreSportMapper sportMapper;
     private final ResolutionNameTranslator nameTranslator;
     private final BetResolutionTransactionService resolutionTx;
+    private final SelectionResolvabilityChecker selectionResolvabilityChecker;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -167,13 +170,16 @@ public class BetResolutionService {
         if (nameTranslator.resolveQueryForApify(bet.getEventName()).isEmpty()) {
             return false;
         }
-        if (!isAutoResolvableSelection(bet)) {
+        if (!selectionResolvabilityChecker.isAutoResolvable(bet)) {
             return false;
         }
         MarketType market = bet.getMarketType() != null
                 ? bet.getMarketType()
                 : resolutionTx.inferMarketType(bet);
-        if (market == null || !SUPPORTED_MARKETS.contains(market)) {
+        if (market == null) {
+            return false;
+        }
+        if (!SUPPORTED_MARKETS.contains(market) && !isBetBuilderLeg(bet)) {
             return false;
         }
         if (bet.getPlacedAt() != null && bet.getPlacedAt().isAfter(now.minusHours(minHoursAfterPlaced))) {
@@ -187,16 +193,10 @@ public class BetResolutionService {
         return true;
     }
 
-    /** BetBuilder, handicapy w selekcji itp. — tylko ręczne rozliczenie. */
-    private boolean isAutoResolvableSelection(Bet bet) {
+    private boolean isBetBuilderLeg(Bet bet) {
         String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
-        if (selection.contains("bet builder") || selection.contains("betbuilder")) {
-            return false;
-        }
-        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
-            return false;
-        }
-        return true;
+        return selection.contains("bet builder") || selection.contains("betbuilder")
+                || (bet.getBuilderConditionsJson() != null && !bet.getBuilderConditionsJson().isBlank());
     }
 
     private EventPoolFetch fetchEventPool(List<Bet> eligibleLeaves, LocalDateTime now) {

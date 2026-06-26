@@ -165,7 +165,7 @@ public class ResolutionNameTranslator {
         }
     }
 
-    String translateSegment(String segment) {
+    public String translateSegment(String segment) {
         if (segment == null || segment.isBlank()) {
             return "";
         }

@@ -34,12 +34,7 @@ class Parlay197ResolutionTest {
 
     @BeforeEach
     void setUp() {
-        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
-        service = new BetResolutionTransactionService(
-                betRepository,
-                new BetMatcher(nameTranslator),
-                new BetOutcomeEvaluator(nameTranslator),
-                nameTranslator);
+        service = ResolutionTestFixtures.transactionService(betRepository);
     }
 
     @Test
@@ -69,11 +64,44 @@ class Parlay197ResolutionTest {
 
         service.processRoot(
                 197L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
-                Set.of(200L, 204L), Set.of(200L, 204L), 0.85, 4);
+                Set.of(200L, 201L, 204L), Set.of(200L, 201L, 204L), 0.85, 4);
 
         assertEquals(BetStatus.WON, croatia.getStatus());
-        assertEquals(BetStatus.PENDING, morocco.getStatus(), "BetBuilder nie kwalifikuje się do auto-rozliczenia");
+        assertEquals(BetStatus.WON, morocco.getStatus(), "BetBuilder: over 1.5 + handicap Norwegia 0:2");
         assertEquals(BetStatus.WON, brazilTotals.getStatus(), "4 bramek = over 3.5 wygrany");
+    }
+
+    @Test
+    void shouldSettleExtendedParlay197Legs() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 7, 18, 38, 38);
+        Bet parlay = Bet.builder()
+                .id(197L).betType(BetType.PARLAY).status(BetStatus.PENDING)
+                .stake(new BigDecimal("10")).placedAt(placed)
+                .build();
+
+        Bet usaWomen = leg(199L, "USA (K) - Niemcy (K)", "USA (K)", MarketType.MONEYLINE_1X2, parlay, placed);
+        Bet zverevHandicap = leg(203L, "Cobolli, Flavio - Zverev, Alexander",
+                "Zverev, Alexander (-1.5)", MarketType.HANDICAP, parlay, placed);
+        zverevHandicap.setLine("-1.5");
+        zverevHandicap.setSport("Tennis");
+
+        parlay.setChildBets(new LinkedHashSet<>(List.of(usaWomen, zverevHandicap)));
+
+        SofaScoreEventDto usaEvent = finished("United States", "Germany", 2, 1, placed.plusHours(1));
+        usaEvent.setTournament("International Friendly Women");
+        List<SofaScoreEventDto> pool = List.of(
+                usaEvent,
+                tennisFinished("Cobolli, Flavio", "Zverev, Alexander", 4, 6, placed.plusHours(5))
+        );
+
+        when(betRepository.findByIdWithChildBets(197L)).thenReturn(java.util.Optional.of(parlay));
+
+        service.processRoot(
+                197L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
+                Set.of(199L, 203L), Set.of(199L, 203L), 0.85, 4);
+
+        assertEquals(BetStatus.WON, usaWomen.getStatus());
+        assertEquals(BetStatus.WON, zverevHandicap.getStatus(), "Zverev -1.5 gemów vs 4-6");
     }
 
     @Test
@@ -112,6 +140,13 @@ class Parlay197ResolutionTest {
         e.setHomeScore(homeScore);
         e.setAwayScore(awayScore);
         e.setStartTimestamp(start.toEpochSecond(ZoneOffset.UTC));
+        return e;
+    }
+
+    private static SofaScoreEventDto tennisFinished(
+            String home, String away, int homeScore, int awayScore, LocalDateTime start) {
+        SofaScoreEventDto e = finished(home, away, homeScore, awayScore, start);
+        e.setSport("tennis");
         return e;
     }
 }

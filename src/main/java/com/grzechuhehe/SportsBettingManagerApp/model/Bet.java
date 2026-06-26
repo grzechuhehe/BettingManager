@@ -68,6 +68,9 @@ public class Bet {
     private String selection;
  // Konkretny wybór, np. "Real Madrid", "Over 2.5"
     private String line; // Linia dla zakładów typu handicap lub over/under, np. "-1.5" lub "2.5"
+    /** JSON lista warunków BetBuilder (Gemini lub parser fallback). */
+    @Column(columnDefinition = "JSON")
+    private String builderConditionsJson;
 
     // Informacje o bukmacherze i API
     private String bookmaker; // Nazwa bukmachera
@@ -75,11 +78,16 @@ public class Bet {
     private String externalApiName; // Nazwa API, z którego pochodzi zakład
 
     // AI & Profile Analysis
+    @Builder.Default
     private boolean isAiExtracted = false;
     private String imageProofPath;
     private String sourcePostId;
     private String sharingUrl; // Link do udostępnionego zakładu/kuponu
-    private boolean isPreMatch = true; // Czy zakład został dodany przed rozpoczęciem (śledzony na żywo)
+    /** true tylko gdy Gemini Vision przy imporcie zwróciło już WON/LOST/VOID (nie dotyczy auto-rozliczenia Apify). */
+    @Builder.Default
+    private boolean retroactiveAtImport = false;
+    @Builder.Default
+    private boolean isPreMatch = true; // Czy zakład śledzony pre-match (statystyki profilu)
 
     // Daty
     @Column(nullable = false, updatable = false)

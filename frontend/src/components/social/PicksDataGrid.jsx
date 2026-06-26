@@ -114,12 +114,12 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                             <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(pick.status)}`}>
                                                 {pick.status || 'PENDING'}
                                             </span>
-                                            {!pick.isPreMatch && (pick.status === 'WON' || pick.status === 'LOST') && (
+                                            {pick.retroactiveAtImport && (pick.status === 'WON' || pick.status === 'LOST' || pick.status === 'VOID') && (
                                                 <span 
                                                     className="text-[8px] text-muted font-bold uppercase tracking-tighter cursor-help"
-                                                    title="This bet was already settled when it was posted/extracted. It does not count towards 'Pre-Match' performance statistics."
+                                                    title="Ten zakład był już rozliczony na screenie kuponu w momencie ekstrakcji Gemini — nie liczy się do statystyk pre-match."
                                                 >
-                                                    ⚠️ Retroactive
+                                                    ⚠️ Retroaktywny
                                                 </span>
                                             )}
                                         </div>

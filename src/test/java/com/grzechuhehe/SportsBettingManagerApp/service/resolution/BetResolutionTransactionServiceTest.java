@@ -34,11 +34,7 @@ class BetResolutionTransactionServiceTest {
     @BeforeEach
     void setUp() {
         nameTranslator = new ResolutionNameTranslator();
-        service = new BetResolutionTransactionService(
-                betRepository,
-                new BetMatcher(nameTranslator),
-                new BetOutcomeEvaluator(nameTranslator),
-                nameTranslator);
+        service = ResolutionTestFixtures.transactionService(betRepository);
     }
 
     private SofaScoreEventDto finishedEvent(String home, String away, int homeScore, int awayScore, LocalDateTime start) {

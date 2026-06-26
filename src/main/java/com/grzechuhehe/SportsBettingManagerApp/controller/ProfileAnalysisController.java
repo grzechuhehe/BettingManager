@@ -187,6 +187,7 @@ public class ProfileAnalysisController {
                 .placedAt(b.getPlacedAt())
                 .sourcePostId(b.getSourcePostId())
                 .isPreMatch(b.isPreMatch())
+                .retroactiveAtImport(b.isRetroactiveAtImport())
                 .legs(b.getChildBets() != null ? b.getChildBets().stream().map(this::mapToProfilePickDTO).collect(Collectors.toList()) : null)
                 .build();
     }

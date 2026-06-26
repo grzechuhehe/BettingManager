@@ -36,15 +36,14 @@ class BetResolutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
-        BetMatcher matcher = new BetMatcher(nameTranslator);
-        BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(nameTranslator);
-        resolutionTx = new BetResolutionTransactionService(betRepository, matcher, evaluator, nameTranslator);
+        ResolutionTestFixtures.ResolutionComponents c = ResolutionTestFixtures.components();
+        resolutionTx = ResolutionTestFixtures.transactionService(betRepository);
         service = new BetResolutionService(
                 apifySofaScoreClient,
                 new SofaScoreSportMapper(),
-                nameTranslator,
-                resolutionTx);
+                c.nameTranslator(),
+                resolutionTx,
+                c.resolvabilityChecker());
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
@@ -219,11 +218,11 @@ class BetResolutionServiceTest {
     }
 
     @Test
-    void shouldRejectBetBuilderSelectionFromAutoResolution() {
+    void shouldRejectUnparseableBetBuilderFromAutoResolution() {
         Bet bet = Bet.builder()
                 .id(50L).betType(BetType.SINGLE).status(BetStatus.PENDING)
                 .marketType(MarketType.TOTALS_OVER_UNDER)
-                .selection("BetBuilder: Suma: powyżej 1.5, Handicap 0:2: Norwegia (0:2)")
+                .selection("BetBuilder: niestandardowy opis bez rozpoznawalnych rynków")
                 .eventName("Maroko - Norwegia")
                 .placedAt(LocalDateTime.of(2026, 6, 1, 12, 0))
                 .build();

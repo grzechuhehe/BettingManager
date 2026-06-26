@@ -357,8 +357,9 @@ public class ProfileAnalysisOrchestrator {
                             // Jeśli zakład jest już rozliczony w momencie pierwszego wykrycia przez AI,
                             // oznaczamy go jako retroactive (nie-pre-match), aby nie psuć statystyk.
                             if (status != BetStatus.PENDING && bet.getId() == null) {
+                                bet.setRetroactiveAtImport(true);
                                 bet.setPreMatch(false);
-                                log.info("Detected retroactive bet (status: {}) for post {}. Marking isPreMatch = false.", 
+                                log.info("Detected retroactive bet (status: {}) for post {}. Marking retroactiveAtImport=true.",
                                          status, bet.getSourcePostId());
                             }
                         } catch (IllegalArgumentException ignored) {}
@@ -423,9 +424,11 @@ public class ProfileAnalysisOrchestrator {
                         Bet childBet = Bet.builder()
                             .user(bet.getUser())
                             .betType(BetType.SINGLE)
-                            .status(bet.getStatus()) // Dziedziczy status po rodzicu na etapie tworzenia
+                            .status(BetStatus.PENDING)
                             .placedAt(bet.getPlacedAt())
                             .parentBet(bet)
+                            .isPreMatch(bet.isPreMatch())
+                            .retroactiveAtImport(bet.isRetroactiveAtImport())
                             .build();
                             
                         if (legNode.has("eventName")) childBet.setEventName(sanitizeAiString(legNode.get("eventName")));
@@ -440,7 +443,11 @@ public class ProfileAnalysisOrchestrator {
                             }
                         }
                         if (legNode.has("sport")) childBet.setSport(sanitizeAiString(legNode.get("sport")));
-                        
+                        if (legNode.has("builderConditions") && legNode.get("builderConditions").isArray()
+                                && !legNode.get("builderConditions").isEmpty()) {
+                            childBet.setBuilderConditionsJson(legNode.get("builderConditions").toString());
+                        }
+
                         childBets.add(childBet);
                     }
                     bet.setChildBets(childBets);

@@ -24,6 +24,11 @@ class SofaScoreSportMapperTest {
     }
 
     @Test
+    void shouldMapTennisFromPolish() {
+        assertEquals("tennis", mapper.map("Tenis").orElseThrow());
+    }
+
+    @Test
     void shouldUseFallbackWhenSportUnknown() {
         Bet bet = Bet.builder().sport("Szachy").build();
         List<String> sports = mapper.resolveSportsForBets(List.of(bet), List.of("football", "tennis"));
