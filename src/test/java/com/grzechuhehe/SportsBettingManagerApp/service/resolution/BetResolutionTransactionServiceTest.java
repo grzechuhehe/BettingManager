@@ -224,7 +224,7 @@ class BetResolutionTransactionServiceTest {
     }
 
     @Test
-    void parlayWonWithVoidFallsBackToCouponOddsWhenLegsHaveNoOdds() {
+    void parlayWonWithVoidStaysPendingWhenWonLegHasNoOdds() {
         LocalDateTime placed = LocalDateTime.of(2026, 6, 1, 12, 0);
         Bet parlay = Bet.builder()
                 .id(610L).betType(BetType.PARLAY).status(BetStatus.PENDING)
@@ -256,8 +256,11 @@ class BetResolutionTransactionServiceTest {
                 610L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
                 Set.of(611L, 612L), Set.of(611L, 612L), 0.85, 4, null);
 
-        assertEquals(BetStatus.WON, parlay.getStatus());
-        assertEquals(0, new BigDecimal("20.00").compareTo(parlay.getFinalProfit()));
+        assertEquals(BetStatus.WON, legWon.getStatus());
+        assertEquals(BetStatus.VOID, legVoid.getStatus());
+        assertEquals(BetStatus.PENDING, parlay.getStatus());
+        assertNull(parlay.getFinalProfit());
+        verify(betRepository, never()).save(parlay);
     }
 
     @Test
