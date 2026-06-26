@@ -18,10 +18,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,15 +31,30 @@ class BetResolutionServiceTest {
     @Mock private ApifySofaScoreClient apifySofaScoreClient;
 
     private BetResolutionService service;
+    private BetResolutionTransactionService resolutionTx;
 
     @BeforeEach
     void setUp() {
-        BetMatcher matcher = new BetMatcher();
+        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
+        BetMatcher matcher = new BetMatcher(nameTranslator);
         BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator();
-        service = new BetResolutionService(betRepository, apifySofaScoreClient, matcher, evaluator);
+        resolutionTx = new BetResolutionTransactionService(betRepository, matcher, evaluator, nameTranslator);
+        service = new BetResolutionService(
+                apifySofaScoreClient,
+                new SofaScoreSportMapper(),
+                nameTranslator,
+                resolutionTx);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
+        ReflectionTestUtils.setField(service, "apifyMode", "scheduled");
+        ReflectionTestUtils.setField(service, "scheduledSports", "football");
+        ReflectionTestUtils.setField(service, "scheduledMaxItems", 400);
+        ReflectionTestUtils.setField(service, "searchBatchSize", 15);
+        ReflectionTestUtils.setField(service, "maxSearchQueries", 20);
+        ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
+        ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
+        ReflectionTestUtils.setField(service, "scheduledMaxDaysBack", 7);
     }
 
     private SofaScoreEventDto finishedEvent(LocalDateTime start) {
@@ -66,8 +81,9 @@ class BetResolutionServiceTest {
                 .potentialWinnings(new BigDecimal("20")).placedAt(placed)
                 .build();
 
-        when(betRepository.findByStatusAndParentBetIsNull(BetStatus.PENDING)).thenReturn(List.of(bet));
-        when(apifySofaScoreClient.searchMatches(anyString()))
+        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+        when(betRepository.findByIdWithChildBets(1L)).thenReturn(Optional.of(bet));
+        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
                 .thenReturn(List.of(finishedEvent(placed.plusDays(1))));
 
         service.resolvePendingBets();
@@ -77,6 +93,7 @@ class BetResolutionServiceTest {
         assertEquals("APIFY_SOFASCORE", bet.getResolutionSource());
         assertNotNull(bet.getSettledAt());
         verify(betRepository).save(bet);
+        verify(apifySofaScoreClient).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
     }
 
     @Test
@@ -89,12 +106,34 @@ class BetResolutionServiceTest {
                 .placedAt(LocalDateTime.of(2026, 5, 1, 12, 0))
                 .build();
 
-        when(betRepository.findByStatusAndParentBetIsNull(BetStatus.PENDING)).thenReturn(List.of(bet));
-        when(apifySofaScoreClient.searchMatches(anyString())).thenReturn(List.of());
+        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+        when(betRepository.findByIdWithChildBets(2L)).thenReturn(Optional.of(bet));
+        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
+                .thenReturn(List.of());
 
         service.resolvePendingBets();
 
         assertEquals(BetStatus.PENDING, bet.getStatus());
+        assertNotNull(bet.getLastResolutionAttemptAt());
+        verify(betRepository).save(bet);
+    }
+
+    @Test
+    void shouldSkipApifyWhenCooldownActive() {
+        Bet bet = Bet.builder()
+                .id(3L).betType(BetType.SINGLE).status(BetStatus.PENDING)
+                .marketType(MarketType.MONEYLINE_1X2).selection("Legia")
+                .eventName("Legia Warszawa vs Lech Poznan")
+                .placedAt(LocalDateTime.now().minusDays(2))
+                .lastResolutionAttemptAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        when(betRepository.findPendingRootsWithLegs(BetStatus.PENDING)).thenReturn(List.of(bet));
+
+        service.resolvePendingBets();
+
+        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
         verify(betRepository, never()).save(any());
     }
 }

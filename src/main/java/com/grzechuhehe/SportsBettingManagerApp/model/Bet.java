@@ -90,6 +90,7 @@ public class Bet {
     private String resolutionSource;   // np. "APIFY_SOFASCORE"
     private Double matchConfidence;    // pewność dopasowania 0.0–1.0
     private String resolvedEventUrl;   // link do meczu w SofaScore
+    private LocalDateTime lastResolutionAttemptAt; // ostatnia próba Apify (cooldown kosztów)
 
     // Notatki użytkownika
     @Lob

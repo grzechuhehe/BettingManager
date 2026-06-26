@@ -28,6 +28,12 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
 
     List<Bet> findByStatusAndParentBetIsNull(BetStatus status);
 
+    @Query("SELECT DISTINCT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.status = :status AND b.parentBet IS NULL")
+    List<Bet> findPendingRootsWithLegs(@Param("status") BetStatus status);
+
+    @Query("SELECT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.id = :id")
+    Optional<Bet> findByIdWithChildBets(@Param("id") Long id);
+
     @org.springframework.data.jpa.repository.Query("SELECT b FROM Bet b WHERE b.user = :user AND b.isAiExtracted = true AND b.parentBet IS NULL")
     org.springframework.data.domain.Page<Bet> findRootAiBetsByUser(User user, org.springframework.data.domain.Pageable pageable);
 }
