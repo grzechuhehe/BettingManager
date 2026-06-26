@@ -64,3 +64,5 @@ gha-creds-*.json
 
 /uploads/
 .worktrees/
+.cursor\rules
+.cursorignore
