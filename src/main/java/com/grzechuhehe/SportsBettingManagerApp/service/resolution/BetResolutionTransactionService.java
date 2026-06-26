@@ -329,13 +329,20 @@ class BetResolutionTransactionService {
     }
 
     private boolean isTennisBet(Bet bet) {
-        if (bet.getSport() != null) {
+        if (bet.getSport() != null && !bet.getSport().isBlank()) {
             String sport = bet.getSport().toLowerCase(Locale.ROOT);
-            if (sport.contains("tennis") || sport.contains("tenis")) {
-                return true;
-            }
+            return sport.contains("tennis") || sport.contains("tenis");
         }
-        return bet.getEventName() != null && bet.getEventName().contains(",");
+        return looksLikeTwoPlayerNames(bet.getEventName());
+    }
+
+    private boolean looksLikeTwoPlayerNames(String eventName) {
+        if (eventName == null) {
+            return false;
+        }
+        return nameTranslator.parseTwoTeamSides(eventName)
+                .map(sides -> sides.home().contains(",") && sides.away().contains(","))
+                .orElse(false);
     }
 
     private void ensureMarketType(Bet bet) {

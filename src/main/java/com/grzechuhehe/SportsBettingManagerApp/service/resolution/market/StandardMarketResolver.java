@@ -53,7 +53,7 @@ public class StandardMarketResolver implements MarketResolver {
 
     private Optional<BetStatus> evaluateMoneyline(
             SofaScoreEventDto event, int home, int away, String selection, boolean drawVoids) {
-        String winner = home > away ? "home" : (away > home ? "away" : "draw");
+        String winner = resolveWinner(event, home, away);
         if (drawVoids && winner.equals("draw")) {
             return Optional.of(BetStatus.VOID);
         }
@@ -62,6 +62,17 @@ public class StandardMarketResolver implements MarketResolver {
             return Optional.empty();
         }
         return Optional.of(picked.equals(winner) ? BetStatus.WON : BetStatus.LOST);
+    }
+
+    private String resolveWinner(SofaScoreEventDto event, int home, int away) {
+        if (event.getWinnerCode() != null) {
+            return switch (event.getWinnerCode()) {
+                case 1 -> "home";
+                case 2 -> "away";
+                default -> "draw";
+            };
+        }
+        return home > away ? "home" : (away > home ? "away" : "draw");
     }
 
     private String mapMoneylineSelection(SofaScoreEventDto event, String selection) {

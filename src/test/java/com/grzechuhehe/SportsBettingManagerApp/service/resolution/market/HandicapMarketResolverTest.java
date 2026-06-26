@@ -53,6 +53,19 @@ class HandicapMarketResolverTest {
         assertEquals(BetStatus.WON, resolver.resolve(bet, event).orElseThrow());
     }
 
+    @Test
+    void tennisGameHandicapWithoutGamesDataIsEmpty() {
+        Bet bet = Bet.builder()
+                .marketType(MarketType.HANDICAP)
+                .selection("Zverev, Alexander (-4.5)")
+                .line("-4.5")
+                .sport("Tennis")
+                .build();
+        SofaScoreEventDto event = tennisEvent("Cobolli", "Zverev", 0, 2);
+        assertTrue(resolver.resolve(bet, event).isEmpty(),
+                "handicap gemowy bez danych gemowych → ręczne rozliczenie");
+    }
+
     private static SofaScoreEventDto tennisEvent(String home, String away, int homeScore, int awayScore) {
         SofaScoreEventDto e = finished(home, away, homeScore, awayScore);
         e.setSport("tennis");

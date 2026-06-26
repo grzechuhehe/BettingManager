@@ -45,6 +45,17 @@ public class HandicapMarketResolver implements MarketResolver {
         int home = event.getHomeScore();
         int away = event.getAwayScore();
 
+        Optional<Double> lineOptEarly = extractNumericLine(bet);
+        if (MarketResolutionUtils.isTennis(event, bet) && lineOptEarly.isPresent()) {
+            double absLine = Math.abs(lineOptEarly.get());
+            if (absLine >= 1.5 && absLine % 1.0 > 0.001
+                    && MarketResolutionUtils.looksLikeSetScore(home, away)) {
+                log.info("Bet {}: tennis game-handicap (line {}) with set-like score {}:{} — manual",
+                        bet.getId(), lineOptEarly.get(), home, away);
+                return Optional.empty();
+            }
+        }
+
         Optional<String> virtualLine = parseVirtualStartLine(bet.getLine());
         if (virtualLine.isPresent()) {
             return resolveVirtualStart(bet, event, home, away, virtualLine.get());

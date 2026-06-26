@@ -37,4 +37,22 @@ final class MarketResolutionUtils {
                 .replace("ł", "l")
                 .replaceAll("[^a-z0-9]", "");
     }
+
+    static boolean isTennis(com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto event,
+                            com.grzechuhehe.SportsBettingManagerApp.model.Bet bet) {
+        if (event != null && event.getSport() != null
+                && event.getSport().toLowerCase(Locale.ROOT).contains("tennis")) {
+            return true;
+        }
+        if (bet != null && bet.getSport() != null) {
+            String s = bet.getSport().toLowerCase(Locale.ROOT);
+            return s.contains("tennis") || s.contains("tenis");
+        }
+        return false;
+    }
+
+    /** Wynik wygląda na liczbę setów (np. 2:0), nie gemów w secie (np. 4:6). */
+    static boolean looksLikeSetScore(int home, int away) {
+        return home <= 3 && away <= 3 && (home + away) <= 5;
+    }
 }
