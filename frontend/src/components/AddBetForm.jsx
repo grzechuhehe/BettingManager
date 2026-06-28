@@ -112,7 +112,7 @@ const AddBetForm = () => {
 
             <div className="mb-12 p-8 border border-hairline rounded-lg bg-surface-soft/50 space-y-4">
                 <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest">Import from Screenshot</h3>
-                <p className="text-sm text-muted">Upload a bet slip photo — AI will extract event, selection and odds.</p>
+                <p className="text-sm text-muted">Wklej zrzut ekranu (Ctrl+V), przeciągnij obraz albo wybierz plik — AI odczyta wydarzenie, typ i kurs.</p>
                 <ImportBetFromImage onImported={handleImported} />
             </div>
             
