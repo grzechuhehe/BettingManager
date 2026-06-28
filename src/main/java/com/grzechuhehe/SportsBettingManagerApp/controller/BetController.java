@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/api/bets")
@@ -43,9 +44,14 @@ public class BetController {
 
     @Value("${bet.resolution.debug-endpoints:false}")
     private boolean debugEndpoints;
+
+    @Value("${bet.resolution.manual-cooldown-minutes:60}")
+    private int manualCooldownMinutes;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
     private static final AtomicBoolean RESOLUTION_RUNNING =
             new AtomicBoolean(false);
+    private static final AtomicLong LAST_MANUAL_RESOLUTION_FINISHED_AT_MS =
+            new AtomicLong(0);
 
     @PostMapping("/add-bet")
     @Operation(summary = "Create a new bet", description = "Adds a new single bet or a parlay (if multiple selections are provided) to the user's portfolio")
@@ -161,7 +167,21 @@ public class BetController {
     @PostMapping("/run-auto-resolution")
     @Operation(summary = "Trigger auto-resolution", description = "Starts one cycle of automatic bet settlement from SofaScore (Apify). Runs in background (~2–5 min). Use force=true to ignore cooldown.")
     public ResponseEntity<Map<String, String>> runAutoResolution(
-            @RequestParam(defaultValue = "true") boolean force) {
+            @RequestParam(defaultValue = "false") boolean force) {
+        if (!force) {
+            long lastFinished = LAST_MANUAL_RESOLUTION_FINISHED_AT_MS.get();
+            long cooldownMs = manualCooldownMinutes * 60_000L;
+            if (lastFinished > 0) {
+                long elapsed = System.currentTimeMillis() - lastFinished;
+                if (elapsed < cooldownMs) {
+                    long remainingMin = (cooldownMs - elapsed + 59_999) / 60_000;
+                    return ResponseEntity.status(429).body(Map.of(
+                            "status", "cooldown",
+                            "message", "Auto-resolution was run recently. Try again in " + remainingMin + " min.",
+                            "retryAfterMinutes", String.valueOf(remainingMin)));
+                }
+            }
+        }
         if (!RESOLUTION_RUNNING.compareAndSet(false, true)) {
             return ResponseEntity.status(409).body(Map.of(
                     "status", "busy",
@@ -175,12 +195,14 @@ public class BetController {
             } catch (Exception e) {
                 logger.error("Manual auto-resolution failed: {}", e.getMessage(), e);
             } finally {
+                LAST_MANUAL_RESOLUTION_FINISHED_AT_MS.set(System.currentTimeMillis());
                 RESOLUTION_RUNNING.set(false);
             }
         });
         return ResponseEntity.accepted().body(Map.of(
                 "status", "started",
-                "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min."));
+                "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min.",
+                "retryAfterMinutes", String.valueOf(manualCooldownMinutes)));
     }
 
     @PatchMapping("/{id}/settle")
@@ -196,7 +218,7 @@ public class BetController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a bet", description = "Updates the details of an existing bet")
-    public ResponseEntity<BetResponse> updateBet(@PathVariable Long id, @Valid @RequestBody BetRequest betRequest) {
+    public ResponseEntity<BetResponse> updateBet(@PathVariable Long id, @RequestBody BetRequest betRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

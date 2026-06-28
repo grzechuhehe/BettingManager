@@ -8,9 +8,11 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +22,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +42,9 @@ class BettingServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private Validator validator;
 
     @InjectMocks
     private BettingService bettingService;
@@ -155,6 +162,10 @@ class BettingServiceTest {
         bet.setUser(testUser);
         bet.setStake(new BigDecimal("10.00"));
         bet.setOdds(new BigDecimal("2.00"));
+        bet.setSelection("Old selection");
+        bet.setEventDate(LocalDateTime.now().minusDays(1));
+        bet.setMarketType(MarketType.MONEYLINE_1X2);
+        bet.setBookmaker("STS");
         bet.calculatePotentialWinnings();
         BetRequest updateRequest = new BetRequest();
         updateRequest.setEventName("New Event");
@@ -163,6 +174,7 @@ class BettingServiceTest {
         updateRequest.setSport("Tennis");
         when(betRepository.findById(20L)).thenReturn(Optional.of(bet));
         when(betRepository.save(any(Bet.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(validator.validate(any(BetRequest.class))).thenReturn(Collections.emptySet());
 
         // When
         Bet result = bettingService.updateBet(20L, updateRequest, testUser);
@@ -173,6 +185,65 @@ class BettingServiceTest {
         assertThat(result.getOdds()).isEqualByComparingTo("3.00");
         assertThat(result.getPotentialWinnings()).isEqualByComparingTo("60.00");
         verify(betRepository).save(bet);
+    }
+
+    @Test
+    void updateBet_ShouldMergeMissingFieldsFromExistingBet() {
+        Bet bet = new Bet();
+        bet.setId(21L);
+        bet.setUser(testUser);
+        bet.setStake(new BigDecimal("10.00"));
+        bet.setOdds(new BigDecimal("2.00"));
+        bet.setEventName("Team A - Team B");
+        bet.setSelection("Team A");
+        bet.setSport("Football");
+        bet.setEventDate(LocalDateTime.of(2026, 6, 30, 18, 0));
+        bet.setMarketType(MarketType.MONEYLINE_1X2);
+        bet.setBookmaker("Fortuna");
+        bet.calculatePotentialWinnings();
+
+        BetRequest partialUpdate = new BetRequest();
+        partialUpdate.setStake(new BigDecimal("25.00"));
+
+        when(betRepository.findById(21L)).thenReturn(Optional.of(bet));
+        when(betRepository.save(any(Bet.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(validator.validate(any(BetRequest.class))).thenReturn(Collections.emptySet());
+
+        Bet result = bettingService.updateBet(21L, partialUpdate, testUser);
+
+        assertThat(result.getStake()).isEqualByComparingTo("25.00");
+        assertThat(result.getBookmaker()).isEqualTo("Fortuna");
+        assertThat(result.getMarketType()).isEqualTo(MarketType.MONEYLINE_1X2);
+        assertThat(result.getEventDate()).isEqualTo(LocalDateTime.of(2026, 6, 30, 18, 0));
+        assertThat(result.getPotentialWinnings()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void updateBet_ShouldApplyDefaultsWhenExistingBetHasNullOptionalFields() {
+        Bet bet = new Bet();
+        bet.setId(22L);
+        bet.setUser(testUser);
+        bet.setStake(new BigDecimal("10.00"));
+        bet.setOdds(new BigDecimal("2.00"));
+        bet.setEventName("Team A - Team B");
+        bet.setSelection("Team A");
+        bet.setPlacedAt(LocalDateTime.of(2026, 6, 28, 12, 0));
+        bet.calculatePotentialWinnings();
+
+        BetRequest partialUpdate = new BetRequest();
+        partialUpdate.setStake(new BigDecimal("15.00"));
+
+        when(betRepository.findById(22L)).thenReturn(Optional.of(bet));
+        when(betRepository.save(any(Bet.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(validator.validate(any(BetRequest.class))).thenReturn(Collections.emptySet());
+
+        Bet result = bettingService.updateBet(22L, partialUpdate, testUser);
+
+        assertThat(result.getStake()).isEqualByComparingTo("15.00");
+        assertThat(result.getBookmaker()).isEqualTo("Unknown");
+        assertThat(result.getMarketType()).isEqualTo(MarketType.OTHER);
+        assertThat(result.getEventDate()).isEqualTo(LocalDateTime.of(2026, 6, 28, 12, 0));
+        assertThat(result.getSport()).isEqualTo("Other");
     }
 
     @Test

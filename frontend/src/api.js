@@ -20,6 +20,9 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     return config;
   },
   (error) => {
@@ -107,7 +110,7 @@ export const deleteBet = (id) => {
 };
 
 export const runAutoResolution = () => {
-  return apiClient.post('/bets/run-auto-resolution?force=true');
+  return apiClient.post('/bets/run-auto-resolution');
 };
 
 // --- Funkcje API dla kursów (Odds) ---

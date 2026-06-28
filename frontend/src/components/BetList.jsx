@@ -2,6 +2,37 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 
+const AUTO_RESOLUTION_COOLDOWN_KEY = 'autoResolutionLastFinishedAt';
+
+function toLocalDateTimeString(value) {
+    if (!value) return null;
+    const date = typeof value === 'string' ? new Date(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 19);
+}
+
+function buildBetUpdatePayload(bet, formData) {
+    const eventDate = formData.eventDate || bet.eventDate || bet.placedAt;
+    return {
+        stake: formData.stake,
+        odds: formData.odds,
+        sport: formData.sport || bet.sport || 'Other',
+        eventName: formData.eventName || bet.eventName,
+        eventDate: toLocalDateTimeString(eventDate) || toLocalDateTimeString(new Date()),
+        marketType: formData.marketType || bet.marketType || 'OTHER',
+        selection: formData.selection || bet.selection,
+        bookmaker: formData.bookmaker || bet.bookmaker || 'Unknown',
+        notes: formData.notes ?? bet.notes ?? null,
+    };
+}
+
+function getAutoResolutionCooldownRemainingMs() {
+    const lastFinished = Number(localStorage.getItem(AUTO_RESOLUTION_COOLDOWN_KEY) || 0);
+    const cooldownMs = Number(localStorage.getItem('autoResolutionCooldownMs') || 0);
+    if (!lastFinished || !cooldownMs) return 0;
+    return Math.max(0, cooldownMs - (Date.now() - lastFinished));
+}
+
 const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
     const [formData, setFormData] = useState({ ...bet });
 
@@ -23,7 +54,7 @@ const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(bet.id, formData);
+        onSave(bet, formData);
     };
 
     return (
@@ -174,6 +205,16 @@ const BetList = () => {
     const [editingBet, setEditingBet] = useState(null);
     const [expandedParlays, setExpandedParlays] = useState({});
     const [resolving, setResolving] = useState(false);
+    const [resolutionCooldownMs, setResolutionCooldownMs] = useState(getAutoResolutionCooldownRemainingMs);
+
+    useEffect(() => {
+        if (resolutionCooldownMs <= 0) return undefined;
+        const timer = window.setInterval(() => {
+            const remaining = getAutoResolutionCooldownRemainingMs();
+            setResolutionCooldownMs(remaining);
+        }, 30_000);
+        return () => window.clearInterval(timer);
+    }, [resolutionCooldownMs]);
 
     const fetchBets = async () => {
         try {
@@ -234,14 +275,15 @@ const BetList = () => {
         setIsEditModalOpen(true);
     };
 
-    const handleSaveEdit = async (id, updatedData) => {
+    const handleSaveEdit = async (bet, updatedData) => {
         try {
-            await updateBet(id, updatedData);
+            await updateBet(bet.id, buildBetUpdatePayload(bet, updatedData));
             setIsEditModalOpen(false);
             setEditingBet(null);
             fetchBets();
         } catch (err) {
-            alert('Failed to update market record.');
+            const validationMsg = err.response?.data?.message;
+            alert(validationMsg || 'Failed to update market record.');
             console.error(err);
         }
     };
@@ -251,22 +293,49 @@ const BetList = () => {
     };
 
     const handleRunAutoResolution = async () => {
+        if (resolutionCooldownMs > 0) {
+            const minutes = Math.ceil(resolutionCooldownMs / 60_000);
+            alert(`Auto-rozliczanie było uruchomione niedawno. Spróbuj za ok. ${minutes} min.`);
+            return;
+        }
         try {
             setResolving(true);
-            await runAutoResolution();
+            const { data } = await runAutoResolution();
+            const cooldownMin = Number(data?.retryAfterMinutes) || 60;
+            localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
+            localStorage.setItem('autoResolutionCooldownMs', String(cooldownMin * 60_000));
+            setResolutionCooldownMs(cooldownMin * 60_000);
             alert('Rozliczanie uruchomione w tle (Apify ~2–5 min). Lista odświeży się automatycznie.');
             window.setTimeout(() => fetchBets(), 120_000);
             window.setTimeout(() => fetchBets(), 300_000);
         } catch (err) {
-            const msg = err.response?.status === 409
+            const status = err.response?.status;
+            const msg = status === 409
                 ? 'Rozliczanie już trwa — poczekaj kilka minut.'
-                : 'Nie udało się uruchomić auto-rozliczania.';
+                : status === 429
+                    ? (err.response?.data?.message || 'Auto-rozliczanie było uruchomione niedawno — poczekaj przed kolejną próbą.')
+                    : 'Nie udało się uruchomić auto-rozliczania.';
+            if (status === 429) {
+                const retryMin = Number(err.response?.data?.retryAfterMinutes);
+                if (retryMin > 0) {
+                    const cooldownMs = retryMin * 60_000;
+                    localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
+                    localStorage.setItem('autoResolutionCooldownMs', String(cooldownMs));
+                    setResolutionCooldownMs(cooldownMs);
+                }
+            }
             alert(msg);
             console.error(err);
         } finally {
             setResolving(false);
         }
     };
+
+    const resolutionCooldownLabel = useMemo(() => {
+        if (resolutionCooldownMs <= 0) return null;
+        const minutes = Math.ceil(resolutionCooldownMs / 60_000);
+        return minutes <= 1 ? '<1 min' : `${minutes} min`;
+    }, [resolutionCooldownMs]);
 
     const parlayLegSummary = (bet) => {
         if (!bet.childBets?.length) return null;
@@ -309,10 +378,15 @@ const BetList = () => {
                     <button
                         type="button"
                         onClick={handleRunAutoResolution}
-                        disabled={resolving}
+                        disabled={resolving || resolutionCooldownMs > 0}
                         className="button-secondary text-xs disabled:opacity-50"
+                        title={resolutionCooldownLabel ? `Cooldown: ${resolutionCooldownLabel}` : undefined}
                     >
-                        {resolving ? 'Resolving…' : 'Run auto-resolution'}
+                        {resolving
+                            ? 'Resolving…'
+                            : resolutionCooldownLabel
+                                ? `Auto-resolution (${resolutionCooldownLabel})`
+                                : 'Run auto-resolution'}
                     </button>
                  </div>
             </div>

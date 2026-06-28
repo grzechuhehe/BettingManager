@@ -7,8 +7,11 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,7 @@ public class BettingService {
 
     private final BetRepository betRepository;
     private final UserRepository userRepository;
+    private final Validator validator;
 
 
     public DashboardStatsDTO getDashboardStats(User user) {
@@ -519,6 +523,9 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
             throw new IllegalArgumentException("You are not authorized to update this bet.");
         }
 
+        mergeMissingBetRequestFields(bet, betRequest);
+        validateBetRequest(betRequest);
+
         // Allow updates mostly for PENDING bets, but let's allow flexibility as requested
         // Mapping fields from request to entity
         bet.setSport(betRequest.getSport());
@@ -547,6 +554,53 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
         }
         
         betRepository.delete(bet);
+    }
+
+    private void mergeMissingBetRequestFields(Bet existing, BetRequest request) {
+        if (isBlank(request.getSport())) {
+            request.setSport(isBlank(existing.getSport()) ? "Other" : existing.getSport());
+        }
+        if (isBlank(request.getEventName())) {
+            request.setEventName(existing.getEventName());
+        }
+        if (request.getEventDate() == null) {
+            if (existing.getEventDate() != null) {
+                request.setEventDate(existing.getEventDate());
+            } else if (existing.getPlacedAt() != null) {
+                request.setEventDate(existing.getPlacedAt());
+            } else {
+                request.setEventDate(LocalDateTime.now());
+            }
+        }
+        if (request.getMarketType() == null) {
+            request.setMarketType(existing.getMarketType() != null ? existing.getMarketType() : MarketType.OTHER);
+        }
+        if (isBlank(request.getSelection())) {
+            request.setSelection(existing.getSelection());
+        }
+        if (isBlank(request.getBookmaker())) {
+            request.setBookmaker(isBlank(existing.getBookmaker()) ? "Unknown" : existing.getBookmaker());
+        }
+        if (request.getStake() == null) {
+            request.setStake(existing.getStake());
+        }
+        if (request.getOdds() == null) {
+            request.setOdds(existing.getOdds());
+        }
+    }
+
+    private void validateBetRequest(BetRequest request) {
+        Set<ConstraintViolation<BetRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            String message = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining("; "));
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
 
