@@ -6,6 +6,8 @@ import com.grzechuhehe.SportsBettingManagerApp.integration.SocialDataClient;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
+import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,6 +77,25 @@ class ProfileAnalysisOrchestratorImportTest {
     }
 
     @Test
+    void importAppliesDefaultsWhenAiOmitsOptionalFields() {
+        String json = "{\"isPlacedBet\":true,\"eventName\":\"Team A - Team B\","
+                + "\"selection\":\"Team A\",\"odds\":2.10}";
+        when(geminiVisionClient.analyzeBet(any(), anyList())).thenReturn(json);
+        when(betRepository.save(any(Bet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Bet> result = orchestrator.importBetFromImages(
+                new User(), List.of("/images/profiles/manual/john/abc.png"), null);
+
+        assertTrue(result.isPresent());
+        Bet bet = result.get();
+        assertNotNull(bet.getEventDate());
+        assertEquals(MarketType.OTHER, bet.getMarketType());
+        assertEquals("Unknown", bet.getBookmaker());
+        assertEquals("Other", bet.getSport());
+        assertEquals(0, new BigDecimal("10").compareTo(bet.getStake()));
+    }
+
+    @Test
     void importStoresRootBuilderConditionsForSingleBet() {
         String json = "{\"isPlacedBet\":true,\"eventName\":\"Maroko - Norwegia\","
                 + "\"selection\":\"BetBuilder: over 1.5\",\"odds\":2.5,\"status\":\"PENDING\","
@@ -122,5 +144,32 @@ class ProfileAnalysisOrchestratorImportTest {
         Bet bet = result.get();
         assertFalse(bet.isRetroactiveAtImport());
         assertTrue(bet.isPreMatch());
+    }
+
+    @Test
+    void importAcceptsManualUploadWhenGeminiMarksIsPlacedBetFalse() {
+        String json = "{\"isPlacedBet\":false,\"eventName\":\"Norwegia - Francja\","
+                + "\"selection\":\"Francja wygra mecz i Francja wykona więcej rz.rożnych\","
+                + "\"odds\":3.25,\"stake\":0,\"status\":\"PENDING\","
+                + "\"marketType\":\"BET_BUILDER\",\"bookmaker\":\"Superbet\","
+                + "\"legs\":["
+                + "{\"eventName\":\"Norwegia - Francja\",\"marketType\":\"MATCH_ODDS\",\"selection\":\"Francja wygra mecz\"},"
+                + "{\"eventName\":\"Norwegia - Francja\",\"marketType\":\"TEAM_CORNERS\",\"selection\":\"Francja wykona więcej rz.rożnych\"}"
+                + "]}";
+        when(geminiVisionClient.analyzeBet(any(), anyList())).thenReturn(json);
+        when(betRepository.save(any(Bet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Bet> result = orchestrator.importBetFromImages(
+                new User(), List.of("/images/profiles/manual/grz/slip.png"), null);
+
+        assertTrue(result.isPresent());
+        Bet bet = result.get();
+        assertEquals("Norwegia - Francja", bet.getEventName());
+        assertEquals(BetType.SINGLE, bet.getBetType());
+        assertNotNull(bet.getBuilderConditionsJson());
+        assertTrue(bet.getBuilderConditionsJson().contains("MATCH_ODDS"));
+        assertEquals(0, new java.math.BigDecimal("3.25").compareTo(bet.getOdds()));
+        assertEquals(0, new java.math.BigDecimal("10").compareTo(bet.getStake()));
+        assertEquals(0, BigDecimal.ONE.compareTo(bet.getUnits()));
     }
 }

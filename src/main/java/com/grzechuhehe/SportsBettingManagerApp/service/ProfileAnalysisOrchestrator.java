@@ -82,7 +82,11 @@ public class ProfileAnalysisOrchestrator {
                 .placedAt(LocalDateTime.now())
                 .build();
 
-        updateBetDataFromAI(bet, note, imagePaths, null);
+        String promptText = (note != null && !note.isBlank())
+                ? note
+                : "Użytkownik wgrał zrzut ekranu kuponu bukmacherskiego.";
+        updateBetDataFromAI(bet, promptText, imagePaths, null);
+        applyManualImportDefaults(bet);
 
         if (!isBetValid(bet)) {
             log.warn("Import z obrazu: AI nie wyciągnęło poprawnego zakładu (user {})",
@@ -319,6 +323,22 @@ public class ProfileAnalysisOrchestrator {
         return oddsValid;
     }
 
+    /** Uzupełnia brakujące pola wymagane przez późniejszą edycję/API po imporcie ze zdjęcia. */
+    private void applyManualImportDefaults(Bet bet) {
+        if (bet.getEventDate() == null) {
+            bet.setEventDate(bet.getPlacedAt() != null ? bet.getPlacedAt() : LocalDateTime.now());
+        }
+        if (bet.getMarketType() == null) {
+            bet.setMarketType(MarketType.OTHER);
+        }
+        if (bet.getBookmaker() == null || bet.getBookmaker().isBlank()) {
+            bet.setBookmaker("Unknown");
+        }
+        if (bet.getSport() == null || bet.getSport().isBlank()) {
+            bet.setSport("Other");
+        }
+    }
+
     private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths, String threadContext) {
         // Zabezpieczenie przed halucynacjami: jeśli nie ma zdjęć i tekst to tylko URL, odrzucamy.
         boolean isOnlyUrl = false;
@@ -357,6 +377,19 @@ public class ProfileAnalysisOrchestrator {
                 if (jsonNode.has("selection")) bet.setSelection(sanitizeAiString(jsonNode.get("selection")));
                 if (jsonNode.has("bookmaker")) bet.setBookmaker(sanitizeAiString(jsonNode.get("bookmaker")));
                 if (jsonNode.has("sport")) bet.setSport(sanitizeAiString(jsonNode.get("sport")));
+
+                if (jsonNode.has("eventDate") && !jsonNode.get("eventDate").isNull()) {
+                    String eventDateRaw = sanitizeAiString(jsonNode.get("eventDate"));
+                    if (eventDateRaw != null) {
+                        try {
+                            bet.setEventDate(LocalDateTime.parse(eventDateRaw.replace(" ", "T")));
+                        } catch (Exception e) {
+                            try {
+                                bet.setEventDate(java.time.OffsetDateTime.parse(eventDateRaw).toLocalDateTime());
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
                 
                 if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
                     String mt = sanitizeAiString(jsonNode.get("marketType"));
@@ -395,11 +428,14 @@ public class ProfileAnalysisOrchestrator {
                     }
                 }
 
-                // Sprawdzamy czy AI uznało to za prawdziwy zakład, a nie promocję
+                // Dla postów X odrzucamy promocje; ręczny import ze zdjęcia kuponu zawsze kontynuujemy.
                 if (jsonNode.has("isPlacedBet") && !jsonNode.get("isPlacedBet").asBoolean()) {
-                    log.warn("Gemini uznało post {} za promocję lub nie-zakład (isPlacedBet: false)", bet.getSourcePostId());
-                    bet.setEventName(null); // To spowoduje odrzucenie przez isBetValid
-                    return;
+                    if (bet.getSourcePostId() != null) {
+                        log.warn("Gemini uznało post {} za promocję lub nie-zakład (isPlacedBet: false)", bet.getSourcePostId());
+                        bet.setEventName(null);
+                        return;
+                    }
+                    log.warn("Gemini zwróciło isPlacedBet=false dla ręcznego importu — kontynuuję (zdjęcie kuponu od użytkownika)");
                 }
                 
                 if (jsonNode.has("odds") && !jsonNode.get("odds").isNull()) {
@@ -409,11 +445,11 @@ public class ProfileAnalysisOrchestrator {
                 BigDecimal extractedUnits = jsonNode.has("units") && !jsonNode.get("units").isNull() ? new BigDecimal(jsonNode.get("units").asText()) : null;
                 BigDecimal extractedStake = jsonNode.has("stake") && !jsonNode.get("stake").isNull() ? new BigDecimal(jsonNode.get("stake").asText()) : null;
 
-                if (extractedStake != null) {
+                if (extractedStake != null && extractedStake.compareTo(BigDecimal.ZERO) > 0) {
                     bet.setStake(extractedStake);
                     // Zawsze synchronizujemy jednostki: 10 PLN = 1u
                     bet.setUnits(extractedStake.divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP));
-                } else if (extractedUnits != null) {
+                } else if (extractedUnits != null && extractedUnits.compareTo(BigDecimal.ZERO) > 0) {
                     bet.setUnits(extractedUnits);
                     // Jeśli mamy tylko jednostki, przeliczamy na PLN: 1u = 10 PLN
                     bet.setStake(extractedUnits.multiply(new BigDecimal("10")));
@@ -425,7 +461,7 @@ public class ProfileAnalysisOrchestrator {
                 bet.calculatePotentialWinnings();
 
                 // Obliczanie finalProfit dla zakładów już rozliczonych (WON/LOST)
-                if (bet.getStatus() != BetStatus.PENDING) {
+                if (bet.getStatus() != BetStatus.PENDING && bet.getStake() != null) {
                     if (bet.getStatus() == BetStatus.WON && bet.getPotentialWinnings() != null) {
                         bet.setFinalProfit(bet.getPotentialWinnings().subtract(bet.getStake()));
                     } else if (bet.getStatus() == BetStatus.LOST) {
@@ -439,9 +475,11 @@ public class ProfileAnalysisOrchestrator {
                 }
 
                 applyRootBuilderConditions(bet, jsonNode);
-                
-                // Obsługa Parlay (AKO) z nowej struktury JSON
-                if (jsonNode.has("legs") && jsonNode.get("legs").isArray() && jsonNode.get("legs").size() > 0) {
+
+                // BetBuilder (wiele warunków na jednym wydarzeniu) ≠ AKO/parlay
+                if (isBetBuilderCombo(jsonNode)) {
+                    applyBetBuilderLegsAsConditions(bet, jsonNode.get("legs"));
+                } else if (jsonNode.has("legs") && jsonNode.get("legs").isArray() && jsonNode.get("legs").size() > 0) {
                     bet.setBetType(BetType.PARLAY);
                     if (bet.getEventName() == null || bet.getEventName().isEmpty() || bet.getEventName().equals("null")) {
                         bet.setEventName("Parlay Bet (" + jsonNode.get("legs").size() + " legs)");
@@ -491,6 +529,9 @@ public class ProfileAnalysisOrchestrator {
     }
 
     private void applyRootBuilderConditions(Bet bet, JsonNode jsonNode) {
+        if (isBetBuilderCombo(jsonNode)) {
+            return;
+        }
         boolean isParlay = jsonNode.has("legs") && jsonNode.get("legs").isArray()
                 && jsonNode.get("legs").size() > 0;
         if (isParlay) {
@@ -499,6 +540,51 @@ public class ProfileAnalysisOrchestrator {
         if (jsonNode.has("builderConditions") && jsonNode.get("builderConditions").isArray()
                 && !jsonNode.get("builderConditions").isEmpty()) {
             bet.setBuilderConditionsJson(jsonNode.get("builderConditions").toString());
+        }
+    }
+
+    private boolean isBetBuilderCombo(JsonNode jsonNode) {
+        if (!jsonNode.has("legs") || !jsonNode.get("legs").isArray() || jsonNode.get("legs").isEmpty()) {
+            return false;
+        }
+        if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
+            String marketType = sanitizeAiString(jsonNode.get("marketType"));
+            if (marketType != null && marketType.equalsIgnoreCase("BET_BUILDER")) {
+                return true;
+            }
+        }
+        String rootEvent = sanitizeAiString(jsonNode.get("eventName"));
+        if (rootEvent == null) {
+            return false;
+        }
+        for (JsonNode legNode : jsonNode.get("legs")) {
+            String legEvent = legNode.has("eventName") ? sanitizeAiString(legNode.get("eventName")) : null;
+            if (legEvent == null || !rootEvent.equalsIgnoreCase(legEvent)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void applyBetBuilderLegsAsConditions(Bet bet, JsonNode legsNode) {
+        bet.setBetType(BetType.SINGLE);
+        try {
+            var conditions = objectMapper.createArrayNode();
+            for (JsonNode legNode : legsNode) {
+                var condition = objectMapper.createObjectNode();
+                if (legNode.has("marketType") && !legNode.get("marketType").isNull()) {
+                    condition.put("marketType", sanitizeAiString(legNode.get("marketType")));
+                }
+                if (legNode.has("selection") && !legNode.get("selection").isNull()) {
+                    condition.put("selection", sanitizeAiString(legNode.get("selection")));
+                }
+                conditions.add(condition);
+            }
+            if (!conditions.isEmpty()) {
+                bet.setBuilderConditionsJson(conditions.toString());
+            }
+        } catch (Exception e) {
+            log.warn("Nie udało się zmapować legs na builderConditions: {}", e.getMessage());
         }
     }
 
