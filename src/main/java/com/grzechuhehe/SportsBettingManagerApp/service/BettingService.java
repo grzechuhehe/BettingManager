@@ -523,20 +523,8 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
             throw new IllegalArgumentException("You are not authorized to update this bet.");
         }
 
-        mergeMissingBetRequestFields(bet, betRequest);
-        validateBetRequest(betRequest);
-
-        // Allow updates mostly for PENDING bets, but let's allow flexibility as requested
-        // Mapping fields from request to entity
-        bet.setSport(betRequest.getSport());
-        bet.setEventName(betRequest.getEventName());
-        bet.setEventDate(betRequest.getEventDate());
-        bet.setMarketType(betRequest.getMarketType());
-        bet.setSelection(betRequest.getSelection());
-        bet.setOdds(betRequest.getOdds());
-        bet.setBookmaker(betRequest.getBookmaker());
-        bet.setStake(betRequest.getStake()); // Important: Stake change affects potential winnings
-        bet.setNotes(betRequest.getNotes());
+        applyUpdateToEntity(bet, betRequest);
+        validateEffectiveState(bet);
         
         // Recalculate potential winnings if stake or odds changed
         bet.calculatePotentialWinnings();
@@ -556,41 +544,60 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
         betRepository.delete(bet);
     }
 
-    private void mergeMissingBetRequestFields(Bet existing, BetRequest request) {
-        if (isBlank(request.getSport())) {
-            request.setSport(isBlank(existing.getSport()) ? "Other" : existing.getSport());
+    /** Applies request values onto the entity. Missing request fields keep the existing value;
+     *  truly-empty optional fields fall back to safe defaults. Does NOT mutate the request DTO. */
+    private void applyUpdateToEntity(Bet bet, BetRequest request) {
+        if (!isBlank(request.getSport())) {
+            bet.setSport(request.getSport());
+        } else if (isBlank(bet.getSport())) {
+            bet.setSport("Other");
         }
-        if (isBlank(request.getEventName())) {
-            request.setEventName(existing.getEventName());
+        if (!isBlank(request.getEventName())) {
+            bet.setEventName(request.getEventName());
         }
-        if (request.getEventDate() == null) {
-            if (existing.getEventDate() != null) {
-                request.setEventDate(existing.getEventDate());
-            } else if (existing.getPlacedAt() != null) {
-                request.setEventDate(existing.getPlacedAt());
-            } else {
-                request.setEventDate(LocalDateTime.now());
-            }
+        if (request.getEventDate() != null) {
+            bet.setEventDate(request.getEventDate());
+        } else if (bet.getEventDate() == null) {
+            bet.setEventDate(bet.getPlacedAt() != null ? bet.getPlacedAt() : LocalDateTime.now());
         }
-        if (request.getMarketType() == null) {
-            request.setMarketType(existing.getMarketType() != null ? existing.getMarketType() : MarketType.OTHER);
+        if (request.getMarketType() != null) {
+            bet.setMarketType(request.getMarketType());
+        } else if (bet.getMarketType() == null) {
+            bet.setMarketType(MarketType.OTHER);
         }
-        if (isBlank(request.getSelection())) {
-            request.setSelection(existing.getSelection());
+        if (!isBlank(request.getSelection())) {
+            bet.setSelection(request.getSelection());
         }
-        if (isBlank(request.getBookmaker())) {
-            request.setBookmaker(isBlank(existing.getBookmaker()) ? "Unknown" : existing.getBookmaker());
+        if (!isBlank(request.getBookmaker())) {
+            bet.setBookmaker(request.getBookmaker());
+        } else if (isBlank(bet.getBookmaker())) {
+            bet.setBookmaker("Unknown");
         }
-        if (request.getStake() == null) {
-            request.setStake(existing.getStake());
+        if (request.getStake() != null) {
+            bet.setStake(request.getStake());
         }
-        if (request.getOdds() == null) {
-            request.setOdds(existing.getOdds());
+        if (request.getOdds() != null) {
+            bet.setOdds(request.getOdds());
+        }
+        if (request.getNotes() != null) {
+            bet.setNotes(request.getNotes());
         }
     }
 
-    private void validateBetRequest(BetRequest request) {
-        Set<ConstraintViolation<BetRequest>> violations = validator.validate(request);
+    /** Validates the merged result by snapshotting the entity into a transient BetRequest. */
+    private void validateEffectiveState(Bet bet) {
+        BetRequest snapshot = new BetRequest();
+        snapshot.setSport(bet.getSport());
+        snapshot.setEventName(bet.getEventName());
+        snapshot.setEventDate(bet.getEventDate());
+        snapshot.setMarketType(bet.getMarketType());
+        snapshot.setSelection(bet.getSelection());
+        snapshot.setBookmaker(bet.getBookmaker());
+        snapshot.setStake(bet.getStake());
+        snapshot.setOdds(bet.getOdds());
+        snapshot.setNotes(bet.getNotes());
+
+        Set<ConstraintViolation<BetRequest>> violations = validator.validate(snapshot);
         if (!violations.isEmpty()) {
             String message = violations.stream()
                     .map(v -> v.getPropertyPath() + ": " + v.getMessage())

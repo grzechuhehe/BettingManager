@@ -216,6 +216,9 @@ class BettingServiceTest {
         assertThat(result.getMarketType()).isEqualTo(MarketType.MONEYLINE_1X2);
         assertThat(result.getEventDate()).isEqualTo(LocalDateTime.of(2026, 6, 30, 18, 0));
         assertThat(result.getPotentialWinnings()).isEqualByComparingTo("50.00");
+        // request DTO must NOT be mutated by the service
+        assertThat(partialUpdate.getBookmaker()).isNull();
+        assertThat(partialUpdate.getMarketType()).isNull();
     }
 
     @Test
