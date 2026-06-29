@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
 
 import static org.mockito.Mockito.mock;
@@ -13,7 +14,7 @@ public final class ResolutionTestFixtures {
     private ResolutionTestFixtures() {}
 
     public static ResolutionComponents components() {
-        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator();
+        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer());
         CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(nameTranslator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(nameTranslator);

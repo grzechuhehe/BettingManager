@@ -5,6 +5,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -14,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class StandardMarketResolverTest {
 
     private final StandardMarketResolver resolver =
-            new StandardMarketResolver(new ResolutionNameTranslator());
+            new StandardMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer()));
 
     @Test
     void moneyline12UsesWinnerCodeWhenPresent() {

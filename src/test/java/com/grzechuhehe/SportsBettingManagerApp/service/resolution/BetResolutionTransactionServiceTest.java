@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +34,7 @@ class BetResolutionTransactionServiceTest {
 
     @BeforeEach
     void setUp() {
-        nameTranslator = new ResolutionNameTranslator();
+        nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer());
         service = ResolutionTestFixtures.transactionService(betRepository);
     }
 

@@ -1,5 +1,6 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
@@ -36,6 +37,12 @@ public class ResolutionNameTranslator {
 
     private static final Map<String, String> SEGMENT_ALIASES = buildAliases();
 
+    private final DoublesNameNormalizer doublesNameNormalizer;
+
+    public ResolutionNameTranslator(DoublesNameNormalizer doublesNameNormalizer) {
+        this.doublesNameNormalizer = doublesNameNormalizer;
+    }
+
     public record TwoSides(String home, String away) {}
 
     public boolean hasTwoSides(String eventName) {
@@ -55,6 +62,12 @@ public class ResolutionNameTranslator {
      * Pomija tylko nieznane mikro-skroty typu WKS (≤3 znaki).
      */
     public Optional<String> resolveQueryForApify(String eventName) {
+        if (eventName != null && eventName.contains("/")) {
+            Optional<String> doublesQuery = doublesNameNormalizer.toApifyQuery(eventName);
+            if (doublesQuery.isPresent()) {
+                return doublesQuery;
+            }
+        }
         return parseTwoTeamSides(eventName).flatMap(sides -> {
             if (isUnknownAbbrev(sides.home()) || isUnknownAbbrev(sides.away())) {
                 return Optional.empty();

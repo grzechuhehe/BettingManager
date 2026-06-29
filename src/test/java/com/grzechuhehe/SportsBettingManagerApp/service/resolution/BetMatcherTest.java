@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BetMatcherTest {
 
-    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(), new MatchReRanker());
+    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(new DoublesNameNormalizer()), new MatchReRanker());
 
     private SofaScoreEventDto event(String home, String away, LocalDateTime start) {
         SofaScoreEventDto e = new SofaScoreEventDto();

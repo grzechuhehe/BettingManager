@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ class BetBuilderMarketResolverTest {
 
     @BeforeEach
     void setUp() {
-        ResolutionNameTranslator translator = new ResolutionNameTranslator();
+        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
         CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(translator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(translator);

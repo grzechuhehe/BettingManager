@@ -1,12 +1,13 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResolutionNameTranslatorTest {
 
-    private final ResolutionNameTranslator translator = new ResolutionNameTranslator();
+    private final ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
 
     @Test
     void shouldBuildEnglishSearchQueryFromPolishAbbreviations() {
