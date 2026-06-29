@@ -42,6 +42,7 @@ class BetResolutionServiceTest {
     private BetResolutionTransactionService resolutionTx;
     private SofaScoreCacheService cacheService;
     private Map<String, SofaScoreQueryCache> cacheStore;
+    private AutoResolutionGuard autoResolutionGuard;
 
     @BeforeEach
     void setUp() {
@@ -52,13 +53,15 @@ class BetResolutionServiceTest {
         ReflectionTestUtils.setField(cacheService, "cacheTtlHours", 72);
         stubCacheRepository();
 
+        autoResolutionGuard = new AutoResolutionGuard();
         service = new BetResolutionService(
                 apifySofaScoreClient,
                 new SofaScoreSportMapper(),
                 c.nameTranslator(),
                 resolutionTx,
                 c.resolvabilityChecker(),
-                cacheService);
+                cacheService,
+                autoResolutionGuard);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
@@ -71,6 +74,18 @@ class BetResolutionServiceTest {
         ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
         ReflectionTestUtils.setField(service, "scheduledMaxDaysBack", 7);
+        ReflectionTestUtils.setField(service, "manualCooldownMinutes", 60);
+    }
+
+    /** Synchronous test helper replacing the removed {@code resolvePendingBets(boolean)}. */
+    private void runResolutionForced(boolean force) {
+        AutoResolutionGuard.AcquireResult acquire = autoResolutionGuard.tryAcquire(60, true);
+        assertEquals(AutoResolutionGuard.Acquisition.ACQUIRED, acquire.status());
+        try {
+            ReflectionTestUtils.invokeMethod(service, "resolvePendingBetsInternal", force);
+        } finally {
+            autoResolutionGuard.release(false);
+        }
     }
 
     private void stubCacheRepository() {
@@ -137,7 +152,7 @@ class BetResolutionServiceTest {
         when(apifySofaScoreClient.searchMatchesBatch(anyList()))
                 .thenReturn(ApifyBatchResult.success(List.of(event)));
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
         verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
         assertTrue(cacheStore.isEmpty(), "niefinished/niedokończony wynik nie powinien trafiać do cache");
 
@@ -147,7 +162,7 @@ class BetResolutionServiceTest {
         bet.setStatus(BetStatus.PENDING);
         bet.setLastResolutionAttemptAt(null);
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
         verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
     }
 
@@ -266,7 +281,7 @@ class BetResolutionServiceTest {
         when(apifySofaScoreClient.searchMatchesBatch(anyList()))
                 .thenReturn(ApifyBatchResult.success(List.of()));
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
 
         verify(apifySofaScoreClient, atLeast(1)).searchMatchesBatch(anyList());
         verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
@@ -289,7 +304,7 @@ class BetResolutionServiceTest {
         when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
         when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
 
         verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
         assertNull(b1.getLastResolutionAttemptAt());
@@ -317,7 +332,7 @@ class BetResolutionServiceTest {
         when(apifySofaScoreClient.searchMatchesBatch(anyList()))
                 .thenReturn(ApifyBatchResult.success(List.of(event)));
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
         verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
         assertFalse(cacheStore.isEmpty());
 
@@ -325,7 +340,7 @@ class BetResolutionServiceTest {
         bet.setStatus(BetStatus.PENDING);
         bet.setLastResolutionAttemptAt(null);
 
-        service.resolvePendingBets(true);
+        runResolutionForced(true);
         verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
     }
 

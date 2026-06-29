@@ -80,21 +80,13 @@ class BetControllerTest {
     private User testUser;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
 
         // Mock security context behavior manually since filters are disabled but controller calls context
         Mockito.when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-
-        java.lang.reflect.Field runningField = BetController.class.getDeclaredField("RESOLUTION_RUNNING");
-        runningField.setAccessible(true);
-        ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(null)).set(false);
-        java.lang.reflect.Field finishedField = BetController.class
-                .getDeclaredField("LAST_MANUAL_RESOLUTION_FINISHED_AT_MS");
-        finishedField.setAccessible(true);
-        ((java.util.concurrent.atomic.AtomicLong) finishedField.get(null)).set(0);
     }
 
     @Test
@@ -218,12 +210,11 @@ class BetControllerTest {
     }
 
     @Test
-    void runAutoResolution_ShouldReturnAccepted_WhenNotOnCooldown() throws Exception {
-        ReflectionTestUtils.setField(betController, "manualCooldownMinutes", 60);
-        java.lang.reflect.Field finishedField = BetController.class
-                .getDeclaredField("LAST_MANUAL_RESOLUTION_FINISHED_AT_MS");
-        finishedField.setAccessible(true);
-        ((java.util.concurrent.atomic.AtomicLong) finishedField.get(null)).set(0);
+    void runAutoResolution_ShouldReturnAccepted_WhenGuardGrantsRun() throws Exception {
+        Mockito.when(betResolutionService.getManualCooldownMinutes()).thenReturn(60);
+        Mockito.when(betResolutionService.triggerManualResolution(false))
+                .thenReturn(new com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.AcquireResult(
+                        com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.Acquisition.ACQUIRED, 0));
 
         mockMvc.perform(post("/api/bets/run-auto-resolution"))
                 .andExpect(status().isAccepted())
@@ -231,16 +222,27 @@ class BetControllerTest {
     }
 
     @Test
-    void runAutoResolution_ShouldReturn429_WhenOnCooldownAndNotForced() throws Exception {
-        ReflectionTestUtils.setField(betController, "manualCooldownMinutes", 60);
-        java.lang.reflect.Field finishedField = BetController.class
-                .getDeclaredField("LAST_MANUAL_RESOLUTION_FINISHED_AT_MS");
-        finishedField.setAccessible(true);
-        ((java.util.concurrent.atomic.AtomicLong) finishedField.get(null))
-                .set(System.currentTimeMillis());
+    void runAutoResolution_ShouldReturn429_WhenGuardReportsCooldown() throws Exception {
+        Mockito.when(betResolutionService.getManualCooldownMinutes()).thenReturn(60);
+        Mockito.when(betResolutionService.triggerManualResolution(false))
+                .thenReturn(new com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.AcquireResult(
+                        com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.Acquisition.COOLDOWN, 42));
 
         mockMvc.perform(post("/api/bets/run-auto-resolution"))
                 .andExpect(status().isTooManyRequests())
-                .andExpect(jsonPath("$.status").value("cooldown"));
+                .andExpect(jsonPath("$.status").value("cooldown"))
+                .andExpect(jsonPath("$.retryAfterMinutes").value("42"));
+    }
+
+    @Test
+    void runAutoResolution_ShouldReturn409_WhenGuardReportsBusy() throws Exception {
+        Mockito.when(betResolutionService.getManualCooldownMinutes()).thenReturn(60);
+        Mockito.when(betResolutionService.triggerManualResolution(false))
+                .thenReturn(new com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.AcquireResult(
+                        com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard.Acquisition.BUSY, 0));
+
+        mockMvc.perform(post("/api/bets/run-auto-resolution"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value("busy"));
     }
 }
