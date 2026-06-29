@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
@@ -22,9 +23,11 @@ public class BetMatcher {
     private static final Set<String> CATEGORY_TOKENS = Set.of("women", "womens", "men", "mens", "female", "male");
 
     private final ResolutionNameTranslator nameTranslator;
+    private final MatchReRanker reRanker;
 
-    public BetMatcher(ResolutionNameTranslator nameTranslator) {
+    public BetMatcher(ResolutionNameTranslator nameTranslator, MatchReRanker reRanker) {
         this.nameTranslator = nameTranslator;
+        this.reRanker = reRanker;
     }
 
     public record MatchCandidate(SofaScoreEventDto event, double confidence) {}
@@ -61,6 +64,7 @@ public class BetMatcher {
             }
             double confidence = jaccard(withoutCategoryTokens(betTokens), withoutCategoryTokens(eventTokens));
             confidence = Math.max(confidence, queryTokenConfidence(bet, eventTokens));
+            confidence = reRanker.adjust(confidence, bet, event, dateWindowDays);
             if (best == null || confidence > best.confidence()) {
                 best = new MatchCandidate(event, confidence);
             }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
 
 import static org.mockito.Mockito.mock;
 
@@ -23,7 +24,7 @@ public final class ResolutionTestFixtures {
         BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(registry);
         SelectionResolvabilityChecker resolvabilityChecker =
                 new SelectionResolvabilityChecker(betBuilder, handicap);
-        BetMatcher matcher = new BetMatcher(nameTranslator);
+        BetMatcher matcher = new BetMatcher(nameTranslator, new MatchReRanker());
         return new ResolutionComponents(
                 nameTranslator, parser, handicap, betBuilder, evaluator, resolvabilityChecker, matcher);
     }
