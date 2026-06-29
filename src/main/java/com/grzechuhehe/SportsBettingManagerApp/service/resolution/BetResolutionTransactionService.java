@@ -8,6 +8,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.SportConfidenceThresholds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +35,7 @@ class BetResolutionTransactionService {
     private final BetOutcomeEvaluator betOutcomeEvaluator;
     private final ResolutionNameTranslator nameTranslator;
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
+    private final SportConfidenceThresholds sportConfidenceThresholds;
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
@@ -299,14 +301,15 @@ class BetResolutionTransactionService {
             recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
             return false;
         }
-        if (match.get().confidence() < confidenceThreshold) {
+        double threshold = sportConfidenceThresholds.forBet(bet);
+        if (match.get().confidence() < threshold) {
             bet.setLastResolutionAttemptAt(now);
             log.info(
                     "Zakład {} ({}): dopasowanie {} < próg {} → {}",
                     bet.getId(),
                     bet.getEventName(),
                     String.format("%.2f", match.get().confidence()),
-                    String.format("%.2f", confidenceThreshold),
+                    String.format("%.2f", threshold),
                     match.get().event().getHomeTeam() + " vs " + match.get().event().getAwayTeam()
             );
             errorCode = "BELOW_THRESHOLD";

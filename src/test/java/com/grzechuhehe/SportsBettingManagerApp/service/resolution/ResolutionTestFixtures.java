@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRe
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.SportConfidenceThresholds;
 
 import static org.mockito.Mockito.mock;
 
@@ -30,6 +31,10 @@ public final class ResolutionTestFixtures {
                 nameTranslator, parser, handicap, betBuilder, evaluator, resolvabilityChecker, matcher);
     }
 
+    public static SportConfidenceThresholds sportConfidenceThresholds() {
+        return new SportConfidenceThresholds(0.85, 0.80);
+    }
+
     public static BetResolutionTransactionService transactionService(BetRepository betRepository) {
         ResolutionComponents c = components();
         return new BetResolutionTransactionService(
@@ -38,7 +43,8 @@ public final class ResolutionTestFixtures {
                 c.matcher(),
                 c.evaluator(),
                 c.nameTranslator(),
-                c.resolvabilityChecker());
+                c.resolvabilityChecker(),
+                sportConfidenceThresholds());
     }
 
     public record ResolutionComponents(
