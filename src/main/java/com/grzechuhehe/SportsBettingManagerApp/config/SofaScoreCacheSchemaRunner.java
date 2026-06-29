@@ -41,8 +41,12 @@ public class SofaScoreCacheSchemaRunner implements ApplicationRunner {
             return;
         }
 
-        jdbcTemplate.execute(
-                "ALTER TABLE sofascore_query_cache MODIFY payload_json MEDIUMTEXT NOT NULL");
-        log.info("SofaScore cache: payload_json zmieniono z {} na MEDIUMTEXT", current);
+        try {
+            jdbcTemplate.execute(
+                    "ALTER TABLE sofascore_query_cache MODIFY payload_json MEDIUMTEXT NOT NULL");
+            log.info("SofaScore cache: payload_json zmieniono z {} na MEDIUMTEXT", current);
+        } catch (Exception e) {
+            log.error("Could not widen SofaScore cache payload_json column (continuing startup): {}", e.getMessage());
+        }
     }
 }
