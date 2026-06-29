@@ -38,6 +38,7 @@ public class BetResolutionService {
     private final BetResolutionTransactionService resolutionTx;
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
     private final SofaScoreCacheService sofaScoreCacheService;
+    private final AutoResolutionGuard autoResolutionGuard;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -75,16 +76,53 @@ public class BetResolutionService {
     @Value("${bet.resolution.scheduled-max-days-back:7}")
     private int scheduledMaxDaysBack;
 
-    /**
-     * Bez @Transactional — Apify trwa minuty; otwarta transakcja zabija połączenie MySQL (Hikari).
-     */
-    @Scheduled(fixedRateString = "${bet.resolution.interval-ms:21600000}")
-    public void resolvePendingBets() {
-        resolvePendingBetsInternal(false);
+    @Value("${bet.resolution.manual-cooldown-minutes:60}")
+    private int manualCooldownMinutes;
+
+    public int getManualCooldownMinutes() {
+        return manualCooldownMinutes;
     }
 
-    public void resolvePendingBets(boolean force) {
-        resolvePendingBetsInternal(force);
+    /** Scheduled cycle: bypasses cooldown (force=true) but never overlaps an in-flight run. */
+    @Scheduled(fixedRateString = "${bet.resolution.interval-ms:21600000}")
+    public void resolvePendingBets() {
+        AutoResolutionGuard.AcquireResult acquire = autoResolutionGuard.tryAcquire(manualCooldownMinutes, true);
+        if (acquire.status() != AutoResolutionGuard.Acquisition.ACQUIRED) {
+            log.info("Scheduled auto-resolution skipped: {}", acquire.status());
+            return;
+        }
+        boolean success = false;
+        try {
+            resolvePendingBetsInternal(false);
+            success = true;
+        } finally {
+            autoResolutionGuard.release(success);
+        }
+    }
+
+    /**
+     * Manual trigger. Acquires the shared guard and, if granted, runs the cycle on a
+     * virtual thread. Returns the acquisition outcome so the controller can map HTTP status.
+     */
+    public AutoResolutionGuard.AcquireResult triggerManualResolution(boolean force) {
+        AutoResolutionGuard.AcquireResult acquire = autoResolutionGuard.tryAcquire(manualCooldownMinutes, force);
+        if (acquire.status() != AutoResolutionGuard.Acquisition.ACQUIRED) {
+            return acquire;
+        }
+        Thread.startVirtualThread(() -> {
+            boolean success = false;
+            try {
+                log.info("Manual auto-resolution started (force={})", force);
+                resolvePendingBetsInternal(force);
+                success = true;
+                log.info("Manual auto-resolution finished (force={})", force);
+            } catch (Exception e) {
+                log.error("Manual auto-resolution failed: {}", e.getMessage(), e);
+            } finally {
+                autoResolutionGuard.release(success);
+            }
+        });
+        return acquire;
     }
 
     private void resolvePendingBetsInternal(boolean force) {
