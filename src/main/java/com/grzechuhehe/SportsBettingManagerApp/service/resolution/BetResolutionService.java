@@ -3,6 +3,7 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifySofaScoreClient;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
@@ -39,6 +40,7 @@ public class BetResolutionService {
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
     private final SofaScoreCacheService sofaScoreCacheService;
     private final AutoResolutionGuard autoResolutionGuard;
+    private final ResolutionQueuePrioritizer resolutionQueuePrioritizer;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -219,7 +221,7 @@ public class BetResolutionService {
                 eligible.add(root);
             }
         }
-        return eligible;
+        return resolutionQueuePrioritizer.sortByPriority(eligible, roots);
     }
 
     /** Pojedynczy mecz (SINGLE) lub jedna noga kuponu — nie złożony opis AKO w eventName. */

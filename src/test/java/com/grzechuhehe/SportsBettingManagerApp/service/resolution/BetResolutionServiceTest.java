@@ -10,6 +10,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.SofaScoreQueryCacheRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,8 @@ class BetResolutionServiceTest {
                 resolutionTx,
                 c.resolvabilityChecker(),
                 cacheService,
-                autoResolutionGuard);
+                autoResolutionGuard,
+                new ResolutionQueuePrioritizer());
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
