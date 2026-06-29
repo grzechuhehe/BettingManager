@@ -4,6 +4,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionBlockingReason;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -99,6 +100,8 @@ public class Bet {
     private Double matchConfidence;    // pewność dopasowania 0.0–1.0
     private String resolvedEventUrl;   // link do meczu w SofaScore
     private LocalDateTime lastResolutionAttemptAt; // ostatnia próba Apify (cooldown kosztów)
+    @Enumerated(EnumType.STRING)
+    private ResolutionBlockingReason resolutionBlockingReason;
 
     // Notatki użytkownika
     @Lob

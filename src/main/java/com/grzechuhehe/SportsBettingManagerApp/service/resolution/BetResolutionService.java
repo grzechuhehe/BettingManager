@@ -202,32 +202,39 @@ public class BetResolutionService {
     /** Pojedynczy mecz (SINGLE) lub jedna noga kuponu — nie złożony opis AKO w eventName. */
     private boolean isEligibleLeaf(Bet bet, LocalDateTime now, boolean force) {
         if (bet.getEventName() == null || bet.getEventName().isBlank()) {
-            return false;
+            return rejectEligible(bet, ResolutionBlockingReason.NOT_SEARCHABLE_EVENT);
         }
         if (nameTranslator.resolveQueryForApify(bet.getEventName()).isEmpty()) {
-            return false;
+            return rejectEligible(bet, ResolutionBlockingReason.NOT_SEARCHABLE_EVENT);
         }
         if (!selectionResolvabilityChecker.isAutoResolvable(bet)) {
-            return false;
+            return rejectEligible(bet, ResolutionBlockingReason.MANUAL_ONLY_SELECTION);
         }
         MarketType market = bet.getMarketType() != null
                 ? bet.getMarketType()
                 : resolutionTx.inferMarketType(bet);
-        if (market == null) {
-            return false;
+        if (market == MarketType.OUTRIGHT) {
+            return rejectEligible(bet, ResolutionBlockingReason.OUTRIGHT_UNSUPPORTED);
         }
-        if (!ResolutionSupportedMarkets.VALUES.contains(market) && !isBetBuilderLeg(bet)) {
-            return false;
+        if (market == null
+                || (!ResolutionSupportedMarkets.VALUES.contains(market) && !isBetBuilderLeg(bet))) {
+            return rejectEligible(bet, ResolutionBlockingReason.UNSUPPORTED_MARKET);
         }
         if (bet.getPlacedAt() != null && bet.getPlacedAt().isAfter(now.minusHours(minHoursAfterPlaced))) {
-            return false;
+            return rejectEligible(bet, ResolutionBlockingReason.TOO_RECENT);
         }
         if (bet.getLastResolutionAttemptAt() != null
                 && bet.getLastResolutionAttemptAt().isAfter(now.minusHours(searchCooldownHours))
                 && !force) {
-            return false;
+            return rejectEligible(bet, ResolutionBlockingReason.COOLDOWN);
         }
+        bet.setResolutionBlockingReason(null);
         return true;
+    }
+
+    private static boolean rejectEligible(Bet bet, ResolutionBlockingReason reason) {
+        bet.setResolutionBlockingReason(reason);
+        return false;
     }
 
     private boolean isBetBuilderLeg(Bet bet) {
