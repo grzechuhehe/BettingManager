@@ -23,7 +23,7 @@ function buildBetUpdatePayload(bet, formData) {
 
 function getAutoResolutionCooldownRemainingMs() {
     const lastFinished = Number(localStorage.getItem(AUTO_RESOLUTION_COOLDOWN_KEY) || 0);
-    const cooldownMs = Number(localStorage.getItem('autoResolutionCooldownMs') || 0);
+    const cooldownMs = Number(localStorage.getItem(AUTO_RESOLUTION_COOLDOWN_MS_KEY) || 0);
     if (!lastFinished || !cooldownMs) return 0;
     return Math.max(0, cooldownMs - (Date.now() - lastFinished));
 }
@@ -298,7 +298,7 @@ const BetList = () => {
             const { data } = await runAutoResolution();
             const cooldownMin = Number(data?.retryAfterMinutes) || 60;
             localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
-            localStorage.setItem('autoResolutionCooldownMs', String(cooldownMin * 60_000));
+            localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_MS_KEY, String(cooldownMin * 60_000));
             setResolutionCooldownMs(cooldownMin * 60_000);
             alert('Rozliczanie uruchomione w tle (Apify ~2–5 min). Lista odświeży się automatycznie.');
             window.setTimeout(() => fetchBets(), 120_000);
@@ -315,7 +315,7 @@ const BetList = () => {
                 if (retryMin > 0) {
                     const cooldownMs = retryMin * 60_000;
                     localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
-                    localStorage.setItem('autoResolutionCooldownMs', String(cooldownMs));
+                    localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_MS_KEY, String(cooldownMs));
                     setResolutionCooldownMs(cooldownMs);
                 }
             }
