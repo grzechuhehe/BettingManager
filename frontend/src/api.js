@@ -99,7 +99,7 @@ export const settleBet = (id, status) => {
 
 export const updateBet = (id, betData) => {
 
-  return apiClient.put(`/bets/${id}`, betData);
+  return apiClient.patch(`/bets/${id}`, betData);
 
 };
 

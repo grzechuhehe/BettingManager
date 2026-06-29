@@ -189,8 +189,8 @@ public class BetController {
         return ResponseEntity.ok(convertToDto(settledBet));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Update a bet", description = "Updates the details of an existing bet")
+    @PatchMapping("/{id}")
+    @Operation(summary = "Update a bet", description = "Partially updates an existing bet; missing fields keep their current value")
     public ResponseEntity<BetResponse> updateBet(@PathVariable Long id, @RequestBody BetRequest betRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(username)
