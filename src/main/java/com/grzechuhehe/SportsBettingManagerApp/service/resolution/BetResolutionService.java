@@ -1,6 +1,8 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
+import com.grzechuhehe.SportsBettingManagerApp.model.BetResolutionAttempt;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.DiscoveryResult;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.MatchDiscoveryService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
@@ -32,6 +34,10 @@ public class BetResolutionService {
     private final AutoResolutionGuard autoResolutionGuard;
     private final ResolutionQueuePrioritizer resolutionQueuePrioritizer;
     private final MatchDiscoveryService discoveryService;
+    private final BetResolutionAttemptRepository attemptRepository;
+    private final ResolutionCycleMetricsHolder metricsHolder;
+
+    private static final double APIFY_COST_PER_CALL_USD = 0.08;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -178,6 +184,55 @@ public class BetResolutionService {
                 );
             }
         }
+
+        storeCycleMetrics(cycleId, eligibleLeaves.size(), fetch, enrichmentBudget);
+    }
+
+    private void storeCycleMetrics(
+            String cycleId,
+            int eligible,
+            DiscoveryResult fetch,
+            CycleEnrichmentBudget enrichmentBudget) {
+        int discoveryCalls = fetch.apifyCalls();
+        int enrichmentCalls = enrichmentBudget.usedCount();
+        double estimatedCostUsd = (discoveryCalls + enrichmentCalls) * APIFY_COST_PER_CALL_USD;
+
+        List<BetResolutionAttempt> attempts = attemptRepository.findByCycleId(cycleId);
+        int settled = 0;
+        int belowThreshold = 0;
+        int noMatch = 0;
+        for (BetResolutionAttempt attempt : attempts) {
+            if ("SUCCESS".equals(attempt.getErrorCode())) {
+                settled++;
+            } else if ("BELOW_THRESHOLD".equals(attempt.getErrorCode())) {
+                belowThreshold++;
+            } else if ("NO_MATCH".equals(attempt.getErrorCode())) {
+                noMatch++;
+            }
+        }
+
+        ResolutionCycleMetrics metrics = new ResolutionCycleMetrics(
+                cycleId,
+                eligible,
+                discoveryCalls,
+                enrichmentCalls,
+                settled,
+                belowThreshold,
+                noMatch,
+                estimatedCostUsd);
+        metricsHolder.setLast(metrics);
+
+        log.info(
+                "Resolution cycle metrics: cycleId={}, eligible={}, discoveryCalls={}, enrichmentCalls={}, "
+                        + "settled={}, belowThreshold={}, noMatch={}, estimatedCostUsd={}",
+                cycleId,
+                eligible,
+                discoveryCalls,
+                enrichmentCalls,
+                settled,
+                belowThreshold,
+                noMatch,
+                String.format(Locale.ROOT, "%.2f", estimatedCostUsd));
     }
 
     private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now, boolean force) {

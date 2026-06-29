@@ -13,6 +13,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycleMetricsHolder;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,7 @@ public class BetController {
     private final BettingService bettingService;
     private final BetResolutionService betResolutionService;
     private final BetResolutionAttemptRepository resolutionAttemptRepository;
+    private final ResolutionCycleMetricsHolder resolutionMetricsHolder;
     private final UserRepository userRepository;
     private final BetRepository betRepository;
 
@@ -155,6 +157,17 @@ public class BetController {
         }
 
         return ResponseEntity.ok(resolutionAttemptRepository.findTop10ByBetIdOrderByAttemptedAtDesc(id));
+    }
+
+    @GetMapping("/resolution/metrics/last-cycle")
+    @Operation(summary = "Last resolution cycle metrics (debug, when bet.resolution.debug-endpoints=true)")
+    public ResponseEntity<?> getLastResolutionCycleMetrics() {
+        if (!debugEndpoints) {
+            return ResponseEntity.notFound().build();
+        }
+        return resolutionMetricsHolder.getLast()
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/run-auto-resolution")

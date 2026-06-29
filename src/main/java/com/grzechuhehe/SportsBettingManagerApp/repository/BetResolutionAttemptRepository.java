@@ -8,4 +8,6 @@ import java.util.List;
 public interface BetResolutionAttemptRepository extends JpaRepository<BetResolutionAttempt, Long> {
 
     List<BetResolutionAttempt> findTop10ByBetIdOrderByAttemptedAtDesc(Long betId);
+
+    List<BetResolutionAttempt> findByCycleId(String cycleId);
 }

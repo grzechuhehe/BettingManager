@@ -264,13 +264,13 @@ class BetResolutionTransactionService {
 
         if (!apifyDataAvailable) {
             errorCode = "NO_APIFY_DATA";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
         if (eventPool == null || eventPool.isEmpty()) {
             log.debug("Zakład {}: pusta pula Apify — bez cooldownu, spróbujemy w kolejnym cyklu", bet.getId());
             errorCode = "EMPTY_POOL";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
 
@@ -278,7 +278,7 @@ class BetResolutionTransactionService {
 
         if (bet.getEventName() == null || bet.getEventName().isBlank()) {
             errorCode = "NO_EVENT_NAME";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
 
@@ -289,7 +289,7 @@ class BetResolutionTransactionService {
                     bet.getSelection()
             );
             errorCode = "MANUAL_ONLY";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
 
@@ -302,7 +302,7 @@ class BetResolutionTransactionService {
                     eventPool.size()
             );
             errorCode = "NO_MATCH";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
         double threshold = sportConfidenceThresholds.forBet(bet);
@@ -317,7 +317,7 @@ class BetResolutionTransactionService {
                     match.get().event().getHomeTeam() + " vs " + match.get().event().getAwayTeam()
             );
             errorCode = "BELOW_THRESHOLD";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, false);
             return false;
         }
 
@@ -330,19 +330,21 @@ class BetResolutionTransactionService {
                 String.format("%.2f", match.get().confidence())
         );
 
+        int enrichmentUsedBefore = enrichmentBudget.usedCount();
         SofaScoreEventDto eventForEval = enrichmentService.enrichIfNeeded(
                 bet, match.get().event(), match.get().confidence(), enrichmentBudget);
+        boolean enrichmentAttempted = enrichmentBudget.usedCount() > enrichmentUsedBefore;
         Optional<BetStatus> outcome = betOutcomeEvaluator.evaluate(bet, eventForEval);
         if (outcome.isEmpty()) {
             bet.setLastResolutionAttemptAt(now);
             errorCode = "UNRESOLVED_MARKET";
-            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+            recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, enrichmentAttempted);
             return false;
         }
 
         applyOutcome(bet, outcome.get(), match.get().confidence(), eventForEval.getUrl());
         bet.setLastResolutionAttemptAt(now);
-        recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
+        recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now, enrichmentAttempted);
         return true;
     }
 
@@ -352,7 +354,8 @@ class BetResolutionTransactionService {
             boolean apifyDataAvailable,
             Optional<BetMatcher.MatchCandidate> match,
             String errorCode,
-            LocalDateTime now) {
+            LocalDateTime now,
+            boolean enrichmentAttempted) {
         if (cycleId == null) {
             return;
         }
@@ -363,6 +366,8 @@ class BetResolutionTransactionService {
         attempt.setMatchFound(match.isPresent());
         attempt.setMatchConfidence(match.map(BetMatcher.MatchCandidate::confidence).orElse(null));
         attempt.setErrorCode(errorCode);
+        attempt.setPhase(ResolutionPhase.SETTLEMENT);
+        attempt.setEnrichmentAttempted(enrichmentAttempted);
         attempt.setAttemptedAt(now);
         attemptRepository.save(attempt);
     }
