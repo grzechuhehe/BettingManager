@@ -12,6 +12,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRe
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.AutoResolutionGuard;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,8 +29,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/api/bets")
@@ -45,13 +44,7 @@ public class BetController {
     @Value("${bet.resolution.debug-endpoints:false}")
     private boolean debugEndpoints;
 
-    @Value("${bet.resolution.manual-cooldown-minutes:60}")
-    private int manualCooldownMinutes;
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
-    private static final AtomicBoolean RESOLUTION_RUNNING =
-            new AtomicBoolean(false);
-    private static final AtomicLong LAST_MANUAL_RESOLUTION_FINISHED_AT_MS =
-            new AtomicLong(0);
 
     @PostMapping("/add-bet")
     @Operation(summary = "Create a new bet", description = "Adds a new single bet or a parlay (if multiple selections are provided) to the user's portfolio")
@@ -168,41 +161,21 @@ public class BetController {
     @Operation(summary = "Trigger auto-resolution", description = "Starts one cycle of automatic bet settlement from SofaScore (Apify). Runs in background (~2–5 min). Use force=true to ignore cooldown.")
     public ResponseEntity<Map<String, String>> runAutoResolution(
             @RequestParam(defaultValue = "false") boolean force) {
-        if (!force) {
-            long lastFinished = LAST_MANUAL_RESOLUTION_FINISHED_AT_MS.get();
-            long cooldownMs = manualCooldownMinutes * 60_000L;
-            if (lastFinished > 0) {
-                long elapsed = System.currentTimeMillis() - lastFinished;
-                if (elapsed < cooldownMs) {
-                    long remainingMin = (cooldownMs - elapsed + 59_999) / 60_000;
-                    return ResponseEntity.status(429).body(Map.of(
-                            "status", "cooldown",
-                            "message", "Auto-resolution was run recently. Try again in " + remainingMin + " min.",
-                            "retryAfterMinutes", String.valueOf(remainingMin)));
-                }
-            }
-        }
-        if (!RESOLUTION_RUNNING.compareAndSet(false, true)) {
-            return ResponseEntity.status(409).body(Map.of(
+        AutoResolutionGuard.AcquireResult acquire = betResolutionService.triggerManualResolution(force);
+        int cooldownMinutes = betResolutionService.getManualCooldownMinutes();
+        return switch (acquire.status()) {
+            case COOLDOWN -> ResponseEntity.status(429).body(Map.of(
+                    "status", "cooldown",
+                    "message", "Auto-resolution was run recently. Try again in " + acquire.remainingMinutes() + " min.",
+                    "retryAfterMinutes", String.valueOf(acquire.remainingMinutes())));
+            case BUSY -> ResponseEntity.status(409).body(Map.of(
                     "status", "busy",
                     "message", "Auto-resolution is already running"));
-        }
-        Thread.startVirtualThread(() -> {
-            try {
-                logger.info("Manual auto-resolution started (force={})", force);
-                betResolutionService.resolvePendingBets(force);
-                logger.info("Manual auto-resolution finished (force={})", force);
-            } catch (Exception e) {
-                logger.error("Manual auto-resolution failed: {}", e.getMessage(), e);
-            } finally {
-                LAST_MANUAL_RESOLUTION_FINISHED_AT_MS.set(System.currentTimeMillis());
-                RESOLUTION_RUNNING.set(false);
-            }
-        });
-        return ResponseEntity.accepted().body(Map.of(
-                "status", "started",
-                "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min.",
-                "retryAfterMinutes", String.valueOf(manualCooldownMinutes)));
+            case ACQUIRED -> ResponseEntity.accepted().body(Map.of(
+                    "status", "started",
+                    "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min.",
+                    "retryAfterMinutes", String.valueOf(cooldownMinutes)));
+        };
     }
 
     @PatchMapping("/{id}/settle")
