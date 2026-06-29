@@ -1,17 +1,14 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
-import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifyBatchResult;
-import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifySofaScoreClient;
 import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEventDto;
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
-import com.grzechuhehe.SportsBettingManagerApp.model.SofaScoreQueryCache;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
-import com.grzechuhehe.SportsBettingManagerApp.repository.SofaScoreQueryCacheRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.DiscoveryResult;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.MatchDiscoveryService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,11 +19,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,47 +31,35 @@ import static org.mockito.Mockito.*;
 class BetResolutionServiceTest {
 
     @Mock private BetRepository betRepository;
-    @Mock private ApifySofaScoreClient apifySofaScoreClient;
-    @Mock private SofaScoreQueryCacheRepository cacheRepository;
+    @Mock private MatchDiscoveryService discoveryService;
 
     private BetResolutionService service;
     private BetResolutionTransactionService resolutionTx;
-    private SofaScoreCacheService cacheService;
-    private Map<String, SofaScoreQueryCache> cacheStore;
     private AutoResolutionGuard autoResolutionGuard;
 
     @BeforeEach
     void setUp() {
-        cacheStore = new HashMap<>();
         ResolutionTestFixtures.ResolutionComponents c = ResolutionTestFixtures.components();
         resolutionTx = ResolutionTestFixtures.transactionService(betRepository);
-        cacheService = new SofaScoreCacheService(cacheRepository, new ObjectMapper());
-        ReflectionTestUtils.setField(cacheService, "cacheTtlHours", 72);
-        stubCacheRepository();
 
         autoResolutionGuard = new AutoResolutionGuard();
         service = new BetResolutionService(
-                apifySofaScoreClient,
-                new SofaScoreSportMapper(),
                 c.nameTranslator(),
                 resolutionTx,
                 c.resolvabilityChecker(),
-                cacheService,
                 autoResolutionGuard,
-                new ResolutionQueuePrioritizer());
+                new ResolutionQueuePrioritizer(),
+                discoveryService);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
-        ReflectionTestUtils.setField(service, "apifyMode", "scheduled");
-        ReflectionTestUtils.setField(service, "scheduledSports", "football");
-        ReflectionTestUtils.setField(service, "scheduledMaxItems", 400);
-        ReflectionTestUtils.setField(service, "searchBatchSize", 8);
-        ReflectionTestUtils.setField(service, "maxSearchQueries", 20);
-        ReflectionTestUtils.setField(service, "maxApifyCallsPerCycle", 5);
         ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
-        ReflectionTestUtils.setField(service, "scheduledMaxDaysBack", 7);
         ReflectionTestUtils.setField(service, "manualCooldownMinutes", 60);
+
+        lenient().when(discoveryService.getApifyMode()).thenReturn("scheduled");
+        lenient().when(discoveryService.discover(eq(List.of()), any(LocalDateTime.class)))
+                .thenReturn(DiscoveryResult.empty());
     }
 
     /** Synchronous test helper replacing the removed {@code resolvePendingBets(boolean)}. */
@@ -88,26 +71,6 @@ class BetResolutionServiceTest {
         } finally {
             autoResolutionGuard.release(false);
         }
-    }
-
-    private void stubCacheRepository() {
-        lenient().when(cacheRepository.findByQueryHashInAndExpiresAtAfter(anyCollection(), any(LocalDateTime.class)))
-                .thenAnswer(invocation -> {
-                    Collection<String> hashes = invocation.getArgument(0);
-                    LocalDateTime now = invocation.getArgument(1);
-                    return cacheStore.values().stream()
-                            .filter(row -> hashes.contains(row.getQueryHash()))
-                            .filter(row -> row.getExpiresAt().isAfter(now))
-                            .toList();
-                });
-        lenient().when(cacheRepository.findByQueryHash(anyString()))
-                .thenAnswer(invocation -> Optional.ofNullable(cacheStore.get(invocation.getArgument(0))));
-        lenient().when(cacheRepository.save(any(SofaScoreQueryCache.class)))
-                .thenAnswer(invocation -> {
-                    SofaScoreQueryCache row = invocation.getArgument(0);
-                    cacheStore.put(row.getQueryHash(), row);
-                    return row;
-                });
     }
 
     private SofaScoreEventDto finishedEvent(LocalDateTime start) {
@@ -135,9 +98,7 @@ class BetResolutionServiceTest {
     }
 
     @Test
-    void shouldNotCacheNonTerminalApifyResultsAndRefetchNextCycle() {
-        ReflectionTestUtils.setField(service, "apifyMode", "search");
-
+    void shouldNotSettleWhenDiscoveryReturnsNonTerminalEvent() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet bet = Bet.builder()
                 .id(21L).betType(BetType.SINGLE).status(BetStatus.PENDING)
@@ -151,21 +112,13 @@ class BetResolutionServiceTest {
         when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
         when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(21L)).thenReturn(Optional.of(bet));
-        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
-                .thenReturn(ApifyBatchResult.success(List.of(event)));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(event), 1, Set.of(21L), 0, 0));
 
         runResolutionForced(true);
-        verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
-        assertTrue(cacheStore.isEmpty(), "niefinished/niedokończony wynik nie powinien trafiać do cache");
 
-        reset(apifySofaScoreClient);
-        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
-                .thenReturn(ApifyBatchResult.success(List.of(event)));
-        bet.setStatus(BetStatus.PENDING);
-        bet.setLastResolutionAttemptAt(null);
-
-        runResolutionForced(true);
-        verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
+        assertEquals(BetStatus.PENDING, bet.getStatus());
+        verify(discoveryService, times(1)).discover(anyList(), any(LocalDateTime.class));
     }
 
     @Test
@@ -182,8 +135,8 @@ class BetResolutionServiceTest {
         when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
         when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(4L)).thenReturn(Optional.of(bet));
-        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
-                .thenReturn(List.of(finishedEvent(placed.plusDays(1))));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(finishedEvent(placed.plusDays(1))), 1, Set.of(4L), 0, 0));
 
         service.resolvePendingBets();
 
@@ -208,8 +161,8 @@ class BetResolutionServiceTest {
         when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
         when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(1L)).thenReturn(Optional.of(bet));
-        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
-                .thenReturn(List.of(finishedEvent(placed.plusDays(1))));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(finishedEvent(placed.plusDays(1))), 1, Set.of(1L), 0, 0));
 
         service.resolvePendingBets();
 
@@ -218,7 +171,7 @@ class BetResolutionServiceTest {
         assertEquals("APIFY_SOFASCORE", bet.getResolutionSource());
         assertNotNull(bet.getSettledAt());
         verify(betRepository).save(bet);
-        verify(apifySofaScoreClient).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+        verify(discoveryService).discover(anyList(), any(LocalDateTime.class));
     }
 
     @Test
@@ -234,8 +187,8 @@ class BetResolutionServiceTest {
         when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
         when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(2L)).thenReturn(Optional.of(bet));
-        when(apifySofaScoreClient.fetchScheduledMatches(any(), anyInt(), anyList(), anyInt()))
-                .thenReturn(List.of());
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(), 1, Set.of(2L), 0, 0));
 
         service.resolvePendingBets();
 
@@ -259,16 +212,12 @@ class BetResolutionServiceTest {
 
         service.resolvePendingBets();
 
-        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
-        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
+        verify(discoveryService).discover(eq(List.of()), any(LocalDateTime.class));
         verify(betRepository, never()).save(any());
     }
 
     @Test
-    void shouldFetchAllUniqueQueriesInMultipleApifyBatches() {
-        ReflectionTestUtils.setField(service, "apifyMode", "search");
-        ReflectionTestUtils.setField(service, "searchBatchSize", 2);
-
+    void shouldInvokeDiscoveryForEligibleBets() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet b1 = searchableSingle(10L, "Legia Warszawa - Lech Poznan", placed);
         Bet b2 = searchableSingle(11L, "Brighton - Manchester United", placed);
@@ -280,20 +229,16 @@ class BetResolutionServiceTest {
         when(betRepository.findByIdWithChildBets(10L)).thenReturn(Optional.of(b1));
         when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
         when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
-        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
-                .thenReturn(ApifyBatchResult.success(List.of()));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(), 2, Set.of(10L, 11L, 12L), 0, 0));
 
         runResolutionForced(true);
 
-        verify(apifySofaScoreClient, atLeast(1)).searchMatchesBatch(anyList());
-        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+        verify(discoveryService).discover(argThat(list -> list.size() == 3), any(LocalDateTime.class));
     }
 
     @Test
-    void shouldSkipBetsWhenApifyCallLimitReached() {
-        ReflectionTestUtils.setField(service, "apifyMode", "search");
-        ReflectionTestUtils.setField(service, "maxApifyCallsPerCycle", 0);
-
+    void shouldSkipBetsWhenDiscoveryReturnsNoFetchedBetIds() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet b1 = searchableSingle(10L, "Legia Warszawa - Lech Poznan", placed);
         Bet b2 = searchableSingle(11L, "Brighton - Manchester United", placed);
@@ -305,19 +250,18 @@ class BetResolutionServiceTest {
         when(betRepository.findByIdWithChildBets(10L)).thenReturn(Optional.of(b1));
         when(betRepository.findByIdWithChildBets(11L)).thenReturn(Optional.of(b2));
         when(betRepository.findByIdWithChildBets(12L)).thenReturn(Optional.of(b3));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(DiscoveryResult.empty());
 
         runResolutionForced(true);
 
-        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
         assertNull(b1.getLastResolutionAttemptAt());
         assertNull(b2.getLastResolutionAttemptAt());
         assertNull(b3.getLastResolutionAttemptAt());
     }
 
     @Test
-    void shouldSkipApifyWhenQueriesCachedWithinTtl() {
-        ReflectionTestUtils.setField(service, "apifyMode", "search");
-
+    void shouldResolveFromCachedDiscoveryResultOnSecondCycle() {
         LocalDateTime placed = LocalDateTime.of(2026, 5, 1, 12, 0);
         Bet bet = Bet.builder()
                 .id(20L).betType(BetType.SINGLE).status(BetStatus.PENDING)
@@ -331,19 +275,13 @@ class BetResolutionServiceTest {
         when(betRepository.findPendingRootIds(eq(BetStatus.PENDING), any())).thenReturn(List.of(bet.getId()));
         when(betRepository.findRootsWithLegsByIds(anyList())).thenReturn(List.of(bet));
         when(betRepository.findByIdWithChildBets(20L)).thenReturn(Optional.of(bet));
-        when(apifySofaScoreClient.searchMatchesBatch(anyList()))
-                .thenReturn(ApifyBatchResult.success(List.of(event)));
+        when(discoveryService.discover(anyList(), any(LocalDateTime.class)))
+                .thenReturn(new DiscoveryResult(List.of(event), 0, Set.of(20L), 0, 1));
 
         runResolutionForced(true);
-        verify(apifySofaScoreClient, times(1)).searchMatchesBatch(anyList());
-        assertFalse(cacheStore.isEmpty());
 
-        reset(apifySofaScoreClient);
-        bet.setStatus(BetStatus.PENDING);
-        bet.setLastResolutionAttemptAt(null);
-
-        runResolutionForced(true);
-        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
+        assertEquals(BetStatus.WON, bet.getStatus());
+        verify(discoveryService, times(1)).discover(anyList(), any(LocalDateTime.class));
     }
 
     @Test
@@ -361,8 +299,7 @@ class BetResolutionServiceTest {
 
         service.resolvePendingBets();
 
-        verify(apifySofaScoreClient, never()).searchMatchesBatch(anyList());
-        verify(apifySofaScoreClient, never()).fetchScheduledMatches(any(), anyInt(), anyList(), anyInt());
+        verify(discoveryService).discover(eq(List.of()), any(LocalDateTime.class));
         assertNull(bet.getLastResolutionAttemptAt());
     }
 
