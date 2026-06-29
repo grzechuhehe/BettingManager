@@ -33,6 +33,12 @@ public class BetResolutionAttempt {
     @Column(name = "error_code", length = 32)
     private String errorCode;
 
+    @Column(name = "phase", length = 16)
+    private String phase;
+
+    @Column(name = "enrichment_attempted", nullable = false)
+    private boolean enrichmentAttempted;
+
     @Column(name = "attempted_at", nullable = false)
     private LocalDateTime attemptedAt;
 }

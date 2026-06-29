@@ -5,6 +5,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.MatchDiscoveryService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,8 @@ class ResolutionBlockingReasonTest {
 
     @Mock private BetRepository betRepository;
     @Mock private MatchDiscoveryService discoveryService;
+    @Mock private BetResolutionAttemptRepository attemptRepository;
+    @Mock private ResolutionCycleMetricsHolder metricsHolder;
 
     private BetResolutionService service;
 
@@ -36,7 +39,9 @@ class ResolutionBlockingReasonTest {
                 c.resolvabilityChecker(),
                 new AutoResolutionGuard(),
                 new ResolutionQueuePrioritizer(),
-                discoveryService);
+                discoveryService,
+                attemptRepository,
+                metricsHolder);
         ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
     }

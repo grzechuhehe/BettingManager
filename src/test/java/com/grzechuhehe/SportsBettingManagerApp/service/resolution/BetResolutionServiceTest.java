@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.DiscoveryResult;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.MatchDiscoveryService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
@@ -32,6 +33,8 @@ class BetResolutionServiceTest {
 
     @Mock private BetRepository betRepository;
     @Mock private MatchDiscoveryService discoveryService;
+    @Mock private BetResolutionAttemptRepository attemptRepository;
+    @Mock private ResolutionCycleMetricsHolder metricsHolder;
 
     private BetResolutionService service;
     private BetResolutionTransactionService resolutionTx;
@@ -49,17 +52,21 @@ class BetResolutionServiceTest {
                 c.resolvabilityChecker(),
                 autoResolutionGuard,
                 new ResolutionQueuePrioritizer(),
-                discoveryService);
+                discoveryService,
+                attemptRepository,
+                metricsHolder);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
         ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
         ReflectionTestUtils.setField(service, "manualCooldownMinutes", 60);
+        ReflectionTestUtils.setField(service, "maxEnrichmentCallsPerCycle", 3);
 
         lenient().when(discoveryService.getApifyMode()).thenReturn("scheduled");
         lenient().when(discoveryService.discover(eq(List.of()), any(LocalDateTime.class)))
                 .thenReturn(DiscoveryResult.empty());
+        lenient().when(attemptRepository.findByCycleId(anyString())).thenReturn(List.of());
     }
 
     /** Synchronous test helper replacing the removed {@code resolvePendingBets(boolean)}. */

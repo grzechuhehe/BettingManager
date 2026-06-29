@@ -15,6 +15,8 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRe
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycleMetrics;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycleMetricsHolder;
 import com.grzechuhehe.SportsBettingManagerApp.util.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +57,9 @@ class BetControllerTest {
 
     @MockBean
     private BetResolutionAttemptRepository resolutionAttemptRepository;
+
+    @MockBean
+    private ResolutionCycleMetricsHolder resolutionMetricsHolder;
 
     @MockBean
     private UserRepository userRepository;
@@ -206,6 +211,30 @@ class BetControllerTest {
         ReflectionTestUtils.setField(betController, "debugEndpoints", false);
 
         mockMvc.perform(get("/api/bets/{id}/resolution-attempts", 5L))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getLastResolutionCycleMetrics_ShouldReturnOk_WhenDebugEnabledAndMetricsPresent() throws Exception {
+        ReflectionTestUtils.setField(betController, "debugEndpoints", true);
+        ResolutionCycleMetrics metrics = new ResolutionCycleMetrics(
+                "cycle-1", 3, 2, 1, 1, 0, 1, 0.24);
+        Mockito.when(resolutionMetricsHolder.getLast()).thenReturn(Optional.of(metrics));
+
+        mockMvc.perform(get("/api/bets/resolution/metrics/last-cycle"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cycleId").value("cycle-1"))
+                .andExpect(jsonPath("$.eligible").value(3))
+                .andExpect(jsonPath("$.settled").value(1));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getLastResolutionCycleMetrics_ShouldReturnNotFound_WhenDebugDisabled() throws Exception {
+        ReflectionTestUtils.setField(betController, "debugEndpoints", false);
+
+        mockMvc.perform(get("/api/bets/resolution/metrics/last-cycle"))
                 .andExpect(status().isNotFound());
     }
 

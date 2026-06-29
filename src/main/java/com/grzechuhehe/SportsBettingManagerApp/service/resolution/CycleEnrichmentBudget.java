@@ -26,4 +26,8 @@ public class CycleEnrichmentBudget {
     public int remaining() {
         return Math.max(0, maxCalls - used.get());
     }
+
+    public int usedCount() {
+        return used.get();
+    }
 }
