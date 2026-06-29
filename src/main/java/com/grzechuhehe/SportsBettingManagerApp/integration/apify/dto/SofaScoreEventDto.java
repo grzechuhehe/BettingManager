@@ -3,6 +3,8 @@ package com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
+import java.util.Map;
+
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SofaScoreEventDto {
@@ -18,4 +20,6 @@ public class SofaScoreEventDto {
     private Long startTimestamp;  // epoch seconds
     private String tournament;
     private String url;
+    private Map<String, Object> statistics;
+    private String eventId;
 }

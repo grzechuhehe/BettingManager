@@ -36,6 +36,7 @@ class BetResolutionTransactionService {
     private final ResolutionNameTranslator nameTranslator;
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
     private final SportConfidenceThresholds sportConfidenceThresholds;
+    private final EventEnrichmentService enrichmentService;
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
@@ -56,15 +57,16 @@ class BetResolutionTransactionService {
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays,
+            CycleEnrichmentBudget enrichmentBudget,
             String cycleId) {
         Bet root = betRepository.findByIdWithChildBets(rootId).orElse(null);
         if (root == null || root.getStatus() != BetStatus.PENDING) {
             return;
         }
         if (root.getBetType() == BetType.PARLAY) {
-            processParlay(root, eventPool, now, eligibleIds, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId);
+            processParlay(root, eventPool, now, eligibleIds, fetchedBetIds, confidenceThreshold, dateWindowDays, enrichmentBudget, cycleId);
         } else if (eligibleIds.contains(root.getId())) {
-            if (resolveSingle(root, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId)) {
+            if (resolveSingle(root, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, enrichmentBudget, cycleId)) {
                 log.info("Auto-rozliczono zakład {} → {}", root.getId(), root.getStatus());
             }
             betRepository.save(root);
@@ -79,6 +81,7 @@ class BetResolutionTransactionService {
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays,
+            CycleEnrichmentBudget enrichmentBudget,
             String cycleId) {
         if (parlay.getChildBets() == null || parlay.getChildBets().isEmpty()) {
             log.warn("Kupon {}: brak nóg — pomijam auto-rozliczanie", parlay.getId());
@@ -110,7 +113,7 @@ class BetResolutionTransactionService {
                     );
                 } else {
                     boolean settled = resolveSingle(
-                            leg, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, cycleId);
+                            leg, eventPool, now, fetchedBetIds, confidenceThreshold, dateWindowDays, enrichmentBudget, cycleId);
                     betRepository.save(leg);
                     if (settled) {
                         log.info(
@@ -253,6 +256,7 @@ class BetResolutionTransactionService {
             Set<Long> fetchedBetIds,
             double confidenceThreshold,
             int dateWindowDays,
+            CycleEnrichmentBudget enrichmentBudget,
             String cycleId) {
         boolean apifyDataAvailable = fetchedBetIds.contains(bet.getId());
         Optional<BetMatcher.MatchCandidate> match = Optional.empty();
@@ -326,8 +330,9 @@ class BetResolutionTransactionService {
                 String.format("%.2f", match.get().confidence())
         );
 
-        SofaScoreEventDto event = match.get().event();
-        Optional<BetStatus> outcome = betOutcomeEvaluator.evaluate(bet, event);
+        SofaScoreEventDto eventForEval = enrichmentService.enrichIfNeeded(
+                bet, match.get().event(), match.get().confidence(), enrichmentBudget);
+        Optional<BetStatus> outcome = betOutcomeEvaluator.evaluate(bet, eventForEval);
         if (outcome.isEmpty()) {
             bet.setLastResolutionAttemptAt(now);
             errorCode = "UNRESOLVED_MARKET";
@@ -335,7 +340,7 @@ class BetResolutionTransactionService {
             return false;
         }
 
-        applyOutcome(bet, outcome.get(), match.get().confidence(), event.getUrl());
+        applyOutcome(bet, outcome.get(), match.get().confidence(), eventForEval.getUrl());
         bet.setLastResolutionAttemptAt(now);
         recordAttempt(cycleId, bet.getId(), apifyDataAvailable, match, errorCode, now);
         return true;

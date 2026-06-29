@@ -1,6 +1,7 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grzechuhehe.SportsBettingManagerApp.integration.apify.ApifySofaScoreClient;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
@@ -37,6 +38,8 @@ public final class ResolutionTestFixtures {
 
     public static BetResolutionTransactionService transactionService(BetRepository betRepository) {
         ResolutionComponents c = components();
+        EventEnrichmentService enrichmentService =
+                new EventEnrichmentService(mock(ApifySofaScoreClient.class));
         return new BetResolutionTransactionService(
                 betRepository,
                 mock(BetResolutionAttemptRepository.class),
@@ -44,7 +47,12 @@ public final class ResolutionTestFixtures {
                 c.evaluator(),
                 c.nameTranslator(),
                 c.resolvabilityChecker(),
-                sportConfidenceThresholds());
+                sportConfidenceThresholds(),
+                enrichmentService);
+    }
+
+    public static CycleEnrichmentBudget enrichmentBudget() {
+        return new CycleEnrichmentBudget(3);
     }
 
     public record ResolutionComponents(

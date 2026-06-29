@@ -51,6 +51,9 @@ public class BetResolutionService {
     @Value("${bet.resolution.manual-cooldown-minutes:60}")
     private int manualCooldownMinutes;
 
+    @Value("${bet.resolution.max-enrichment-calls-per-cycle:3}")
+    private int maxEnrichmentCallsPerCycle;
+
     public int getManualCooldownMinutes() {
         return manualCooldownMinutes;
     }
@@ -113,6 +116,7 @@ public class BetResolutionService {
                 apifyMs, fetch.apifyCalls(), String.format("%.2f", fetch.apifyCalls() * 0.08));
 
         Set<Long> fetchedBetIds = fetch.fetchedBetIds();
+        CycleEnrichmentBudget enrichmentBudget = new CycleEnrichmentBudget(maxEnrichmentCallsPerCycle);
 
         if (!eligibleLeaves.isEmpty()) {
             log.info(
@@ -141,6 +145,7 @@ public class BetResolutionService {
                         fetchedBetIds,
                         confidenceThreshold,
                         dateWindowDays,
+                        enrichmentBudget,
                         cycleId
                 );
             } catch (Exception e) {

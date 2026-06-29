@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -74,7 +75,7 @@ public class ApifySofaScoreClient {
             return ApifyBatchResult.success(List.of());
         }
         logger.info("Apify SofaScore batch search: {} zapytań", normalized.size());
-        Map<String, Object> body = baseBody();
+        Map<String, Object> body = baseBody(false);
         body.put("mode", "search");
         body.put("searchQueries", normalized);
         body.put("searchType", "match");
@@ -90,7 +91,7 @@ public class ApifySofaScoreClient {
         List<String> sportList = sports == null || sports.isEmpty() ? List.of("football") : sports;
         logger.info("Apify SofaScore scheduled: date={}, daysAhead={}, sports={}, proxy={}",
                 startDate, daysAhead, sportList, useApifyProxy);
-        Map<String, Object> body = baseBody();
+        Map<String, Object> body = baseBody(false);
         body.put("mode", "scheduled");
         body.put("date", startDate.toString());
         body.put("daysAhead", Math.max(daysAhead, 0));
@@ -100,11 +101,26 @@ public class ApifySofaScoreClient {
         return result.successful() ? result.matches() : List.of();
     }
 
-    private Map<String, Object> baseBody() {
+    public Optional<SofaScoreEventDto> fetchEventDetails(String eventUrl) {
+        if (eventUrl == null || eventUrl.isBlank()) {
+            return Optional.empty();
+        }
+        logger.info("Apify SofaScore event details: url={}", eventUrl);
+        Map<String, Object> body = baseBody(true);
+        body.put("mode", "event");
+        body.put("eventUrl", eventUrl);
+        ApifyBatchResult result = runActor(body, "event " + eventUrl);
+        if (!result.successful() || result.matches().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(result.matches().getFirst());
+    }
+
+    private Map<String, Object> baseBody(boolean enriched) {
         Map<String, Object> body = new HashMap<>();
-        body.put("includeStatistics", false);
+        body.put("includeStatistics", enriched);
         body.put("includeLineups", false);
-        body.put("includeIncidents", false);
+        body.put("includeIncidents", enriched);
         body.put("includeStandings", false);
         body.put("proxy", Map.of("useApifyProxy", useApifyProxy));
         return body;

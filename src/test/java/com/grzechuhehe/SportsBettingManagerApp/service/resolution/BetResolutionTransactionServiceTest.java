@@ -77,7 +77,7 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(600L)).thenReturn(java.util.Optional.of(bet));
 
-        service.processRoot(600L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(600L), Set.of(600L), 0.85, 4, null);
+        service.processRoot(600L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(600L), Set.of(600L), 0.85, 4, ResolutionTestFixtures.enrichmentBudget(), null);
 
         assertEquals(BetStatus.WON, bet.getStatus());
         assertEquals(0, new BigDecimal("10").compareTo(bet.getFinalProfit()));
@@ -103,7 +103,7 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(601L)).thenReturn(java.util.Optional.of(bet));
 
-        service.processRoot(601L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(601L), Set.of(601L), 0.85, 4, null);
+        service.processRoot(601L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(601L), Set.of(601L), 0.85, 4, ResolutionTestFixtures.enrichmentBudget(), null);
 
         assertEquals(BetStatus.LOST, bet.getStatus());
         assertEquals(0, new BigDecimal("-10").compareTo(bet.getFinalProfit()));
@@ -138,6 +138,7 @@ class BetResolutionTransactionServiceTest {
                 Set.of(701L),
                 0.85,
                 4,
+                ResolutionTestFixtures.enrichmentBudget(),
                 null
         );
 
@@ -177,7 +178,7 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(400L)).thenReturn(java.util.Optional.of(parlay));
 
-        service.processRoot(400L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(401L, 402L), Set.of(401L, 402L), 0.85, 4, null);
+        service.processRoot(400L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(401L, 402L), Set.of(401L, 402L), 0.85, 4, ResolutionTestFixtures.enrichmentBudget(), null);
 
         assertEquals(BetStatus.VOID, leg1.getStatus());
         assertEquals(BetStatus.VOID, leg2.getStatus());
@@ -215,7 +216,7 @@ class BetResolutionTransactionServiceTest {
 
         when(betRepository.findByIdWithChildBets(500L)).thenReturn(java.util.Optional.of(parlay));
 
-        service.processRoot(500L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(501L, 502L), Set.of(501L, 502L), 0.85, 4, null);
+        service.processRoot(500L, pool, LocalDateTime.of(2026, 6, 5, 12, 0), Set.of(501L, 502L), Set.of(501L, 502L), 0.85, 4, ResolutionTestFixtures.enrichmentBudget(), null);
 
         assertEquals(BetStatus.WON, legWon.getStatus());
         assertEquals(BetStatus.VOID, legVoid.getStatus());
@@ -255,7 +256,7 @@ class BetResolutionTransactionServiceTest {
 
         service.processRoot(
                 610L, pool, LocalDateTime.of(2026, 6, 26, 11, 0),
-                Set.of(611L, 612L), Set.of(611L, 612L), 0.85, 4, null);
+                Set.of(611L, 612L), Set.of(611L, 612L), 0.85, 4, ResolutionTestFixtures.enrichmentBudget(), null);
 
         assertEquals(BetStatus.WON, legWon.getStatus());
         assertEquals(BetStatus.VOID, legVoid.getStatus());
@@ -304,6 +305,7 @@ class BetResolutionTransactionServiceTest {
                 Set.of(101L, 102L),
                 0.85,
                 4,
+                ResolutionTestFixtures.enrichmentBudget(),
                 null
         );
 
@@ -347,6 +349,7 @@ class BetResolutionTransactionServiceTest {
                 Set.of(201L, 202L),
                 0.85,
                 4,
+                ResolutionTestFixtures.enrichmentBudget(),
                 null
         );
 
@@ -390,6 +393,7 @@ class BetResolutionTransactionServiceTest {
                 Set.of(301L),
                 0.85,
                 4,
+                ResolutionTestFixtures.enrichmentBudget(),
                 null
         );
 
