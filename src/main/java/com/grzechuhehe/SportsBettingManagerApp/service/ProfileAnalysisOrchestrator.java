@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Slf4j
@@ -379,16 +381,8 @@ public class ProfileAnalysisOrchestrator {
                 if (jsonNode.has("sport")) bet.setSport(sanitizeAiString(jsonNode.get("sport")));
 
                 if (jsonNode.has("eventDate") && !jsonNode.get("eventDate").isNull()) {
-                    String eventDateRaw = sanitizeAiString(jsonNode.get("eventDate"));
-                    if (eventDateRaw != null) {
-                        try {
-                            bet.setEventDate(LocalDateTime.parse(eventDateRaw.replace(" ", "T")));
-                        } catch (Exception e) {
-                            try {
-                                bet.setEventDate(java.time.OffsetDateTime.parse(eventDateRaw).toLocalDateTime());
-                            } catch (Exception ignored) {}
-                        }
-                    }
+                    parseAiEventDate(sanitizeAiString(jsonNode.get("eventDate")))
+                            .ifPresent(bet::setEventDate);
                 }
                 
                 if (jsonNode.has("marketType") && !jsonNode.get("marketType").isNull()) {
@@ -595,6 +589,25 @@ public class ProfileAnalysisOrchestrator {
             return null;
         }
         return text;
+    }
+
+    /** Parses Gemini's eventDate, tolerating both zone-less and offset ISO formats. */
+    private Optional<LocalDateTime> parseAiEventDate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = raw.replace(" ", "T");
+        try {
+            return Optional.of(LocalDateTime.parse(normalized));
+        } catch (DateTimeParseException ignored) {
+            // fall through to offset format
+        }
+        try {
+            return Optional.of(OffsetDateTime.parse(normalized).toLocalDateTime());
+        } catch (DateTimeParseException e) {
+            log.debug("Nie udało się sparsować eventDate z AI '{}': {}", raw, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     @SuppressWarnings("unchecked")
