@@ -5,7 +5,7 @@ import com.grzechuhehe.SportsBettingManagerApp.integration.GeminiVisionClient;
 import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -29,6 +29,8 @@ class ProfileAnalysisOrchestratorTest {
     private UserRepository userRepository;
     @Mock
     private BetRepository betRepository;
+    @Mock
+    private BetImportResolutionEnricher betImportResolutionEnricher;
 
     @InjectMocks
     private ProfileAnalysisOrchestrator orchestrator;

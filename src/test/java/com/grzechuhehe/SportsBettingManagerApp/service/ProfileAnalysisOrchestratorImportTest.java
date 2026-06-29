@@ -10,6 +10,11 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.CompositeSelectionParser;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,9 +43,15 @@ class ProfileAnalysisOrchestratorImportTest {
 
     @BeforeEach
     void setUp() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        BetImportResolutionEnricher enricher = new BetImportResolutionEnricher(
+                new CompositeSelectionParser(),
+                objectMapper,
+                new MarketTypeInferrer(nameTranslator));
         orchestrator = new ProfileAnalysisOrchestrator(
                 userRepository, betRepository, socialDataClient,
-                geminiVisionClient, imageStorageService, new ObjectMapper());
+                geminiVisionClient, imageStorageService, objectMapper, enricher);
     }
 
     @Test
@@ -89,7 +100,7 @@ class ProfileAnalysisOrchestratorImportTest {
         assertTrue(result.isPresent());
         Bet bet = result.get();
         assertNotNull(bet.getEventDate());
-        assertEquals(MarketType.OTHER, bet.getMarketType());
+        assertEquals(MarketType.MONEYLINE_1X2, bet.getMarketType());
         assertEquals("Unknown", bet.getBookmaker());
         assertEquals("Other", bet.getSport());
         assertEquals(0, new BigDecimal("10").compareTo(bet.getStake()));

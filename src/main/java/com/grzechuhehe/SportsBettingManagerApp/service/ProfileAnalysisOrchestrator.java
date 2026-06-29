@@ -12,6 +12,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -36,6 +37,7 @@ public class ProfileAnalysisOrchestrator {
     private final GeminiVisionClient geminiVisionClient;
     private final ImageStorageService imageStorageService;
     private final ObjectMapper objectMapper;
+    private final BetImportResolutionEnricher betImportResolutionEnricher;
 
     // Uruchamia się co 15 minut
     @Scheduled(fixedRate = 900000)
@@ -88,6 +90,7 @@ public class ProfileAnalysisOrchestrator {
                 ? note
                 : "Użytkownik wgrał zrzut ekranu kuponu bukmacherskiego.";
         updateBetDataFromAI(bet, promptText, imagePaths, null);
+        betImportResolutionEnricher.enrich(bet);
         applyManualImportDefaults(bet);
 
         if (!isBetValid(bet)) {
@@ -241,7 +244,8 @@ public class ProfileAnalysisOrchestrator {
                         log.info("Wykryto dodane zdjęcia do istniejącego posta {} od {}", tweetId, xUsername);
                         existingBet.setImageProofPath(localImagePaths.get(0));
                         updateBetDataFromAI(existingBet, fullText, localImagePaths, threadContext);
-                        
+                        betImportResolutionEnricher.enrich(existingBet);
+
                         if (isBetValid(existingBet)) {
                             betRepository.save(existingBet);
                             log.info("Zaktualizowano istniejący zakład z posta {}", tweetId);
@@ -263,7 +267,8 @@ public class ProfileAnalysisOrchestrator {
                         .build();
 
                 updateBetDataFromAI(newBet, fullText, localImagePaths, threadContext);
-                
+                betImportResolutionEnricher.enrich(newBet);
+
                 if (isBetValid(newBet)) {
                      betRepository.save(newBet);
                      savedCount++;
@@ -329,9 +334,6 @@ public class ProfileAnalysisOrchestrator {
     private void applyManualImportDefaults(Bet bet) {
         if (bet.getEventDate() == null) {
             bet.setEventDate(bet.getPlacedAt() != null ? bet.getPlacedAt() : LocalDateTime.now());
-        }
-        if (bet.getMarketType() == null) {
-            bet.setMarketType(MarketType.OTHER);
         }
         if (bet.getBookmaker() == null || bet.getBookmaker().isBlank()) {
             bet.setBookmaker("Unknown");
