@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
+import { toLocalDateTimeString } from '../utils/datetime';
 
 const AUTO_RESOLUTION_COOLDOWN_KEY = 'autoResolutionLastFinishedAt';
-
-function toLocalDateTimeString(value) {
-    if (!value) return null;
-    const date = typeof value === 'string' ? new Date(value) : new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toISOString().slice(0, 19);
-}
+const AUTO_RESOLUTION_COOLDOWN_MS_KEY = 'autoResolutionCooldownMs';
 
 function buildBetUpdatePayload(bet, formData) {
     const eventDate = formData.eventDate || bet.eventDate || bet.placedAt;
