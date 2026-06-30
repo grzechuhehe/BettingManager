@@ -27,23 +27,18 @@ class ResolutionBlockingReasonTest {
     @Mock private BetResolutionAttemptRepository attemptRepository;
     @Mock private ResolutionCycleMetricsHolder metricsHolder;
 
-    private BetResolutionService service;
+    private BetResolutionEligibilityEvaluator eligibilityEvaluator;
 
     @BeforeEach
     void setUp() {
         ResolutionTestFixtures.ResolutionComponents c = ResolutionTestFixtures.components();
-        BetResolutionTransactionService resolutionTx = ResolutionTestFixtures.transactionService(betRepository);
-        service = new BetResolutionService(
+        eligibilityEvaluator = new BetResolutionEligibilityEvaluator(
                 c.nameTranslator(),
-                resolutionTx,
                 c.resolvabilityChecker(),
-                new AutoResolutionGuard(),
-                new ResolutionQueuePrioritizer(),
-                discoveryService,
-                attemptRepository,
-                metricsHolder);
-        ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
-        ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
+                new com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer(
+                        c.nameTranslator()));
+        ReflectionTestUtils.setField(eligibilityEvaluator, "searchCooldownHours", 24);
+        ReflectionTestUtils.setField(eligibilityEvaluator, "minHoursAfterPlaced", 3);
     }
 
     @Test
@@ -57,7 +52,7 @@ class ResolutionBlockingReasonTest {
                 .placedAt(now.minusDays(1))
                 .build();
 
-        Boolean eligible = ReflectionTestUtils.invokeMethod(service, "isEligibleLeaf", bet, now, false);
+        Boolean eligible = eligibilityEvaluator.isEligible(bet, now, false);
 
         assertFalse(eligible);
         assertEquals(ResolutionBlockingReason.OUTRIGHT_UNSUPPORTED, bet.getResolutionBlockingReason());
@@ -75,7 +70,7 @@ class ResolutionBlockingReasonTest {
                 .resolutionBlockingReason(ResolutionBlockingReason.COOLDOWN)
                 .build();
 
-        Boolean eligible = ReflectionTestUtils.invokeMethod(service, "isEligibleLeaf", bet, now, false);
+        Boolean eligible = eligibilityEvaluator.isEligible(bet, now, false);
 
         assertTrue(eligible);
         assertNull(bet.getResolutionBlockingReason());

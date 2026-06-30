@@ -8,7 +8,6 @@ import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.Matc
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.ResolutionQueuePrioritizer;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
-import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +35,7 @@ public class BetResolutionService {
     private final MatchDiscoveryService discoveryService;
     private final BetResolutionAttemptRepository attemptRepository;
     private final ResolutionCycleMetricsHolder metricsHolder;
+    private final BetResolutionEligibilityEvaluator eligibilityEvaluator;
 
     private static final double APIFY_COST_PER_CALL_USD = 0.08;
 
@@ -47,12 +47,6 @@ public class BetResolutionService {
 
     @Value("${bet.resolution.max-bets-per-run:50}")
     private int maxBetsPerRun;
-
-    @Value("${bet.resolution.search-cooldown-hours:24}")
-    private int searchCooldownHours;
-
-    @Value("${bet.resolution.min-hours-after-placed:3}")
-    private int minHoursAfterPlaced;
 
     @Value("${bet.resolution.manual-cooldown-minutes:60}")
     private int manualCooldownMinutes;
@@ -243,58 +237,14 @@ public class BetResolutionService {
                     continue;
                 }
                 for (Bet leg : root.getChildBets()) {
-                    if (leg.getStatus() == BetStatus.PENDING && isEligibleLeaf(leg, now, force)) {
+                    if (leg.getStatus() == BetStatus.PENDING && eligibilityEvaluator.isEligible(leg, now, force)) {
                         eligible.add(leg);
                     }
                 }
-            } else if (isEligibleLeaf(root, now, force)) {
+            } else if (eligibilityEvaluator.isEligible(root, now, force)) {
                 eligible.add(root);
             }
         }
         return resolutionQueuePrioritizer.sortByPriority(eligible, roots);
-    }
-
-    /** Pojedynczy mecz (SINGLE) lub jedna noga kuponu — nie złożony opis AKO w eventName. */
-    private boolean isEligibleLeaf(Bet bet, LocalDateTime now, boolean force) {
-        if (bet.getEventName() == null || bet.getEventName().isBlank()) {
-            return rejectEligible(bet, ResolutionBlockingReason.NOT_SEARCHABLE_EVENT);
-        }
-        if (nameTranslator.resolveQueryForApify(bet.getEventName()).isEmpty()) {
-            return rejectEligible(bet, ResolutionBlockingReason.NOT_SEARCHABLE_EVENT);
-        }
-        if (!selectionResolvabilityChecker.isAutoResolvable(bet)) {
-            return rejectEligible(bet, ResolutionBlockingReason.MANUAL_ONLY_SELECTION);
-        }
-        MarketType market = bet.getMarketType() != null
-                ? bet.getMarketType()
-                : resolutionTx.inferMarketType(bet);
-        if (market == MarketType.OUTRIGHT) {
-            return rejectEligible(bet, ResolutionBlockingReason.OUTRIGHT_UNSUPPORTED);
-        }
-        if (market == null
-                || (!ResolutionSupportedMarkets.VALUES.contains(market) && !isBetBuilderLeg(bet))) {
-            return rejectEligible(bet, ResolutionBlockingReason.UNSUPPORTED_MARKET);
-        }
-        if (bet.getPlacedAt() != null && bet.getPlacedAt().isAfter(now.minusHours(minHoursAfterPlaced))) {
-            return rejectEligible(bet, ResolutionBlockingReason.TOO_RECENT);
-        }
-        if (bet.getLastResolutionAttemptAt() != null
-                && bet.getLastResolutionAttemptAt().isAfter(now.minusHours(searchCooldownHours))
-                && !force) {
-            return rejectEligible(bet, ResolutionBlockingReason.COOLDOWN);
-        }
-        bet.setResolutionBlockingReason(null);
-        return true;
-    }
-
-    private static boolean rejectEligible(Bet bet, ResolutionBlockingReason reason) {
-        bet.setResolutionBlockingReason(reason);
-        return false;
-    }
-
-    private boolean isBetBuilderLeg(Bet bet) {
-        String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
-        return selection.contains("bet builder") || selection.contains("betbuilder")
-                || (bet.getBuilderConditionsJson() != null && !bet.getBuilderConditionsJson().isBlank());
     }
 }

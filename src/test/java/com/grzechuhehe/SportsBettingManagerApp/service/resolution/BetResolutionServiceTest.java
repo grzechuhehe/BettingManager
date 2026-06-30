@@ -46,6 +46,12 @@ class BetResolutionServiceTest {
         resolutionTx = ResolutionTestFixtures.transactionService(betRepository);
 
         autoResolutionGuard = new AutoResolutionGuard();
+        BetResolutionEligibilityEvaluator eligibilityEvaluator = new BetResolutionEligibilityEvaluator(
+                c.nameTranslator(),
+                c.resolvabilityChecker(),
+                resolutionTx);
+        ReflectionTestUtils.setField(eligibilityEvaluator, "searchCooldownHours", 24);
+        ReflectionTestUtils.setField(eligibilityEvaluator, "minHoursAfterPlaced", 3);
         service = new BetResolutionService(
                 c.nameTranslator(),
                 resolutionTx,
@@ -54,12 +60,11 @@ class BetResolutionServiceTest {
                 new ResolutionQueuePrioritizer(),
                 discoveryService,
                 attemptRepository,
-                metricsHolder);
+                metricsHolder,
+                eligibilityEvaluator);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
-        ReflectionTestUtils.setField(service, "searchCooldownHours", 24);
-        ReflectionTestUtils.setField(service, "minHoursAfterPlaced", 3);
         ReflectionTestUtils.setField(service, "manualCooldownMinutes", 60);
         ReflectionTestUtils.setField(service, "maxEnrichmentCallsPerCycle", 3);
 
