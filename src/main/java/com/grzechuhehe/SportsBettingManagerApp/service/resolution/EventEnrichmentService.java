@@ -42,7 +42,7 @@ public class EventEnrichmentService {
         if (event == null || event.getUrl() == null || event.getUrl().isBlank()) {
             return event;
         }
-        if (!selectionNeedsStats(bet.getSelection())) {
+        if (!needsEnrichment(bet)) {
             return event;
         }
         if (budget == null || !budget.tryConsume()) {
@@ -58,6 +58,14 @@ public class EventEnrichmentService {
 
         log.info("Zakład {}: wzbogacono mecz statystykami Apify ({})", bet.getId(), event.getUrl());
         return merge(event, enriched.get());
+    }
+
+    private static boolean needsEnrichment(Bet bet) {
+        if (selectionNeedsStats(bet.getSelection())) {
+            return true;
+        }
+        String json = bet.getBuilderConditionsJson();
+        return json != null && !json.isBlank();
     }
 
     private static boolean selectionNeedsStats(String selection) {

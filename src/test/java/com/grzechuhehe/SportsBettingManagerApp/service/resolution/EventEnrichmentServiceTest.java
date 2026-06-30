@@ -68,6 +68,24 @@ class EventEnrichmentServiceTest {
     }
 
     @Test
+    void shouldFetchEventDetailsWhenBetBuilderHasBuilderConditionsJson() {
+        Bet bet = Bet.builder()
+                .id(10L)
+                .betType(BetType.SINGLE)
+                .status(BetStatus.PENDING)
+                .selection("Bet Builder")
+                .builderConditionsJson("[{\"marketType\":\"TEAM_TOTAL_GOALS_OVER_UNDER\",\"line\":1.5}]")
+                .build();
+        SofaScoreEventDto event = baseEvent("https://www.sofascore.com/match/10");
+
+        SofaScoreEventDto result = service.enrichIfNeeded(
+                bet, event, 0.95, new CycleEnrichmentBudget(3));
+
+        assertNotNull(result.getStatistics());
+        assertEquals(1, apifyClient.fetchCalls.get());
+    }
+
+    @Test
     void shouldSkipWhenSelectionDoesNotNeedStats() {
         Bet bet = Bet.builder()
                 .id(3L)
