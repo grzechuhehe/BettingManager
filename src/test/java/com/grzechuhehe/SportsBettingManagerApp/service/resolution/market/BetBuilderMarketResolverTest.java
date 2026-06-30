@@ -22,7 +22,8 @@ class BetBuilderMarketResolverTest {
         CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(translator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(translator);
-        resolver = new BetBuilderMarketResolver(parser, standard, handicap, new ObjectMapper());
+        StatisticsMarketResolver statistics = new StatisticsMarketResolver(translator);
+        resolver = new BetBuilderMarketResolver(parser, standard, handicap, statistics, new ObjectMapper());
     }
 
     @Test

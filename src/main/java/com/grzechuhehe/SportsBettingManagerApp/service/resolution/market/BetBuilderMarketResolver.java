@@ -23,6 +23,7 @@ public class BetBuilderMarketResolver implements MarketResolver {
     private final CompositeSelectionParser compositeSelectionParser;
     private final StandardMarketResolver standardMarketResolver;
     private final HandicapMarketResolver handicapMarketResolver;
+    private final StatisticsMarketResolver statisticsMarketResolver;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -84,6 +85,12 @@ public class BetBuilderMarketResolver implements MarketResolver {
     }
 
     private Optional<BetStatus> resolveCondition(Bet synthetic, SofaScoreEventDto event) {
+        if (statisticsMarketResolver.supports(synthetic)) {
+            Optional<BetStatus> statsResult = statisticsMarketResolver.resolve(synthetic, event);
+            if (statsResult.isPresent()) {
+                return statsResult;
+            }
+        }
         if (synthetic.getMarketType() == MarketType.HANDICAP
                 || synthetic.getMarketType() == MarketType.ASIAN_HANDICAP) {
             return handicapMarketResolver.resolve(synthetic, event);
