@@ -47,10 +47,11 @@ public final class ResolutionTestFixtures {
                 mock(BetResolutionAttemptRepository.class),
                 c.matcher(),
                 c.evaluator(),
-                c.nameTranslator(),
                 c.resolvabilityChecker(),
                 sportConfidenceThresholds(),
-                enrichmentService);
+                enrichmentService,
+                new com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer(
+                        c.nameTranslator()));
     }
 
     public static CycleEnrichmentBudget enrichmentBudget() {

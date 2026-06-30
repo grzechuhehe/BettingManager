@@ -402,42 +402,4 @@ class BetResolutionTransactionServiceTest {
         assertEquals(BetStatus.LOST, parlay.getStatus());
         verify(betRepository).save(parlay);
     }
-
-    @Test
-    void inferMarketTypeFootballWithCommaIsNotTwoWay() {
-        Bet bet = Bet.builder()
-                .eventName("Independiente, Reserves - Racing")
-                .sport("Football")
-                .selection("1")
-                .build();
-        assertEquals(MarketType.MONEYLINE_1X2, service.inferMarketType(bet));
-    }
-
-    @Test
-    void inferMarketTypeExplicitTennisIsTwoWay() {
-        Bet bet = Bet.builder()
-                .eventName("Cobolli, Flavio - Zverev, Alexander")
-                .sport("Tennis")
-                .selection("Zverev, Alexander")
-                .build();
-        assertEquals(MarketType.MONEYLINE_12, service.inferMarketType(bet));
-    }
-
-    @Test
-    void inferMarketTypeNoSportTwoPlayerNamesIsTwoWay() {
-        Bet bet = Bet.builder()
-                .eventName("Cobolli, Flavio - Zverev, Alexander")
-                .selection("Zverev, Alexander")
-                .build();
-        assertEquals(MarketType.MONEYLINE_12, service.inferMarketType(bet));
-    }
-
-    @Test
-    void inferMarketTypeNoSportSingleCommaIsNotTwoWay() {
-        Bet bet = Bet.builder()
-                .eventName("Independiente, Reserves - Racing")
-                .selection("1")
-                .build();
-        assertEquals(MarketType.MONEYLINE_1X2, service.inferMarketType(bet));
-    }
 }

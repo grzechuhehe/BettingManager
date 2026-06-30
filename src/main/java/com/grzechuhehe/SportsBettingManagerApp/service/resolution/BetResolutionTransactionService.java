@@ -8,6 +8,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.SportConfidenceThresholds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -33,10 +33,10 @@ class BetResolutionTransactionService {
     private final BetResolutionAttemptRepository attemptRepository;
     private final BetMatcher betMatcher;
     private final BetOutcomeEvaluator betOutcomeEvaluator;
-    private final ResolutionNameTranslator nameTranslator;
     private final SelectionResolvabilityChecker selectionResolvabilityChecker;
     private final SportConfidenceThresholds sportConfidenceThresholds;
     private final EventEnrichmentService enrichmentService;
+    private final MarketTypeInferrer marketTypeInferrer;
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
@@ -99,11 +99,13 @@ class BetResolutionTransactionService {
             if (leg.getStatus() == BetStatus.PENDING) {
                 if (!eligibleIds.contains(leg.getId())) {
                     log.debug(
-                            "Kupon {} — noga {} ({}): pominięta (cooldown / niedozwolony typ selekcji)",
+                            "Kupon {} — noga {} ({}): pominięta ({})",
                             parlay.getId(),
                             leg.getId(),
-                            leg.getEventName()
-                    );
+                            leg.getEventName(),
+                            leg.getResolutionBlockingReason() != null
+                                    ? leg.getResolutionBlockingReason().name()
+                                    : "UNKNOWN");
                 } else if (!fetchedBetIds.contains(leg.getId())) {
                     log.info(
                             "Kupon {} — noga {} ({}): query nie weszło do Apify w tym cyklu — czekam",
@@ -372,53 +374,11 @@ class BetResolutionTransactionService {
         attemptRepository.save(attempt);
     }
 
-    MarketType inferMarketType(Bet bet) {
-        if (bet.getMarketType() != null || bet.getEventName() == null) {
-            return bet.getMarketType();
-        }
-        if (nameTranslator.resolveQueryForApify(bet.getEventName()).isEmpty()) {
-            return null;
-        }
-        String selection = bet.getSelection() == null ? "" : bet.getSelection().toLowerCase(Locale.ROOT);
-        if (isTennisBet(bet)) {
-            if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
-                return MarketType.HANDICAP;
-            }
-            return MarketType.MONEYLINE_12;
-        }
-        if (selection.matches(".*\\([+-]?\\d+(?:[.,]\\d+)?\\).*")) {
-            return MarketType.HANDICAP;
-        }
-        if (selection.contains("over") || selection.contains("under")
-                || selection.contains("powyzej") || selection.contains("powyżej")
-                || selection.contains("ponizej") || selection.contains("poniżej")) {
-            return MarketType.TOTALS_OVER_UNDER;
-        }
-        return MarketType.MONEYLINE_1X2;
-    }
-
-    private boolean isTennisBet(Bet bet) {
-        if (bet.getSport() != null && !bet.getSport().isBlank()) {
-            String sport = bet.getSport().toLowerCase(Locale.ROOT);
-            return sport.contains("tennis") || sport.contains("tenis");
-        }
-        return looksLikeTwoPlayerNames(bet.getEventName());
-    }
-
-    private boolean looksLikeTwoPlayerNames(String eventName) {
-        if (eventName == null) {
-            return false;
-        }
-        return nameTranslator.parseTwoTeamSides(eventName)
-                .map(sides -> sides.home().contains(",") && sides.away().contains(","))
-                .orElse(false);
-    }
-
     private void ensureMarketType(Bet bet) {
         if (bet.getMarketType() != null) {
             return;
         }
-        MarketType inferred = inferMarketType(bet);
+        MarketType inferred = marketTypeInferrer.infer(bet);
         if (inferred != null) {
             bet.setMarketType(inferred);
         }
