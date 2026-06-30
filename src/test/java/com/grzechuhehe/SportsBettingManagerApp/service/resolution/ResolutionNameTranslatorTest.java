@@ -59,6 +59,19 @@ class ResolutionNameTranslatorTest {
     }
 
     @Test
+    void shouldTranslateWorldCupNationalTeamAliases() {
+        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        assertEquals("Cape Verde", translator.translateSegment("Republika Zielonego Przylądka"));
+        assertEquals("DR Congo", translator.translateSegment("DR Kongo"));
+        assertEquals("Algeria", translator.translateSegment("Algieria"));
+        assertEquals("New Zealand", translator.translateSegment("Nowa Zelandia"));
+        assertEquals("Senegal", translator.translateSegment("Senegal"));
+        assertEquals("Austria", translator.translateSegment("Austria"));
+        assertEquals("Dominican Republic", translator.translateSegment("Dominikana"));
+        assertEquals("Bulgaria", translator.translateSegment("Bułgaria"));
+    }
+
+    @Test
     void shouldAllowFuzzyClubNamesWithoutFullTranslation() {
         assertEquals(
                 "Brighton Manchester United",
