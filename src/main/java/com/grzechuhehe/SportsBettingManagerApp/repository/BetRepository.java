@@ -50,4 +50,14 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
     @EntityGraph(attributePaths = "childBets")
     @org.springframework.data.jpa.repository.Query("SELECT b FROM Bet b WHERE b.user = :user AND b.isAiExtracted = true AND b.parentBet IS NULL")
     org.springframework.data.domain.Page<Bet> findRootAiBetsByUser(User user, org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT b FROM Bet b WHERE b.status = :status AND b.parentBet IS NOT NULL AND b.retroactiveAtImport = false")
+    List<Bet> findPendingNonRetroactiveLeaves(@Param("status") BetStatus status);
+
+    @Query("""
+            SELECT b.id FROM Bet b
+            WHERE b.status = :status AND b.parentBet IS NOT NULL AND b.retroactiveAtImport = false
+            ORDER BY b.id ASC
+            """)
+    List<Long> findPendingNonRetroactiveLeafIds(@Param("status") BetStatus status, Pageable pageable);
 }
