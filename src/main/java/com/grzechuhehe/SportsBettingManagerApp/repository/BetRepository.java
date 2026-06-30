@@ -60,4 +60,7 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
             ORDER BY b.id ASC
             """)
     List<Long> findPendingNonRetroactiveLeafIds(@Param("status") BetStatus status, Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM Bet b WHERE b.status = :status AND b.parentBet IS NOT NULL AND b.retroactiveAtImport = false")
+    long countPendingNonRetroactiveLeaves(@Param("status") BetStatus status);
 }
