@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MatchReRankerTest {
 
-    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(new DoublesNameNormalizer()), new MatchReRanker());
+    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer()), new MatchReRanker());
 
     @Test
     void reranksWestHamLeedsAboveThreshold() {

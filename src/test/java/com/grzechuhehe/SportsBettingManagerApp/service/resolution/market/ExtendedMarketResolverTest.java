@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -16,9 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ExtendedMarketResolverTest {
 
     private final StandardMarketResolver standard =
-            new StandardMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer()));
+            new StandardMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer()));
     private final StatisticsMarketResolver statistics =
-            new StatisticsMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer()));
+            new StatisticsMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer()));
 
     @Test
     void doubleChanceHomeOrDrawWon() {

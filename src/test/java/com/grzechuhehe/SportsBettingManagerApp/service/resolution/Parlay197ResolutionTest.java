@@ -7,6 +7,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetType;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -107,7 +108,7 @@ class Parlay197ResolutionTest {
 
     @Test
     void allParlay197EventNamesShouldBeSearchable() {
-        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer());
         List<String> events = List.of(
                 "LZS Krynki - Pionier Brańsk",
                 "USA (K) - Niemcy (K)",

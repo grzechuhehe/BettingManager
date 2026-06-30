@@ -15,6 +15,7 @@ import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.Mark
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.CompositeSelectionParser;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,7 +45,7 @@ class ProfileAnalysisOrchestratorImportTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer());
         BetImportResolutionEnricher enricher = new BetImportResolutionEnricher(
                 new CompositeSelectionParser(),
                 objectMapper,

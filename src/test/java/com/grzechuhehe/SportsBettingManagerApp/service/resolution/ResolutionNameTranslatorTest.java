@@ -1,13 +1,14 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResolutionNameTranslatorTest {
 
-    private final ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+    private final ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer());
 
     @Test
     void shouldBuildEnglishSearchQueryFromPolishAbbreviations() {
@@ -60,7 +61,7 @@ class ResolutionNameTranslatorTest {
 
     @Test
     void shouldTranslateWorldCupNationalTeamAliases() {
-        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        ResolutionNameTranslator translator = new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer());
         assertEquals("Cape Verde", translator.translateSegment("Republika Zielonego Przylądka"));
         assertEquals("DR Congo", translator.translateSegment("DR Kongo"));
         assertEquals("Algeria", translator.translateSegment("Algieria"));

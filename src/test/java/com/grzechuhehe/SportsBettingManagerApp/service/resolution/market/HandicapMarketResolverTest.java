@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.BetStatus;
 import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ class HandicapMarketResolverTest {
 
     @BeforeEach
     void setUp() {
-        resolver = new HandicapMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer()));
+        resolver = new HandicapMarketResolver(new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer()));
     }
 
     @Test

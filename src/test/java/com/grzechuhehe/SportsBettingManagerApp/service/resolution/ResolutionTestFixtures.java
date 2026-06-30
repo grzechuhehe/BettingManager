@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.*;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.SportConfidenceThresholds;
 
@@ -16,7 +17,7 @@ public final class ResolutionTestFixtures {
     private ResolutionTestFixtures() {}
 
     public static ResolutionComponents components() {
-        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer());
+        ResolutionNameTranslator nameTranslator = new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer());
         CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(nameTranslator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(nameTranslator);

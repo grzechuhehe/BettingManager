@@ -1,6 +1,7 @@
 package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
@@ -38,9 +39,12 @@ public class ResolutionNameTranslator {
     private static final Map<String, String> SEGMENT_ALIASES = buildAliases();
 
     private final DoublesNameNormalizer doublesNameNormalizer;
+    private final TennisNameNormalizer tennisNameNormalizer;
 
-    public ResolutionNameTranslator(DoublesNameNormalizer doublesNameNormalizer) {
+    public ResolutionNameTranslator(DoublesNameNormalizer doublesNameNormalizer,
+                                    TennisNameNormalizer tennisNameNormalizer) {
         this.doublesNameNormalizer = doublesNameNormalizer;
+        this.tennisNameNormalizer = tennisNameNormalizer;
     }
 
     public record TwoSides(String home, String away) {}
@@ -79,11 +83,6 @@ public class ResolutionNameTranslator {
             }
             return Optional.of(home + " " + away);
         });
-    }
-
-    /** @deprecated użyj {@link #resolveQueryForApify} */
-    public Optional<String> buildSearchQuery(String eventName) {
-        return resolveQueryForApify(eventName);
     }
 
     public Optional<TwoSides> parseTwoTeamSides(String eventName) {
@@ -155,13 +154,17 @@ public class ResolutionNameTranslator {
             return tokens;
         }
         parseTwoTeamSides(eventName).ifPresent(sides -> {
+            tennisNameNormalizer.extraTokens(sides.home()).forEach(tokens::add);
+            tennisNameNormalizer.extraTokens(sides.away()).forEach(tokens::add);
             addTokenized(tokens, translateSegment(sides.home()));
             addTokenized(tokens, translateSegment(sides.away()));
             resolveQueryForApify(eventName).ifPresent(q -> addTokenized(tokens, q));
         });
         String[] legacyParts = SIDE_SPLIT.split(eventName.trim());
         for (String part : legacyParts) {
-            String translated = translateSegment(part.trim());
+            String trimmed = part.trim();
+            tennisNameNormalizer.extraTokens(trimmed).forEach(tokens::add);
+            String translated = translateSegment(trimmed);
             if (!translated.isBlank()) {
                 addTokenized(tokens, translated);
             }

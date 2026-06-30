@@ -9,6 +9,7 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.regex.Pattern;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +22,9 @@ public class BetMatcher {
     private static final Set<String> STOPWORDS = Set.of("vs", "the", "club");
     /** Kategoria płci — nie identyfikuje drużyny, tylko obniża Jaccarda przy query „Brazil Women”. */
     private static final Set<String> CATEGORY_TOKENS = Set.of("women", "womens", "men", "mens", "female", "male");
+
+    private static final Pattern TENNIS_BOOKMAKER_SIDE =
+            Pattern.compile("^\\s*([^,]+)\\s*,\\s*(.+)$|^(.+?)\\s+[A-Z]\\.?$");
 
     private final ResolutionNameTranslator nameTranslator;
     private final MatchReRanker reRanker;
@@ -36,8 +40,7 @@ public class BetMatcher {
         if (events == null || events.isEmpty() || bet.getEventName() == null) {
             return Optional.empty();
         }
-        Set<String> betTokens = nameTranslator.matchingTokens(
-                bet.getEventName(), tokenize(bet.getEventName()));
+        Set<String> betTokens = tokenize(bet.getEventName());
         if (betTokens.isEmpty()) {
             return Optional.empty();
         }
@@ -57,12 +60,22 @@ public class BetMatcher {
                 continue;
             }
             Set<String> eventTokens = new HashSet<>();
-            eventTokens.addAll(tokenize(event.getHomeTeam()));
-            eventTokens.addAll(tokenize(event.getAwayTeam()));
+            nameTranslator.parseTwoTeamSides(bet.getEventName()).ifPresentOrElse(sides -> {
+                eventTokens.addAll(matchingEventTeamTokens(sides.home(), event.getHomeTeam()));
+                eventTokens.addAll(matchingEventTeamTokens(sides.away(), event.getAwayTeam()));
+            }, () -> {
+                eventTokens.addAll(tokenize(event.getHomeTeam()));
+                eventTokens.addAll(tokenize(event.getAwayTeam()));
+            });
             if (eventTokens.isEmpty()) {
                 continue;
             }
-            double confidence = jaccard(withoutCategoryTokens(betTokens), withoutCategoryTokens(eventTokens));
+            Set<String> scoredBetTokens = withoutCategoryTokens(betTokens);
+            Set<String> scoredEventTokens = withoutCategoryTokens(eventTokens);
+            if (isTennisBookmakerBet(bet.getEventName())) {
+                scoredBetTokens = pruneConcatenatedTokens(scoredBetTokens);
+            }
+            double confidence = jaccard(scoredBetTokens, scoredEventTokens);
             confidence = Math.max(confidence, queryTokenConfidence(bet, eventTokens));
             confidence = reRanker.adjust(confidence, bet, event, dateWindowDays);
             if (best == null || confidence > best.confidence()) {
@@ -132,7 +145,7 @@ public class BetMatcher {
      */
     private double queryTokenConfidence(Bet bet, Set<String> eventTokens) {
         return nameTranslator.resolveQueryForApify(bet.getEventName())
-                .map(q -> jaccard(withoutCategoryTokens(tokenize(q)), withoutCategoryTokens(eventTokens)))
+                .map(q -> jaccard(withoutCategoryTokens(baseTokenize(q)), withoutCategoryTokens(eventTokens)))
                 .orElse(0.0);
     }
 
@@ -145,7 +158,55 @@ public class BetMatcher {
                 && !eventTime.isAfter(placedAt.plusDays(dateWindowDays));
     }
 
+    private boolean isTennisBookmakerBet(String eventName) {
+        return nameTranslator.parseTwoTeamSides(eventName)
+                .map(sides -> isTennisBookmakerSide(sides.home()) || isTennisBookmakerSide(sides.away()))
+                .orElse(false);
+    }
+
+    private boolean isTennisBookmakerSide(String betSide) {
+        return betSide != null && TENNIS_BOOKMAKER_SIDE.matcher(betSide.trim()).matches();
+    }
+
+    private Set<String> matchingEventTeamTokens(String betSide, String eventTeam) {
+        if (!isTennisBookmakerSide(betSide) || eventTeam == null || eventTeam.isBlank()) {
+            return tokenize(eventTeam);
+        }
+        Set<String> betSideTokens = tokenize(betSide);
+        String[] eventWords = eventTeam.trim().split("\\s+");
+        if (eventWords.length > 0) {
+            Set<String> leadingSurname = baseTokenize(eventWords[0]);
+            if (!leadingSurname.isEmpty()) {
+                for (String token : withoutCategoryTokens(betSideTokens)) {
+                    if (leadingSurname.contains(token)) {
+                        return leadingSurname;
+                    }
+                }
+            }
+        }
+        return tokenize(eventTeam);
+    }
+
+    private Set<String> pruneConcatenatedTokens(Set<String> tokens) {
+        Set<String> pruned = new HashSet<>(tokens);
+        for (String token : tokens) {
+            for (String other : tokens) {
+                if (!token.equals(other) && token.length() > other.length() && token.contains(other)) {
+                    pruned.remove(token);
+                }
+            }
+        }
+        return pruned;
+    }
+
     Set<String> tokenize(String text) {
+        if (text == null) {
+            return Set.of();
+        }
+        return nameTranslator.matchingTokens(text, baseTokenize(text));
+    }
+
+    private Set<String> baseTokenize(String text) {
         if (text == null) {
             return Set.of();
         }

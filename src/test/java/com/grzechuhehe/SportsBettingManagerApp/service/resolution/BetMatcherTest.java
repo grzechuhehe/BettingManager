@@ -4,6 +4,7 @@ import com.grzechuhehe.SportsBettingManagerApp.integration.apify.dto.SofaScoreEv
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.DoublesNameNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.MatchReRanker;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.matching.TennisNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BetMatcherTest {
 
-    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(new DoublesNameNormalizer()), new MatchReRanker());
+    private final BetMatcher matcher = new BetMatcher(new ResolutionNameTranslator(new DoublesNameNormalizer(), new TennisNameNormalizer()), new MatchReRanker());
 
     private SofaScoreEventDto event(String home, String away, LocalDateTime start) {
         SofaScoreEventDto e = new SofaScoreEventDto();
@@ -104,6 +105,22 @@ class BetMatcherTest {
         assertTrue(result.isPresent());
         assertEquals("International Friendly Women", result.get().event().getTournament());
         assertTrue(result.get().confidence() >= 0.85);
+    }
+
+    @Test
+    void shouldMatchTennisItfPlayersAboveTennisThreshold() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 26, 8, 0);
+        Bet bet = Bet.builder()
+                .eventName("Faria J. - Sakamoto R.")
+                .placedAt(placed)
+                .build();
+        List<SofaScoreEventDto> events = List.of(
+                event("Faria Joao", "Sakamoto Rio", placed.plusHours(5)));
+
+        Optional<BetMatcher.MatchCandidate> result = matcher.findBestMatch(bet, events, 4);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().confidence() >= 0.80);
     }
 
     @Test
