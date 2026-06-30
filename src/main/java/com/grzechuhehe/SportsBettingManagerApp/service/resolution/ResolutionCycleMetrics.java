@@ -8,4 +8,7 @@ public record ResolutionCycleMetrics(
         int settled,
         int belowThreshold,
         int noMatch,
-        double estimatedCostUsd) {}
+        double estimatedCostUsd,
+        long successLast24h,
+        long pendingLeaves,
+        boolean healthAlert) {}

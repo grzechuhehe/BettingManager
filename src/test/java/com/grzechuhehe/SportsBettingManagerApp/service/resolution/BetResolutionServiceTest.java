@@ -35,6 +35,7 @@ class BetResolutionServiceTest {
     @Mock private MatchDiscoveryService discoveryService;
     @Mock private BetResolutionAttemptRepository attemptRepository;
     @Mock private ResolutionCycleMetricsHolder metricsHolder;
+    @Mock private ResolutionHealthMonitor resolutionHealthMonitor;
 
     private BetResolutionService service;
     private BetResolutionTransactionService resolutionTx;
@@ -61,7 +62,8 @@ class BetResolutionServiceTest {
                 discoveryService,
                 attemptRepository,
                 metricsHolder,
-                eligibilityEvaluator);
+                eligibilityEvaluator,
+                resolutionHealthMonitor);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
@@ -72,6 +74,9 @@ class BetResolutionServiceTest {
         lenient().when(discoveryService.discover(eq(List.of()), any(LocalDateTime.class)))
                 .thenReturn(DiscoveryResult.empty());
         lenient().when(attemptRepository.findByCycleId(anyString())).thenReturn(List.of());
+        lenient().when(resolutionHealthMonitor.evaluate(any(LocalDateTime.class)))
+                .thenReturn(Optional.of(new ResolutionHealthAlert(
+                        ResolutionHealthAlert.Level.OK, 0, 0, "Resolution health OK")));
     }
 
     /** Synchronous test helper replacing the removed {@code resolvePendingBets(boolean)}. */

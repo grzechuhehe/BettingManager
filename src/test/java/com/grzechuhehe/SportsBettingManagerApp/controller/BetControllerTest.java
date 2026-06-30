@@ -219,14 +219,17 @@ class BetControllerTest {
     void getLastResolutionCycleMetrics_ShouldReturnOk_WhenDebugEnabledAndMetricsPresent() throws Exception {
         ReflectionTestUtils.setField(betController, "debugEndpoints", true);
         ResolutionCycleMetrics metrics = new ResolutionCycleMetrics(
-                "cycle-1", 3, 2, 1, 1, 0, 1, 0.24);
+                "cycle-1", 3, 2, 1, 1, 0, 1, 0.24, 5L, 79L, true);
         Mockito.when(resolutionMetricsHolder.getLast()).thenReturn(Optional.of(metrics));
 
         mockMvc.perform(get("/api/bets/resolution/metrics/last-cycle"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cycleId").value("cycle-1"))
                 .andExpect(jsonPath("$.eligible").value(3))
-                .andExpect(jsonPath("$.settled").value(1));
+                .andExpect(jsonPath("$.settled").value(1))
+                .andExpect(jsonPath("$.successLast24h").value(5))
+                .andExpect(jsonPath("$.pendingLeaves").value(79))
+                .andExpect(jsonPath("$.healthAlert").value(true));
     }
 
     @Test

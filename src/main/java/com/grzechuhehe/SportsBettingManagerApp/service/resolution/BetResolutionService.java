@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ public class BetResolutionService {
     private final BetResolutionAttemptRepository attemptRepository;
     private final ResolutionCycleMetricsHolder metricsHolder;
     private final BetResolutionEligibilityEvaluator eligibilityEvaluator;
+    private final ResolutionHealthMonitor resolutionHealthMonitor;
 
     private static final double APIFY_COST_PER_CALL_USD = 0.08;
 
@@ -179,14 +181,21 @@ public class BetResolutionService {
             }
         }
 
-        storeCycleMetrics(cycleId, eligibleLeaves.size(), fetch, enrichmentBudget);
+        Optional<ResolutionHealthAlert> healthAlert = resolutionHealthMonitor.evaluate(now);
+        storeCycleMetrics(cycleId, eligibleLeaves.size(), fetch, enrichmentBudget, healthAlert);
+        healthAlert.ifPresent(alert -> {
+            if (alert.level() == ResolutionHealthAlert.Level.WARN) {
+                log.warn("{}", alert.message());
+            }
+        });
     }
 
     private void storeCycleMetrics(
             String cycleId,
             int eligible,
             DiscoveryResult fetch,
-            CycleEnrichmentBudget enrichmentBudget) {
+            CycleEnrichmentBudget enrichmentBudget,
+            Optional<ResolutionHealthAlert> healthAlert) {
         int discoveryCalls = fetch.apifyCalls();
         int enrichmentCalls = enrichmentBudget.usedCount();
         double estimatedCostUsd = (discoveryCalls + enrichmentCalls) * APIFY_COST_PER_CALL_USD;
@@ -205,6 +214,11 @@ public class BetResolutionService {
             }
         }
 
+        ResolutionHealthAlert health = healthAlert.orElse(null);
+        long successLast24h = health != null ? health.successLast24h() : 0L;
+        long pendingLeaves = health != null ? health.pendingLeaves() : 0L;
+        boolean healthAlertFlag = health != null && health.level() == ResolutionHealthAlert.Level.WARN;
+
         ResolutionCycleMetrics metrics = new ResolutionCycleMetrics(
                 cycleId,
                 eligible,
@@ -213,12 +227,16 @@ public class BetResolutionService {
                 settled,
                 belowThreshold,
                 noMatch,
-                estimatedCostUsd);
+                estimatedCostUsd,
+                successLast24h,
+                pendingLeaves,
+                healthAlertFlag);
         metricsHolder.setLast(metrics);
 
         log.info(
                 "Resolution cycle metrics: cycleId={}, eligible={}, discoveryCalls={}, enrichmentCalls={}, "
-                        + "settled={}, belowThreshold={}, noMatch={}, estimatedCostUsd={}",
+                        + "settled={}, belowThreshold={}, noMatch={}, estimatedCostUsd={}, "
+                        + "successLast24h={}, pendingLeaves={}, healthAlert={}",
                 cycleId,
                 eligible,
                 discoveryCalls,
@@ -226,7 +244,10 @@ public class BetResolutionService {
                 settled,
                 belowThreshold,
                 noMatch,
-                String.format(Locale.ROOT, "%.2f", estimatedCostUsd));
+                String.format(Locale.ROOT, "%.2f", estimatedCostUsd),
+                successLast24h,
+                pendingLeaves,
+                healthAlertFlag);
     }
 
     private List<Bet> collectEligibleLeaves(List<Bet> roots, LocalDateTime now, boolean force) {
