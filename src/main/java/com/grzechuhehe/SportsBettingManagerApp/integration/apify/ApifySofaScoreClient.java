@@ -107,7 +107,7 @@ public class ApifySofaScoreClient {
         }
         logger.info("Apify SofaScore event details: url={}", eventUrl);
         Map<String, Object> body = baseBody(true);
-        body.put("mode", "event");
+        body.put("mode", "url");
         body.put("eventUrl", eventUrl);
         ApifyBatchResult result = runActor(body, "event " + eventUrl);
         if (!result.successful() || result.matches().isEmpty()) {
