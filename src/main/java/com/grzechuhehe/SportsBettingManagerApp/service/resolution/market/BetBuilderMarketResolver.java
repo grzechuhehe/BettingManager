@@ -23,6 +23,7 @@ public class BetBuilderMarketResolver implements MarketResolver {
     private final CompositeSelectionParser compositeSelectionParser;
     private final StandardMarketResolver standardMarketResolver;
     private final HandicapMarketResolver handicapMarketResolver;
+    private final StatisticsMarketResolver statisticsMarketResolver;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -54,6 +55,8 @@ public class BetBuilderMarketResolver implements MarketResolver {
             if (result.get() == BetStatus.LOST) {
                 return Optional.of(BetStatus.LOST);
             }
+            // Noga VOID (push) w bet builderze: nie potrafimy bezpiecznie policzyć kursu
+            // efektywnego kuponu, więc oddajemy cały zakład do ręcznego rozliczenia.
             if (result.get() == BetStatus.VOID) {
                 return Optional.empty();
             }
@@ -84,6 +87,12 @@ public class BetBuilderMarketResolver implements MarketResolver {
     }
 
     private Optional<BetStatus> resolveCondition(Bet synthetic, SofaScoreEventDto event) {
+        if (statisticsMarketResolver.supports(synthetic)) {
+            Optional<BetStatus> statsResult = statisticsMarketResolver.resolve(synthetic, event);
+            if (statsResult.isPresent()) {
+                return statsResult;
+            }
+        }
         if (synthetic.getMarketType() == MarketType.HANDICAP
                 || synthetic.getMarketType() == MarketType.ASIAN_HANDICAP) {
             return handicapMarketResolver.resolve(synthetic, event);

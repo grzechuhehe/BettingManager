@@ -53,12 +53,15 @@ public class GeminiVisionClient {
                 "3. STAKE vs WINNINGS: Ensure 'stake' is the amount gambled, NOT the 'to win' or 'payout' amount.\n" +
                 "4. If multiple bets are visible, extract the main one.\n" +
                 "5. Recognized Polish bookmakers: STS, Fortuna, Superbet, Betclic, TOTALbet, Forbet, Etoto, LV BET, PZBuk, Betfan.\n" +
-                "6. marketType MUST be one of: MONEYLINE_1X2, MONEYLINE_12, TOTALS_OVER_UNDER, HANDICAP, ASIAN_HANDICAP, " +
-                "CORRECT_SCORE, PLAYER_PROPS, BOTH_TEAMS_TO_SCORE, PREDICTION_MARKET, OUTRIGHT, OTHER. " +
-                "Use TOTALS_OVER_UNDER for Over/Under (Powyżej/Poniżej), MONEYLINE_1X2 for 1X2, MONEYLINE_12 for tennis/winner without draw, " +
-                "HANDICAP for handicaps, OUTRIGHT for league winners/long-term markets.\n" +
+                "6. marketType MUST be one of: MONEYLINE_1X2, MONEYLINE_12, MATCH_ODDS, TOTALS_OVER_UNDER, OVER_UNDER, " +
+                "TEAM_TOTAL_GOALS, TEAM_TOTAL_GOALS_OVER_UNDER, TEAM_TOTAL_SHOTS, TOTAL_CARDS_OVER_UNDER, " +
+                "DOUBLE_CHANCE, HANDICAP, ASIAN_HANDICAP, CORRECT_SCORE, BOTH_TEAMS_TO_SCORE, " +
+                "PLAYER_TOTAL_SHOTS, PLAYER_SHOTS, PLAYER_SHOTS_ON_TARGET, PLAYER_FOULS, PLAYER_FOULS_COMMITTED_AGAINST, " +
+                "CORNERS_HEAD_TO_HEAD, CORNER_1X2, PLAYER_PROPS, PREDICTION_MARKET, OUTRIGHT, OTHER. " +
+                "Use OVER_UNDER or TOTALS_OVER_UNDER for match totals, TEAM_TOTAL_GOALS for team goals, " +
+                "DOUBLE_CHANCE for 1X/X2/12, MATCH_ODDS for match winner.\n" +
                 "7. For BetBuilder combos, populate builderConditions as a JSON array of objects with marketType, selection, and line " +
-                "(when applicable). Each element is one atomic condition (e.g. {\"marketType\":\"TOTALS_OVER_UNDER\",\"selection\":\"over 2.5\",\"line\":\"2.5\"}).\n";
+                "(when applicable). Use ONLY marketType values from the list above.\n";
 
             
             textPart.put("text", enhancedPrompt + "\n\nTekst posta: " + postText);

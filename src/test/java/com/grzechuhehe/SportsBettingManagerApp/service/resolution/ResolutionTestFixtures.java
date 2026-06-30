@@ -20,9 +20,10 @@ public final class ResolutionTestFixtures {
         CompositeSelectionParser parser = new CompositeSelectionParser();
         StandardMarketResolver standard = new StandardMarketResolver(nameTranslator);
         HandicapMarketResolver handicap = new HandicapMarketResolver(nameTranslator);
+        StatisticsMarketResolver statistics = new StatisticsMarketResolver(nameTranslator);
         ObjectMapper objectMapper = new ObjectMapper();
         BetBuilderMarketResolver betBuilder =
-                new BetBuilderMarketResolver(parser, standard, handicap, objectMapper);
+                new BetBuilderMarketResolver(parser, standard, handicap, statistics, objectMapper);
         MarketResolverRegistry registry = new MarketResolverRegistry(betBuilder, handicap, standard);
         BetOutcomeEvaluator evaluator = new BetOutcomeEvaluator(registry);
         SelectionResolvabilityChecker resolvabilityChecker =
