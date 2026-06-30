@@ -117,9 +117,9 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                             {pick.retroactiveAtImport && (pick.status === 'WON' || pick.status === 'LOST' || pick.status === 'VOID') && (
                                                 <span 
                                                     className="text-[8px] text-muted font-bold uppercase tracking-tighter cursor-help"
-                                                    title="Ten zakład był już rozliczony na screenie kuponu w momencie ekstrakcji Gemini — nie liczy się do statystyk pre-match."
+                                                    title="This bet was already settled on the slip screenshot when Gemini extracted it — excluded from pre-match statistics."
                                                 >
-                                                    ⚠️ Retroaktywny
+                                                    ⚠️ Retroactive
                                                 </span>
                                             )}
                                         </div>

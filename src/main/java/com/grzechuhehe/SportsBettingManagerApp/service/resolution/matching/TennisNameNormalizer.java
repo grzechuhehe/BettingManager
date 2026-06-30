@@ -28,8 +28,8 @@ public class TennisNameNormalizer {
         var initial = INITIAL_SUFFIX.matcher(cleaned);
         if (initial.matches()) {
             add(tokens, initial.group(1));
+            return tokens;
         }
-        add(tokens, cleaned);
         return tokens;
     }
 
