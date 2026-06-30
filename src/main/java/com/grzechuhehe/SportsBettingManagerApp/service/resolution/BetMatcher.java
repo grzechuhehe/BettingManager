@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.regex.Pattern;
 import java.util.HashSet;
@@ -46,6 +47,19 @@ public class BetMatcher {
         }
 
         boolean womensBet = isWomensBet(bet);
+        Optional<ResolutionNameTranslator.TwoSides> sidesOpt =
+                nameTranslator.parseTwoTeamSides(bet.getEventName());
+        boolean tennisBookmakerBet = sidesOpt
+                .map(sides -> isTennisBookmakerSide(sides.home()) || isTennisBookmakerSide(sides.away()))
+                .orElse(false);
+        Set<String> scoredBetTokens = withoutCategoryTokens(betTokens);
+        if (tennisBookmakerBet) {
+            scoredBetTokens = pruneConcatenatedTokens(scoredBetTokens);
+        }
+        Set<String> queryTokens = nameTranslator.resolveQueryForApify(bet.getEventName())
+                .map(q -> withoutCategoryTokens(baseTokenize(q)))
+                .orElse(Set.of());
+
         MatchCandidate best = null;
         for (SofaScoreEventDto event : events) {
             if (!withinDateWindow(bet.getPlacedAt(), event.getStartTimestamp(), dateWindowDays)) {
@@ -60,7 +74,7 @@ public class BetMatcher {
                 continue;
             }
             Set<String> eventTokens = new HashSet<>();
-            nameTranslator.parseTwoTeamSides(bet.getEventName()).ifPresentOrElse(sides -> {
+            sidesOpt.ifPresentOrElse(sides -> {
                 eventTokens.addAll(matchingEventTeamTokens(sides.home(), event.getHomeTeam()));
                 eventTokens.addAll(matchingEventTeamTokens(sides.away(), event.getAwayTeam()));
             }, () -> {
@@ -70,13 +84,15 @@ public class BetMatcher {
             if (eventTokens.isEmpty()) {
                 continue;
             }
-            Set<String> scoredBetTokens = withoutCategoryTokens(betTokens);
             Set<String> scoredEventTokens = withoutCategoryTokens(eventTokens);
-            if (isTennisBookmakerBet(bet.getEventName())) {
-                scoredBetTokens = pruneConcatenatedTokens(scoredBetTokens);
-            }
             double confidence = jaccard(scoredBetTokens, scoredEventTokens);
-            confidence = Math.max(confidence, queryTokenConfidence(bet, eventTokens));
+            confidence = Math.max(confidence, queryTokenConfidence(queryTokens, eventTokens));
+            if (sidesOpt.isPresent()) {
+                ResolutionNameTranslator.TwoSides sides = sidesOpt.get();
+                double homeScore = sideScore(sides.home(), event.getHomeTeam(), eventTokens);
+                double awayScore = sideScore(sides.away(), event.getAwayTeam(), eventTokens);
+                confidence = Math.max(confidence, (homeScore + awayScore) / 2.0);
+            }
             confidence = reRanker.adjust(confidence, bet, event, dateWindowDays);
             if (best == null || confidence > best.confidence()) {
                 best = new MatchCandidate(event, confidence);
@@ -143,10 +159,24 @@ public class BetMatcher {
      * Osobny score z angielskiej frazy Apify (np. „Croatia Slovenia”) — bez polskich tokenów
      * „Chorwacja/Słowenia”, które zaniżają Jaccarda do ~0.5 mimo poprawnego meczu.
      */
-    private double queryTokenConfidence(Bet bet, Set<String> eventTokens) {
-        return nameTranslator.resolveQueryForApify(bet.getEventName())
-                .map(q -> jaccard(withoutCategoryTokens(baseTokenize(q)), withoutCategoryTokens(eventTokens)))
-                .orElse(0.0);
+    private double queryTokenConfidence(Set<String> queryTokens, Set<String> eventTokens) {
+        if (queryTokens.isEmpty()) {
+            return 0.0;
+        }
+        return jaccard(queryTokens, withoutCategoryTokens(eventTokens));
+    }
+
+    private double sideScore(String betSide, String eventSide, Set<String> eventTokens) {
+        Set<String> betSideTokens = nameTranslator.matchingTokens(betSide, tokenize(betSide));
+        Set<String> eventSideTokens = tokenize(eventSide);
+        eventSideTokens.addAll(eventTokens);
+        double j = jaccard(withoutCategoryTokens(betSideTokens), withoutCategoryTokens(eventSideTokens));
+        return Math.max(j, querySideConfidence(betSide, eventSideTokens));
+    }
+
+    private double querySideConfidence(String betSide, Set<String> eventTokens) {
+        String translated = nameTranslator.translateSegment(betSide);
+        return jaccard(withoutCategoryTokens(tokenize(translated)), withoutCategoryTokens(eventTokens));
     }
 
     boolean withinDateWindow(LocalDateTime placedAt, Long startTimestamp, int dateWindowDays) {
@@ -154,14 +184,11 @@ public class BetMatcher {
             return true;
         }
         LocalDateTime eventTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(startTimestamp), ZoneOffset.UTC);
-        return !eventTime.isBefore(placedAt.minusDays(1))
-                && !eventTime.isAfter(placedAt.plusDays(dateWindowDays));
-    }
-
-    private boolean isTennisBookmakerBet(String eventName) {
-        return nameTranslator.parseTwoTeamSides(eventName)
-                .map(sides -> isTennisBookmakerSide(sides.home()) || isTennisBookmakerSide(sides.away()))
-                .orElse(false);
+        LocalDateTime placedAtUtc = placedAt.atZone(ZoneId.systemDefault())
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+        return !eventTime.isBefore(placedAtUtc.minusDays(1))
+                && !eventTime.isAfter(placedAtUtc.plusDays(dateWindowDays));
     }
 
     private boolean isTennisBookmakerSide(String betSide) {

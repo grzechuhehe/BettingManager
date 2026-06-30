@@ -108,6 +108,22 @@ class BetMatcherTest {
     }
 
     @Test
+    void shouldUsePerSideConfidenceForNationalTeams() {
+        LocalDateTime placed = LocalDateTime.of(2026, 6, 26, 14, 0);
+        Bet bet = Bet.builder()
+                .eventName("Nowa Zelandia - Belgia")
+                .placedAt(placed)
+                .build();
+        List<SofaScoreEventDto> events = List.of(
+                event("New Zealand", "Belgium", placed.plusHours(3)));
+
+        Optional<BetMatcher.MatchCandidate> result = matcher.findBestMatch(bet, events, 4);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().confidence() >= 0.85);
+    }
+
+    @Test
     void shouldMatchTennisItfPlayersAboveTennisThreshold() {
         LocalDateTime placed = LocalDateTime.of(2026, 6, 26, 8, 0);
         Bet bet = Bet.builder()
