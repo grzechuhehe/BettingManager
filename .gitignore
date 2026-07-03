@@ -67,3 +67,6 @@ gha-creds-*.json
 .cursor/
 .cursorignore
 docs/
+mvn-java21
+.java-version
+toolchains.xml.example

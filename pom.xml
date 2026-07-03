@@ -117,7 +117,7 @@
                             <rules>
                                 <requireJavaVersion>
                                     <version>[21,22)</version>
-                                    <message>Project requires JDK 21. Use ./mvn-java21 or set JAVA_HOME to a JDK 21 install.</message>
+                                    <message>Project requires JDK 21. Set JAVA_HOME to a JDK 21 install.</message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
