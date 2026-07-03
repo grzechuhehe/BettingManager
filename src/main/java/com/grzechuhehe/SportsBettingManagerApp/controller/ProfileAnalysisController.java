@@ -4,6 +4,7 @@ import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetStatistics;
 import com.grzechuhehe.SportsBettingManagerApp.dto.PageResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePickDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePreviewDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackProfileRequest;
 import com.grzechuhehe.SportsBettingManagerApp.dto.profile.TrackedProfileDTO;
 import com.grzechuhehe.SportsBettingManagerApp.integration.SocialDataClient;
@@ -13,6 +14,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.ProfileAnalysisOrchestrator;
+import com.grzechuhehe.SportsBettingManagerApp.service.ProfilePreviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,6 +39,7 @@ public class ProfileAnalysisController {
     private final SocialDataClient socialDataClient;
     private final BettingService bettingService;
     private final ProfileAnalysisOrchestrator profileAnalysisOrchestrator;
+    private final ProfilePreviewService profilePreviewService;
 
     @Operation(summary = "Get tracked profiles", description = "Returns a list of all profiles currently being tracked via X.")
     @GetMapping("/tracked")
@@ -49,6 +52,7 @@ public class ProfileAnalysisController {
                         // FALLBACK: jeśli xUsername w starej bazie jest null, używamy username
                         .xUsername(u.getXUsername() != null ? u.getXUsername() : u.getUsername())
                         .xProfileUrl(u.getXProfileUrl())
+                        .trackedSince(u.getJoinedAt())
                         .lastXCheckAt(u.getLastXCheckAt())
                         .build())
                 .collect(Collectors.toList());
@@ -192,6 +196,13 @@ public class ProfileAnalysisController {
                 .build();
     }
 
+    @Operation(summary = "Profile preview for search card",
+            description = "Returns tracking status, summary stats, and recent picks for the search UI.")
+    @GetMapping("/preview")
+    public ResponseEntity<ProfilePreviewDTO> getProfilePreview(@RequestParam String query) {
+        return ResponseEntity.ok(profilePreviewService.buildPreview(query));
+    }
+
     @Operation(summary = "Search for a tracked profile", description = "Returns profile details if tracked, 404 otherwise.")
     @GetMapping("/search")
     public ResponseEntity<TrackedProfileDTO> searchProfile(@RequestParam String query) {
@@ -205,6 +216,7 @@ public class ProfileAnalysisController {
                 .id(u.getId())
                 .xUsername(u.getXUsername())
                 .xProfileUrl(u.getXProfileUrl())
+                .trackedSince(u.getJoinedAt())
                 .lastXCheckAt(u.getLastXCheckAt())
                 .build());
     }

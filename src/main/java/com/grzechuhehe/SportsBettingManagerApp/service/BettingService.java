@@ -133,6 +133,32 @@ public class BettingService {
                 equityCurve
         );
     }
+
+    /** Lightweight aggregate stats for profile search card — no full bet list load. */
+    public ProfileSummaryStats getProfileSummaryStats(User user) {
+        long totalBets = betRepository.countRootBetsByUser(user);
+        long won = betRepository.countRootBetsByUserAndStatus(user, BetStatus.WON);
+        long lost = betRepository.countRootBetsByUserAndStatus(user, BetStatus.LOST);
+        long settledForWinRate = won + lost;
+
+        BigDecimal winRate = BigDecimal.ZERO;
+        if (settledForWinRate > 0) {
+            winRate = BigDecimal.valueOf(won)
+                    .divide(BigDecimal.valueOf(settledForWinRate), 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+        }
+
+        BigDecimal profit = betRepository.sumSettledRootProfitByUser(user, BetStatus.PENDING);
+        BigDecimal staked = betRepository.sumRootStakeByUser(user);
+        BigDecimal yield = BigDecimal.ZERO;
+        if (staked.compareTo(BigDecimal.ZERO) > 0) {
+            yield = profit.divide(staked, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+        }
+
+        return new ProfileSummaryStats((int) totalBets, winRate, yield);
+    }
+
+    public record ProfileSummaryStats(int totalBets, BigDecimal winRate, BigDecimal yield) {}
     
     @Transactional
     public List<Bet> placeBet(CreateBetRequest createBetRequest, String username) {

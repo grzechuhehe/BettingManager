@@ -9,6 +9,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
 import com.grzechuhehe.SportsBettingManagerApp.service.ProfileAnalysisOrchestrator;
+import com.grzechuhehe.SportsBettingManagerApp.service.ProfilePreviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -47,6 +48,9 @@ class ProfileAnalysisControllerTest {
 
     @Mock
     private ProfileAnalysisOrchestrator profileAnalysisOrchestrator;
+
+    @Mock
+    private ProfilePreviewService profilePreviewService;
 
     @InjectMocks
     private ProfileAnalysisController profileAnalysisController;
@@ -157,6 +161,19 @@ class ProfileAnalysisControllerTest {
                 .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$.content[0].eventName").value("Match A"))
                 .andExpect(jsonPath("$.content[0].selection").value("Over 2.5"));
+    }
+
+    @Test
+    void getProfilePreview_returns200_forAnyQuery() throws Exception {
+        when(profilePreviewService.buildPreview("guru")).thenReturn(
+                com.grzechuhehe.SportsBettingManagerApp.dto.profile.ProfilePreviewDTO.builder()
+                        .xUsername("guru").tracked(true).totalBets(5).build());
+
+        mockMvc.perform(get("/api/profiles/preview").param("query", "guru"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.xUsername").value("guru"))
+                .andExpect(jsonPath("$.tracked").value(true))
+                .andExpect(jsonPath("$.totalBets").value(5));
     }
 
     @Test

@@ -1,40 +1,113 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getTrackedProfiles, trackNewProfile, triggerManualScan } from '../../api';
+import { getProfilePreview, getTrackedProfiles, trackNewProfile, triggerManualScan } from '../../api';
+import ProfilePreviewCard from './ProfilePreviewCard';
+
+function buildPreviewFromTracked(username, trackedList) {
+    const query = username.toLowerCase();
+    const found = trackedList.find((p) => {
+        const x = p?.xUsername?.toLowerCase();
+        const u = p?.username?.toLowerCase();
+        return x === query || u === query;
+    });
+    if (!found) {
+        return {
+            xUsername: username,
+            xProfileUrl: `https://x.com/${username}`,
+            tracked: false,
+        };
+    }
+    return {
+        xUsername: found.xUsername,
+        xProfileUrl: found.xProfileUrl || `https://x.com/${found.xUsername}`,
+        tracked: true,
+        trackedSince: found.trackedSince,
+        lastXCheckAt: found.lastXCheckAt,
+    };
+}
 
 export default function SocialBettingDashboard() {
-    const [profiles, setProfiles] = useState([]);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    
-    // Normalizacja nicka: usuwamy @ i białe znaki
+
     const rawQuery = searchParams.get('q') || '';
     const searchQuery = rawQuery.replace(/^@/, '').trim();
-    
-    // UI states
+
+    const [preview, setPreview] = useState(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewError, setPreviewError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
     const [error, setError] = useState(null);
 
-    const loadProfiles = async () => {
-        try {
-            const res = await getTrackedProfiles();
-            console.log("Tracked profiles received from backend:", res.data);
-            setProfiles(res.data);
-        } catch (err) {
-            console.error("Failed to fetch profiles", err);
+    const loadPreview = useCallback(async (username, signal) => {
+        if (!username) {
+            setPreview(null);
+            setPreviewError(null);
+            return;
         }
-    };
 
-    useEffect(() => {
-        loadProfiles();
+        setPreviewLoading(true);
+        setPreviewError(null);
+
+        try {
+            const res = await getProfilePreview(username, { signal });
+            if (signal?.aborted) {
+                return;
+            }
+            setPreview(res.data);
+        } catch (previewErr) {
+            if (previewErr.code === 'ERR_CANCELED' || previewErr.name === 'CanceledError') {
+                return;
+            }
+            console.warn('Preview API unavailable, falling back to tracked list', previewErr);
+            try {
+                const trackedRes = await getTrackedProfiles({ signal });
+                if (signal?.aborted) {
+                    return;
+                }
+                const list = Array.isArray(trackedRes.data) ? trackedRes.data : [];
+                setPreview(buildPreviewFromTracked(username, list));
+                if (previewErr.response?.status === 404) {
+                    setPreviewError('Preview endpoint not found — rebuild backend or use fallback data.');
+                }
+            } catch (fallbackErr) {
+                if (fallbackErr.code === 'ERR_CANCELED' || fallbackErr.name === 'CanceledError') {
+                    return;
+                }
+                console.error('Failed to load tracked profiles', fallbackErr);
+                setPreview({
+                    xUsername: username,
+                    xProfileUrl: `https://x.com/${username}`,
+                    tracked: false,
+                });
+                setPreviewError('Could not load profile data. Check backend connection.');
+            }
+        } finally {
+            if (!signal?.aborted) {
+                setPreviewLoading(false);
+            }
+        }
     }, []);
 
-    // Kasujemy błędy/komunikaty, gdy użytkownik wpisuje nowe zapytanie w pasku URL
     useEffect(() => {
         setMessage(null);
         setError(null);
     }, [searchQuery]);
+
+    useEffect(() => {
+        if (!searchQuery) {
+            setPreview(null);
+            setPreviewError(null);
+            return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => loadPreview(searchQuery, controller.signal), 200);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [searchQuery, loadPreview]);
 
     const handleTrackNew = async () => {
         if (!searchQuery) return;
@@ -43,8 +116,8 @@ export default function SocialBettingDashboard() {
         setError(null);
         try {
             const res = await trackNewProfile(searchQuery);
-            setMessage(res.data);
-            await loadProfiles(); 
+            setMessage(typeof res.data === 'string' ? res.data : 'Profile added to tracking.');
+            await loadPreview(searchQuery);
         } catch (err) {
             const data = err.response?.data;
             if (typeof data === 'object' && data !== null) {
@@ -57,14 +130,16 @@ export default function SocialBettingDashboard() {
         }
     };
 
-    const handleForceScan = async (xUsername) => {
+    const handleForceScan = async () => {
+        const xUsername = preview?.xUsername || searchQuery;
+        if (!xUsername) return;
         setLoading(true);
         setMessage(null);
         setError(null);
         try {
             const res = await triggerManualScan(xUsername);
-            setMessage(res.data);
-            await loadProfiles();
+            setMessage(typeof res.data === 'string' ? res.data : 'Scan completed.');
+            await loadPreview(searchQuery);
         } catch (err) {
             const data = err.response?.data;
             if (typeof data === 'object' && data !== null) {
@@ -77,87 +152,55 @@ export default function SocialBettingDashboard() {
         }
     };
 
-    // Szukamy w bazie używając znormalizowanego nicka
-    const foundProfile = profiles.find(p => 
-        p && p.xUsername && searchQuery && 
-        p.xUsername.toLowerCase() === searchQuery.toLowerCase()
-    );
+    const handleExplore = () => {
+        const xUsername = preview?.xUsername || searchQuery;
+        navigate(`/profile/${xUsername}`);
+    };
 
     return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-extrabold text-white">Social Betting Radar</h1>
-                <p className="mt-2 text-gray-400">Search for an X profile in the top navigation bar to analyze their bets.</p>
-            </div>
+        <div className="max-w-7xl mx-auto space-y-8">
+            <header className="pb-6 border-b border-hairline">
+                <h1 className="display-md text-on-dark">Social Betting Radar</h1>
+                <p className="text-body mt-2 max-w-2xl">
+                    Search for an X profile in the top navigation bar to analyze their public picks and performance.
+                </p>
+            </header>
 
-            <div className="bg-[#111111] border border-white/5 p-8 rounded-2xl shadow-2xl mb-6">
-                {/* Messages */}
-                {message && <div className="mb-6 p-4 bg-green-500/10 text-green-400 border border-green-500/20 rounded-xl flex items-center gap-3">
-                    <span className="text-xl">✓</span> {message}
-                </div>}
-                {error && <div className="mb-6 p-4 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl flex items-center gap-3">
-                    <span className="text-xl">⚠️</span> {error}
-                </div>}
+            {message && (
+                <div className="p-4 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center gap-3">
+                    <span className="text-lg">✓</span>
+                    <span className="text-sm font-medium">{message}</span>
+                </div>
+            )}
+            {error && (
+                <div className="p-4 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl flex items-center gap-3">
+                    <span className="text-lg">⚠</span>
+                    <span className="text-sm font-medium">{error}</span>
+                </div>
+            )}
 
-                {/* Dynamic Results Area */}
-                {searchQuery.length > 0 ? (
-                    <div className="p-8 border border-white/10 rounded-2xl bg-white/[0.03] flex items-center justify-between transition-all duration-300">
-                        <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-blue-900/20">
-                                {searchQuery[0]?.toUpperCase()}
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-bold text-white tracking-tight">@{searchQuery}</h3>
-                                {foundProfile ? (
-                                    <p className="text-sm text-green-500 mt-1 flex items-center gap-2 font-medium">
-                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                        Currently Tracked &bull; Last update: {foundProfile.lastXCheckAt ? new Date(foundProfile.lastXCheckAt).toLocaleString() : 'Ready to scan'}
-                                    </p>
-                                ) : (
-                                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-2 font-medium">
-                                        <span className="w-2 h-2 bg-gray-600 rounded-full"></span>
-                                        Not Tracked Yet
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="flex gap-4">
-                            {foundProfile ? (
-                                <>
-                                    <button 
-                                        onClick={() => handleForceScan(foundProfile.xUsername)}
-                                        disabled={loading}
-                                        className="px-6 py-2.5 bg-white/10 text-white hover:bg-white/20 rounded-xl font-semibold transition-colors disabled:opacity-50"
-                                    >
-                                        {loading ? 'Processing...' : 'Sync Now'}
-                                    </button>
-                                    <button 
-                                        onClick={() => navigate(`/profile/${foundProfile.xUsername}`)}
-                                        className="px-6 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-                                    >
-                                        Explore Picks
-                                    </button>
-                                </>
-                            ) : (
-                                <button 
-                                    onClick={handleTrackNew}
-                                    disabled={loading}
-                                    className="px-8 py-2.5 bg-green-600 text-white hover:bg-green-700 rounded-xl font-semibold shadow-lg shadow-green-500/20 transition-all active:scale-95 disabled:opacity-50"
-                                >
-                                    {loading ? 'Verifying Profile...' : 'Start Tracking'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-center py-16">
-                        <div className="text-5xl mb-4 opacity-20 text-white">🔍</div>
-                        <h3 className="text-xl font-medium text-white/40 font-semibold">Ready to track a new guru?</h3>
-                        <p className="text-gray-500 mt-2">Enter an X username in the top search bar to begin analysis.</p>
-                    </div>
-                )}
-            </div>
+            {searchQuery ? (
+                <section className="bg-surface-card border border-hairline rounded-xl p-6 sm:p-8">
+                    <ProfilePreviewCard
+                        username={searchQuery}
+                        preview={preview}
+                        loading={previewLoading}
+                        loadError={previewError}
+                        actionLoading={loading}
+                        onSync={handleForceScan}
+                        onExplore={handleExplore}
+                        onTrack={handleTrackNew}
+                    />
+                </section>
+            ) : (
+                <section className="bg-surface-card border border-hairline border-dashed rounded-xl py-20 text-center">
+                    <div className="text-5xl mb-4 opacity-20">🔍</div>
+                    <h3 className="text-lg font-semibold text-on-dark">Ready to track a new guru?</h3>
+                    <p className="text-muted mt-2 text-sm">
+                        Enter an X username in the search bar above, e.g. <span className="text-body font-mono">grubytypuje</span>
+                    </p>
+                </section>
+            )}
         </div>
     );
 }

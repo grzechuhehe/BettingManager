@@ -63,4 +63,22 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
 
     @Query("SELECT COUNT(b) FROM Bet b WHERE b.status = :status AND b.parentBet IS NOT NULL AND b.retroactiveAtImport = false")
     long countPendingNonRetroactiveLeaves(@Param("status") BetStatus status);
+
+    @Query("SELECT COUNT(b) FROM Bet b WHERE b.user = :user AND b.parentBet IS NULL")
+    long countRootBetsByUser(@Param("user") User user);
+
+    @Query("SELECT COUNT(b) FROM Bet b WHERE b.user = :user AND b.parentBet IS NULL AND b.status = :status")
+    long countRootBetsByUserAndStatus(@Param("user") User user, @Param("status") BetStatus status);
+
+    @Query("""
+            SELECT COALESCE(SUM(b.finalProfit), 0) FROM Bet b
+            WHERE b.user = :user AND b.parentBet IS NULL AND b.status <> :pending
+            """)
+    java.math.BigDecimal sumSettledRootProfitByUser(@Param("user") User user, @Param("pending") BetStatus pending);
+
+    @Query("""
+            SELECT COALESCE(SUM(b.stake), 0) FROM Bet b
+            WHERE b.user = :user AND b.parentBet IS NULL AND b.stake IS NOT NULL
+            """)
+    java.math.BigDecimal sumRootStakeByUser(@Param("user") User user);
 }
