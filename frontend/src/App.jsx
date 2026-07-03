@@ -41,7 +41,7 @@ const Navigation = () => {
     e.preventDefault();
     if (searchInput.trim()) {
       const cleanUsername = searchInput.replace('@', '').trim();
-      // Przejście z parametrem query w URL np: /social?q=grubytypuje
+      // Przejście z parametrem query w URL np: /social?q={username}
       navigate(`/social?q=${encodeURIComponent(cleanUsername)}`);
       setSearchInput('');
     }
