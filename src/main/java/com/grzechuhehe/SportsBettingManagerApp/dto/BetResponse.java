@@ -38,6 +38,8 @@ public class BetResponse {
 
     private String notes;
 
+    private String imageProofPath;
+
     private Long userId;
     private List<BetResponse> childBets; // Dla zakładów PARLAY
 }

@@ -179,6 +179,7 @@ public class BettingService {
                 throw new IllegalArgumentException("Stake must be positive for a single bet.");
             }
             Bet singleBet = buildBetFromRequest(betRequest, user, BetType.SINGLE, null, betRequest.getStake());
+            applyImageProofPath(singleBet, createBetRequest.getImageProofPath());
             placedBets.add(betRepository.save(singleBet));
         } else {
             // Parlay Bet
@@ -224,12 +225,19 @@ public class BettingService {
                 childBets.add(childBet);
             }
             parlayBet.setChildBets(childBets);
+            applyImageProofPath(parlayBet, createBetRequest.getImageProofPath());
 
             // Save the parent bet, which cascades to save the child bets
             Bet savedParlayBet = betRepository.save(parlayBet);
             placedBets.add(savedParlayBet);
         }
         return placedBets;
+    }
+
+    private void applyImageProofPath(Bet bet, String imageProofPath) {
+        if (imageProofPath != null && !imageProofPath.isBlank()) {
+            bet.setImageProofPath(imageProofPath);
+        }
     }
 
     private Bet buildBetFromRequest(BetRequest betRequest, User user, BetType betType, Bet parentBet, BigDecimal stake) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addBet } from '../api';
+import { addBet, addBetWithProof } from '../api';
 import ImportBetFromImage from './ImportBetFromImage';
 
 let nextId = 1;
@@ -23,8 +23,20 @@ const AddBetForm = () => {
     const navigate = useNavigate();
     const [legs, setLegs] = useState([createInitialLeg()]);
     const [stake, setStake] = useState('');
+    const [proofFile, setProofFile] = useState(null);
+    const [proofPreviewUrl, setProofPreviewUrl] = useState(null);
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
+
+    useEffect(() => {
+        if (!proofFile) {
+            setProofPreviewUrl(null);
+            return undefined;
+        }
+        const url = URL.createObjectURL(proofFile);
+        setProofPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [proofFile]);
 
     const handleLegChange = (id, e) => {
         const { name, value } = e.target;
@@ -79,12 +91,17 @@ const AddBetForm = () => {
                 bets: betRequests,
             };
 
-            await addBet(createBetRequest);
+            if (proofFile) {
+                await addBetWithProof(createBetRequest, proofFile);
+            } else {
+                await addBet(createBetRequest);
+            }
 
             setMessage('Bet placed successfully!');
             setIsError(false);
             setLegs([createInitialLeg()]);
             setStake('');
+            setProofFile(null);
 
             setTimeout(() => {
                 setMessage('');
@@ -176,6 +193,30 @@ const AddBetForm = () => {
                 </button>
 
                 <div className="p-8 border border-hairline rounded-lg bg-surface-soft/50 mt-12 space-y-6">
+                     <div className="space-y-4">
+                        <div>
+                            <label htmlFor="bet-proof" className="block text-xs font-bold text-muted uppercase tracking-[0.2em] mb-3">
+                                Bet Slip Proof (optional)
+                            </label>
+                            <input
+                                type="file"
+                                id="bet-proof"
+                                accept="image/*"
+                                onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                                className="input-field"
+                            />
+                            <p className="text-xs text-muted mt-2">
+                                Dołącz zrzut ekranu kuponu jako dowód — zostanie zapisany tak jak przy imporcie z X.
+                            </p>
+                            {proofPreviewUrl && (
+                                <img
+                                    src={proofPreviewUrl}
+                                    alt="Bet slip preview"
+                                    className="mt-4 max-h-48 rounded-lg border border-hairline object-contain"
+                                />
+                            )}
+                        </div>
+                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
                         <div>
                             <label htmlFor="stake" className="block text-xs font-bold text-muted uppercase tracking-[0.2em] mb-3">Stake Amount</label>

@@ -17,10 +17,13 @@ import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycl
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.grzechuhehe.SportsBettingManagerApp.service.ImageStorageService;
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +46,7 @@ public class BetController {
     private final ResolutionCycleMetricsHolder resolutionMetricsHolder;
     private final UserRepository userRepository;
     private final BetRepository betRepository;
+    private final ImageStorageService imageStorageService;
 
     @Value("${bet.resolution.debug-endpoints:false}")
     private boolean debugEndpoints;
@@ -73,6 +77,30 @@ public class BetController {
                 .collect(Collectors.toList());
 
         logger.info("Zakład(y) zapisane pomyślnie. Liczba zakładów: {}", placedBets.size());
+        return ResponseEntity.ok(betResponses);
+    }
+
+    @PostMapping(value = "/add-bet-with-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Create a bet with optional screenshot proof",
+            description = "Same as add-bet but accepts an optional bet slip image stored as evidence.")
+    public ResponseEntity<?> createBetWithProof(
+            @RequestPart("request") @Valid CreateBetRequest createBetRequest,
+            @RequestPart(value = "proof", required = false) MultipartFile proof) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (proof != null && !proof.isEmpty()) {
+            try {
+                String imagePath = imageStorageService.saveUploadedImage(proof, "manual/" + username);
+                createBetRequest.setImageProofPath(imagePath);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "status", "invalid_file",
+                        "message", e.getMessage()));
+            }
+        }
+        List<Bet> placedBets = bettingService.placeBet(createBetRequest, username);
+        List<BetResponse> betResponses = placedBets.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(betResponses);
     }
 
@@ -281,6 +309,7 @@ public class BetController {
         dto.setPlacedAt(bet.getPlacedAt());
         dto.setSettledAt(bet.getSettledAt());
         dto.setNotes(bet.getNotes());
+        dto.setImageProofPath(bet.getImageProofPath());
         if (bet.getUser() != null) {
             dto.setUserId(bet.getUser().getId());
         }

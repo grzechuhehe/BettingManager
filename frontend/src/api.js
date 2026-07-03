@@ -81,6 +81,15 @@ export const addBet = (betData) => {
   return apiClient.post('/bets/add-bet', betData);
 };
 
+export const addBetWithProof = (betData, proofFile) => {
+  const formData = new FormData();
+  formData.append('request', new Blob([JSON.stringify(betData)], { type: 'application/json' }));
+  if (proofFile) {
+    formData.append('proof', proofFile);
+  }
+  return apiClient.post('/bets/add-bet-with-proof', formData);
+};
+
 export const importBetFromImage = (file, note) => {
   const formData = new FormData();
   formData.append('image', file);

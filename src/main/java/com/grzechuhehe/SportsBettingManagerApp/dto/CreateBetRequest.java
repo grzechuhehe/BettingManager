@@ -17,4 +17,7 @@ public class CreateBetRequest {
     @Valid // Ważne, aby walidować również obiekty BetRequest w liście
     @Schema(description = "List of bet details. For a single bet, provide one item. For a parlay, provide multiple items.")
     private List<BetRequest> bets;
+
+    @Schema(description = "Optional path to uploaded bet slip screenshot (set by server when proof image is uploaded).")
+    private String imageProofPath;
 }

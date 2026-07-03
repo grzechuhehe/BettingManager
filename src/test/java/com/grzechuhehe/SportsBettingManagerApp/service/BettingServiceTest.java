@@ -89,6 +89,26 @@ class BettingServiceTest {
     }
 
     @Test
+    void placeBet_ShouldAttachImageProofPath_WhenProvided() {
+        BetRequest betRequest = new BetRequest();
+        betRequest.setStake(new BigDecimal("50.00"));
+        betRequest.setOdds(new BigDecimal("1.90"));
+        betRequest.setSport("Football");
+        betRequest.setEventName("Team A vs Team B");
+        betRequest.setSelection("Team A");
+        CreateBetRequest createBetRequest = new CreateBetRequest();
+        createBetRequest.setBets(List.of(betRequest));
+        createBetRequest.setImageProofPath("/images/profiles/manual/testuser/abc.jpg");
+
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+        when(betRepository.save(any(Bet.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<Bet> result = bettingService.placeBet(createBetRequest, "testuser");
+
+        assertThat(result.get(0).getImageProofPath()).isEqualTo("/images/profiles/manual/testuser/abc.jpg");
+    }
+
+    @Test
     void placeBet_ShouldThrowException_WhenUserNotFound() {
         // Given
         CreateBetRequest request = new CreateBetRequest();
