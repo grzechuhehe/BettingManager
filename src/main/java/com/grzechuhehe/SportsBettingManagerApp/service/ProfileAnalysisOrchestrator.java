@@ -23,6 +23,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
@@ -263,7 +267,7 @@ public class ProfileAnalysisOrchestrator {
                         .betType(BetType.SINGLE)
                         .status(BetStatus.PENDING)
                         .sharingUrl(sharingUrl)
-                        .placedAt(LocalDateTime.now())
+                        .placedAt(resolvePlacedAtFromTweet(tweet))
                         .build();
 
                 updateBetDataFromAI(newBet, fullText, localImagePaths, threadContext);
@@ -667,5 +671,34 @@ public class ProfileAnalysisOrchestrator {
                 }
             }
         }
+    }
+
+    private static final DateTimeFormatter TWITTER_CREATED_AT =
+            DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss Z yyyy", Locale.ENGLISH);
+
+    static LocalDateTime parseTweetCreatedAt(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return ZonedDateTime.parse(raw.trim(), TWITTER_CREATED_AT)
+                    .withZoneSameInstant(ZoneOffset.UTC)
+                    .toLocalDateTime();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Existing rows imported before this change keep scrape-time placedAt.
+    // Re-scan profile or manual SQL backfill if historical Posted dates matter.
+    private LocalDateTime resolvePlacedAtFromTweet(Map<String, Object> tweet) {
+        Object createdAt = tweet.get("created_at");
+        if (createdAt instanceof String s) {
+            LocalDateTime parsed = parseTweetCreatedAt(s);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return LocalDateTime.now();
     }
 }

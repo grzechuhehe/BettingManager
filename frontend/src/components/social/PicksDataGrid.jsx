@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 
+const formatPostedAt = (placedAt) => {
+    if (!placedAt) return '-';
+    const date = new Date(placedAt);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 const getStatusColor = (status) => {
     switch (status) {
         case 'WON': return 'text-green-500 bg-green-500/10 border-green-500/20';
@@ -48,11 +55,12 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
             <table className="w-full text-left border-collapse table-fixed min-w-[800px]">
                 <thead>
                     <tr className="bg-surface-soft border-b border-hairline">
-                        <th className="w-[30%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bet</th>
-                        <th className="w-[25%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
+                        <th className="w-[28%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bet</th>
+                        <th className="w-[23%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Selection</th>
                         <th className="w-[8%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Odds</th>
                         <th className="w-[12%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">{displayMode === 'units' ? 'Units' : 'Stake'}</th>
                         <th className="w-[10%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Bookie</th>
+                        <th className="w-[10%] p-4 text-[10px] font-black text-muted uppercase tracking-widest">Posted</th>
                         <th className="w-[5%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-center">Link</th>
                         <th className="w-[10%] p-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Status</th>
                     </tr>
@@ -92,6 +100,9 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                     </td>
                                     <td className="px-4 py-4 text-muted h-16 truncate align-middle">
                                         {pick.bookmaker || 'Unknown'}
+                                    </td>
+                                    <td className="px-4 py-4 text-muted text-sm h-16 align-middle whitespace-nowrap" title={pick.placedAt || ''}>
+                                        {formatPostedAt(pick.placedAt)}
                                     </td>
                                     <td className="px-4 py-4 text-center h-16 align-middle">
                                         {pick.sourcePostId ? (
@@ -137,7 +148,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                         <td className="p-4 text-right font-numeric text-muted h-14">
                                             {leg.odds ? leg.odds.toFixed(2) : '-'}
                                         </td>
-                                        <td colSpan="4" className="p-4 text-right h-14 align-middle">
+                                        <td colSpan="5" className="p-4 text-right h-14 align-middle">
                                             <span className={`px-2.5 py-1 text-[10px] font-bold border rounded uppercase ${getStatusColor(leg.status || 'PENDING')}`}>
                                                 {leg.status || 'PENDING'}
                                             </span>
@@ -148,7 +159,7 @@ export default function PicksDataGrid({ picks, displayMode = 'units' }) {
                                 {/* Image proof row if available (could be placed inside expansion, but keeping it visible for now or maybe expandable too) */}
                                 {isExpanded && pick.imageProofPath && (
                                     <tr className="border-b border-hairline bg-surface-soft/10 text-sm">
-                                        <td colSpan="7" className="p-4 pl-10 text-muted">
+                                        <td colSpan="8" className="p-4 pl-10 text-muted">
                                             <div className="flex flex-col gap-2">
                                                 <span className="text-[10px] uppercase tracking-wider font-bold">Proof Image</span>
                                                 <img 
