@@ -41,6 +41,18 @@ public interface BetRepository extends JpaRepository<Bet, Long>{
     @Query("SELECT b.id FROM Bet b WHERE b.status = :status AND b.parentBet IS NULL ORDER BY b.placedAt DESC")
     List<Long> findPendingRootIds(@Param("status") BetStatus status, Pageable pageable);
 
+    @Query("""
+            SELECT b.id FROM Bet b
+            WHERE b.status = :status
+              AND b.parentBet IS NULL
+              AND b.placedAt < :cutoff
+            ORDER BY b.placedAt ASC
+            """)
+    List<Long> findPendingRootIdsBeforeCutoff(
+            @Param("status") BetStatus status,
+            @Param("cutoff") LocalDateTime cutoff,
+            Pageable pageable);
+
     @Query("SELECT DISTINCT b FROM Bet b LEFT JOIN FETCH b.childBets WHERE b.id IN :ids")
     List<Bet> findRootsWithLegsByIds(@Param("ids") List<Long> ids);
 

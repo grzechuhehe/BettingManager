@@ -50,7 +50,8 @@ class BetResolutionServiceTest {
         BetResolutionEligibilityEvaluator eligibilityEvaluator = new BetResolutionEligibilityEvaluator(
                 c.nameTranslator(),
                 c.resolvabilityChecker(),
-                resolutionTx);
+                new com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer(
+                        c.nameTranslator()));
         ReflectionTestUtils.setField(eligibilityEvaluator, "searchCooldownHours", 24);
         ReflectionTestUtils.setField(eligibilityEvaluator, "minHoursAfterPlaced", 3);
         service = new BetResolutionService(
@@ -63,7 +64,8 @@ class BetResolutionServiceTest {
                 attemptRepository,
                 metricsHolder,
                 eligibilityEvaluator,
-                resolutionHealthMonitor);
+                resolutionHealthMonitor,
+                betRepository);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.85);
         ReflectionTestUtils.setField(service, "dateWindowDays", 4);
         ReflectionTestUtils.setField(service, "maxBetsPerRun", 50);
@@ -74,9 +76,10 @@ class BetResolutionServiceTest {
         lenient().when(discoveryService.discover(eq(List.of()), any(LocalDateTime.class)))
                 .thenReturn(DiscoveryResult.empty());
         lenient().when(attemptRepository.findByCycleId(anyString())).thenReturn(List.of());
+        lenient().when(attemptRepository.countSuccessSince(any(LocalDateTime.class))).thenReturn(0L);
+        lenient().when(betRepository.countPendingNonRetroactiveLeaves(BetStatus.PENDING)).thenReturn(0L);
         lenient().when(resolutionHealthMonitor.evaluate(any(LocalDateTime.class)))
-                .thenReturn(Optional.of(new ResolutionHealthAlert(
-                        ResolutionHealthAlert.Level.OK, 0, 0, "Resolution health OK")));
+                .thenReturn(Optional.empty());
     }
 
     /** Synchronous test helper replacing the removed {@code resolvePendingBets(boolean)}. */
@@ -84,7 +87,8 @@ class BetResolutionServiceTest {
         AutoResolutionGuard.AcquireResult acquire = autoResolutionGuard.tryAcquire(60, true);
         assertEquals(AutoResolutionGuard.Acquisition.ACQUIRED, acquire.status());
         try {
-            ReflectionTestUtils.invokeMethod(service, "resolvePendingBetsInternal", force);
+            ReflectionTestUtils.invokeMethod(service, "resolvePendingBetsInternal", force,
+                    ResolutionRunConfig.defaultNewest(80, 4));
         } finally {
             autoResolutionGuard.release(false);
         }

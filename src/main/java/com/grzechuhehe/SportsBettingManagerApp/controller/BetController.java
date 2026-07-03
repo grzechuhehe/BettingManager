@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -45,6 +46,15 @@ public class BetController {
 
     @Value("${bet.resolution.debug-endpoints:false}")
     private boolean debugEndpoints;
+
+    @Value("${bet.resolution.oldest-one-shot.cutoff:2026-06-25T00:00:00}")
+    private String oldestOneShotCutoff;
+
+    @Value("${bet.resolution.oldest-one-shot.limit:80}")
+    private int oldestOneShotLimit;
+
+    @Value("${bet.resolution.oldest-one-shot.date-window-days:30}")
+    private int oldestOneShotDateWindowDays;
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BetController.class);
 
@@ -188,6 +198,30 @@ public class BetController {
                     "status", "started",
                     "message", "Auto-resolution started in background (force=" + force + "). Refresh in 2–5 min.",
                     "retryAfterMinutes", String.valueOf(cooldownMinutes)));
+        };
+    }
+
+    @PostMapping("/run-oldest-pending-one-shot")
+    @Operation(summary = "One-shot oldest pending resolution (debug)",
+            description = "Resolves up to N oldest PENDING roots with placedAt before cutoff. Requires bet.resolution.debug-endpoints=true.")
+    public ResponseEntity<Map<String, String>> runOldestPendingOneShot(
+            @RequestParam(defaultValue = "true") boolean force) {
+        if (!debugEndpoints) {
+            return ResponseEntity.notFound().build();
+        }
+        LocalDateTime cutoff = LocalDateTime.parse(oldestOneShotCutoff);
+        AutoResolutionGuard.AcquireResult acquire = betResolutionService.triggerOldestPendingOneShot(
+                cutoff, oldestOneShotLimit, oldestOneShotDateWindowDays, force);
+        return switch (acquire.status()) {
+            case COOLDOWN -> ResponseEntity.status(429).body(Map.of(
+                    "status", "cooldown",
+                    "message", "Resolution guard cooldown. Retry in " + acquire.remainingMinutes() + " min."));
+            case BUSY -> ResponseEntity.status(409).body(Map.of(
+                    "status", "busy",
+                    "message", "Auto-resolution is already running"));
+            case ACQUIRED -> ResponseEntity.accepted().body(Map.of(
+                    "status", "started",
+                    "message", "Oldest-pending one-shot started. cutoff=" + cutoff + ", limit=" + oldestOneShotLimit));
         };
     }
 

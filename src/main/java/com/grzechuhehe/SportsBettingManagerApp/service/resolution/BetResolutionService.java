@@ -2,6 +2,7 @@ package com.grzechuhehe.SportsBettingManagerApp.service.resolution;
 
 import com.grzechuhehe.SportsBettingManagerApp.model.Bet;
 import com.grzechuhehe.SportsBettingManagerApp.model.BetResolutionAttempt;
+import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.DiscoveryResult;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.discovery.MatchDiscoveryService;
@@ -38,8 +39,10 @@ public class BetResolutionService {
     private final ResolutionCycleMetricsHolder metricsHolder;
     private final BetResolutionEligibilityEvaluator eligibilityEvaluator;
     private final ResolutionHealthMonitor resolutionHealthMonitor;
+    private final BetRepository betRepository;
 
     private static final double APIFY_COST_PER_CALL_USD = 0.08;
+    private static final double APIFY_FAILURE_RATE_THRESHOLD = 0.30;
 
     @Value("${bet.resolution.match-confidence-threshold:0.85}")
     private double confidenceThreshold;
@@ -70,7 +73,7 @@ public class BetResolutionService {
         }
         boolean success = false;
         try {
-            resolvePendingBetsInternal(false);
+            resolvePendingBetsInternal(false, ResolutionRunConfig.defaultNewest(maxBetsPerRun, dateWindowDays));
             success = true;
         } finally {
             autoResolutionGuard.release(success);
@@ -90,7 +93,7 @@ public class BetResolutionService {
             boolean success = false;
             try {
                 log.info("Manual auto-resolution started (force={})", force);
-                resolvePendingBetsInternal(force);
+                resolvePendingBetsInternal(force, ResolutionRunConfig.defaultNewest(maxBetsPerRun, dateWindowDays));
                 success = true;
                 log.info("Manual auto-resolution finished (force={})", force);
             } catch (Exception e) {
@@ -102,9 +105,34 @@ public class BetResolutionService {
         return acquire;
     }
 
-    private void resolvePendingBetsInternal(boolean force) {
-        List<Bet> rootsToProcess = resolutionTx.loadPendingRoots(maxBetsPerRun);
-        log.info("Auto-rozliczanie: {} korzeniowych zakładów PENDING (force={})", rootsToProcess.size(), force);
+    public AutoResolutionGuard.AcquireResult triggerOldestPendingOneShot(
+            LocalDateTime cutoff, int limit, int widenedDateWindowDays, boolean force) {
+        ResolutionRunConfig config = ResolutionRunConfig.oldestBefore(cutoff, limit, widenedDateWindowDays);
+        AutoResolutionGuard.AcquireResult acquire = autoResolutionGuard.tryAcquire(manualCooldownMinutes, force);
+        if (acquire.status() != AutoResolutionGuard.Acquisition.ACQUIRED) {
+            return acquire;
+        }
+        Thread.startVirtualThread(() -> {
+            boolean success = false;
+            try {
+                log.info("Oldest-pending one-shot started: cutoff={}, limit={}, dateWindowDays={}",
+                        cutoff, limit, widenedDateWindowDays);
+                resolvePendingBetsInternal(force, config);
+                success = true;
+                log.info("Oldest-pending one-shot finished");
+            } catch (Exception e) {
+                log.error("Oldest-pending one-shot failed: {}", e.getMessage(), e);
+            } finally {
+                autoResolutionGuard.release(success);
+            }
+        });
+        return acquire;
+    }
+
+    private void resolvePendingBetsInternal(boolean force, ResolutionRunConfig config) {
+        List<Bet> rootsToProcess = resolutionTx.loadPendingRoots(config);
+        log.info("Auto-rozliczanie: {} korzeniowych zakładów PENDING (force={}, mode={})",
+                rootsToProcess.size(), force, config.queueMode());
 
         LocalDateTime now = LocalDateTime.now();
         String cycleId = UUID.randomUUID().toString();
@@ -114,8 +142,9 @@ public class BetResolutionService {
         long apifyStart = System.currentTimeMillis();
         DiscoveryResult fetch = discoveryService.discover(eligibleLeaves, now);
         long apifyMs = System.currentTimeMillis() - apifyStart;
-        log.info("Apify HTTP: {} ms, {} wywołań actora (~${} przy $0.08/wywołanie)",
-                apifyMs, fetch.apifyCalls(), String.format("%.2f", fetch.apifyCalls() * 0.08));
+        log.info("Apify HTTP: {} ms, {} wywołań actora (~${} przy ${}/wywołanie)",
+                apifyMs, fetch.apifyCalls(), String.format("%.2f", fetch.apifyCalls() * APIFY_COST_PER_CALL_USD),
+                APIFY_COST_PER_CALL_USD);
 
         Set<Long> fetchedBetIds = fetch.fetchedBetIds();
         CycleEnrichmentBudget enrichmentBudget = new CycleEnrichmentBudget(maxEnrichmentCallsPerCycle);
@@ -146,7 +175,7 @@ public class BetResolutionService {
                         eligibleIds,
                         fetchedBetIds,
                         confidenceThreshold,
-                        dateWindowDays,
+                        config.dateWindowDays(),
                         enrichmentBudget,
                         cycleId
                 );
@@ -164,25 +193,26 @@ public class BetResolutionService {
                 fetch.apifyFailures(),
                 fetch.events().size(),
                 fetchedBetIds.size(),
-                String.format("%.2f", fetch.apifyCalls() * 0.08)
+                String.format("%.2f", fetch.apifyCalls() * APIFY_COST_PER_CALL_USD)
         );
 
         int apifyAttempts = fetch.apifyCalls() + fetch.apifyFailures();
         if (apifyAttempts > 0) {
             double failureRate = (double) fetch.apifyFailures() / apifyAttempts;
-            if (failureRate > 0.30) {
+            if (failureRate > APIFY_FAILURE_RATE_THRESHOLD) {
                 log.warn(
-                        "Apify cycle {}: failure rate {}% ({} failures / {} batch attempts) exceeds 30% threshold",
+                        "Apify cycle {}: failure rate {}% ({} failures / {} batch attempts) exceeds {}% threshold",
                         cycleId,
                         String.format(Locale.ROOT, "%.0f", failureRate * 100),
                         fetch.apifyFailures(),
-                        apifyAttempts
+                        apifyAttempts,
+                        String.format(Locale.ROOT, "%.0f", APIFY_FAILURE_RATE_THRESHOLD * 100)
                 );
             }
         }
 
         Optional<ResolutionHealthAlert> healthAlert = resolutionHealthMonitor.evaluate(now);
-        storeCycleMetrics(cycleId, eligibleLeaves.size(), fetch, enrichmentBudget, healthAlert);
+        storeCycleMetrics(cycleId, now, eligibleLeaves.size(), fetch, enrichmentBudget, healthAlert);
         healthAlert.ifPresent(alert -> {
             if (alert.level() == ResolutionHealthAlert.Level.WARN) {
                 log.warn("{}", alert.message());
@@ -192,6 +222,7 @@ public class BetResolutionService {
 
     private void storeCycleMetrics(
             String cycleId,
+            LocalDateTime now,
             int eligible,
             DiscoveryResult fetch,
             CycleEnrichmentBudget enrichmentBudget,
@@ -214,10 +245,11 @@ public class BetResolutionService {
             }
         }
 
-        ResolutionHealthAlert health = healthAlert.orElse(null);
-        long successLast24h = health != null ? health.successLast24h() : 0L;
-        long pendingLeaves = health != null ? health.pendingLeaves() : 0L;
-        boolean healthAlertFlag = health != null && health.level() == ResolutionHealthAlert.Level.WARN;
+        long successLast24h = attemptRepository.countSuccessSince(now.minusHours(24));
+        long pendingLeaves = betRepository.countPendingNonRetroactiveLeaves(BetStatus.PENDING);
+        boolean healthAlertFlag = healthAlert
+                .map(alert -> alert.level() == ResolutionHealthAlert.Level.WARN)
+                .orElse(false);
 
         ResolutionCycleMetrics metrics = new ResolutionCycleMetrics(
                 cycleId,

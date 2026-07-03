@@ -40,8 +40,22 @@ class BetResolutionTransactionService {
 
     @Transactional(readOnly = true)
     public List<Bet> loadPendingRoots(int limit) {
-        // Limit po stronie bazy (najnowsze zakłady pierwsze), potem dociągnięcie nóg.
-        List<Long> rootIds = betRepository.findPendingRootIds(BetStatus.PENDING, PageRequest.of(0, limit));
+        return loadPendingRoots(ResolutionRunConfig.defaultNewest(limit, 4));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Bet> loadPendingRoots(ResolutionRunConfig config) {
+        List<Long> rootIds = switch (config.queueMode()) {
+            case NEWEST_FIRST -> betRepository.findPendingRootIds(
+                    BetStatus.PENDING, PageRequest.of(0, config.limit()));
+            case OLDEST_BEFORE_CUTOFF -> {
+                if (config.placedBeforeCutoff() == null) {
+                    throw new IllegalArgumentException("placedBeforeCutoff required for OLDEST_BEFORE_CUTOFF");
+                }
+                yield betRepository.findPendingRootIdsBeforeCutoff(
+                        BetStatus.PENDING, config.placedBeforeCutoff(), PageRequest.of(0, config.limit()));
+            }
+        };
         if (rootIds.isEmpty()) {
             return List.of();
         }
