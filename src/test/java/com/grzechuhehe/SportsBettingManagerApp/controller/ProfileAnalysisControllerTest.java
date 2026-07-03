@@ -141,19 +141,19 @@ class ProfileAnalysisControllerTest {
         shadowProfile.setId(1L);
         shadowProfile.setXUsername("guru");
 
-        Bet aiBet = Bet.builder()
+        Bet manualBet = Bet.builder()
                 .id(100L)
-                .isAiExtracted(true)
+                .isAiExtracted(false)
                 .eventName("Match A")
                 .selection("Over 2.5")
                 .odds(new java.math.BigDecimal("1.85"))
                 .placedAt(LocalDateTime.now())
                 .build();
 
-        org.springframework.data.domain.Page<Bet> betPage = new org.springframework.data.domain.PageImpl<>(Collections.singletonList(aiBet));
+        org.springframework.data.domain.Page<Bet> betPage = new org.springframework.data.domain.PageImpl<>(Collections.singletonList(manualBet));
 
         when(userRepository.findByXUsernameIgnoreCase("guru")).thenReturn(Optional.of(shadowProfile));
-        when(betRepository.findRootAiBetsByUser(eq(shadowProfile), any(org.springframework.data.domain.PageRequest.class))).thenReturn(betPage);
+        when(betRepository.findRootBetsByUser(eq(shadowProfile), any(org.springframework.data.domain.PageRequest.class))).thenReturn(betPage);
 
         mockMvc.perform(get("/api/profiles/guru/picks")
                 .contentType(MediaType.APPLICATION_JSON))

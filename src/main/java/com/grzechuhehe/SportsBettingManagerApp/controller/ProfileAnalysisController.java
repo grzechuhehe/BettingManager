@@ -124,7 +124,7 @@ public class ProfileAnalysisController {
         return ResponseEntity.ok("Scan for profile " + xUsername + " has been successfully completed.");
     }
 
-    @Operation(summary = "Get picks for a profile", description = "Returns AI-extracted bets for the specified X profile.")
+    @Operation(summary = "Get picks for a profile", description = "Returns all root bets for the specified X profile.")
     @GetMapping("/{xUsername}/picks")
     public ResponseEntity<PageResponse<ProfilePickDTO>> getProfilePicks(
             @PathVariable String xUsername,
@@ -139,7 +139,7 @@ public class ProfileAnalysisController {
 
         User user = shadowProfileOpt.get();
         
-        org.springframework.data.domain.Page<Bet> betPage = betRepository.findRootAiBetsByUser(
+        org.springframework.data.domain.Page<Bet> betPage = betRepository.findRootBetsByUser(
                 user, 
                 org.springframework.data.domain.PageRequest.of(page, size, Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "placedAt"))
         );
