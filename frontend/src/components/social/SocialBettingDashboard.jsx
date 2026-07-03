@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getProfilePreview, getTrackedProfiles, trackNewProfile, triggerManualScan } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import ProfilePreviewCard from './ProfilePreviewCard';
 
 function buildPreviewFromTracked(username, trackedList) {
@@ -29,6 +30,7 @@ function buildPreviewFromTracked(username, trackedList) {
 export default function SocialBettingDashboard() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { user: loggedInUser } = useAuth();
 
     const rawQuery = searchParams.get('q') || '';
     const searchQuery = rawQuery.replace(/^@/, '').trim();
@@ -197,7 +199,12 @@ export default function SocialBettingDashboard() {
                     <div className="text-5xl mb-4 opacity-20">🔍</div>
                     <h3 className="text-lg font-semibold text-on-dark">Ready to track a new guru?</h3>
                     <p className="text-muted mt-2 text-sm">
-                        Enter an X username in the search bar above, e.g. <span className="text-body font-mono">grubytypuje</span>
+                        Enter an X username in the search bar above
+                        {loggedInUser && (
+                            <>
+                                , e.g. <span className="text-body font-mono">{loggedInUser}</span>
+                            </>
+                        )}
                     </p>
                 </section>
             )}

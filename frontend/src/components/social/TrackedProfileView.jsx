@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTrackedProfilePicks, getTrackedProfileStats, getTrackedProfileAdvancedStats } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import PicksDataGrid from './PicksDataGrid';
 
 export default function TrackedProfileView() {
     const { username } = useParams();
     const navigate = useNavigate();
+    const { user: loggedInUser } = useAuth();
+
+    const backToSocialSearch = () => {
+        const query = loggedInUser ? encodeURIComponent(loggedInUser) : '';
+        navigate(query ? `/social?q=${query}` : '/social');
+    };
     
     const [stats, setStats] = useState(null);
     const [advancedStats, setAdvancedStats] = useState(null);
@@ -60,7 +67,7 @@ export default function TrackedProfileView() {
                     {error}
                 </div>
                 <div className="mt-4">
-                    <button onClick={() => navigate('/social')} className="text-blue-400 hover:underline">
+                    <button onClick={backToSocialSearch} className="text-blue-400 hover:underline">
                         &larr; Back to Search
                     </button>
                 </div>
@@ -91,7 +98,7 @@ export default function TrackedProfileView() {
                         </button>
                     </div>
                     <button 
-                        onClick={() => navigate('/social')}
+                        onClick={backToSocialSearch}
                         className="px-6 py-2 bg-surface-soft hover:bg-surface-elevated text-on-dark rounded-xl transition-colors border border-hairline"
                     >
                         &larr; Back to Search
