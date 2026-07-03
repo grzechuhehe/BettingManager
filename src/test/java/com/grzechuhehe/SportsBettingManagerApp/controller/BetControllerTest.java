@@ -14,6 +14,7 @@ import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetResolutionAttemptRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.BettingService;
+import com.grzechuhehe.SportsBettingManagerApp.service.ImageStorageService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.BetResolutionService;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycleMetrics;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionCycleMetricsHolder;
@@ -66,6 +67,9 @@ class BetControllerTest {
 
     @MockBean
     private BetRepository betRepository;
+
+    @MockBean
+    private ImageStorageService imageStorageService;
 
     @MockBean
     private JwtUtils jwtUtils;
