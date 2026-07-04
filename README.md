@@ -7,87 +7,102 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker)
 
-A professional-grade analytics platform for sports traders. This full-stack application goes beyond simple tracking, offering **Bloomberg-style analytics**, performance metrics, live odds integration, and portfolio visualization. Built with performance and scalability in mind using **Java Spring Boot 3** and **React 19**.
+A full-stack platform for sports bettors and traders: track your own portfolio, analyze performance with Bloomberg-style metrics, discover +EV opportunities, and monitor public picks from X (Twitter) profiles — with AI-assisted bet extraction and automated settlement against live match results.
+
+Built with **Java 21**, **Spring Boot 3.3**, **React 19**, and **MySQL 8**.
 
 ---
 
 ## 🚀 Key Features
 
-### 📡 Social Betting Intelligence & AI Extraction
-- **Shadow Profile Tracking:** Track external sports traders' performance via X (formerly Twitter) shadow profiles without requiring them to register.
-- **AI-Powered Bet Extraction:** Automatic extraction of **Single** and **Parlay (AKO)** bets from tweets and images using **Google Gemini Pro Vision** for advanced OCR.
-- **Incremental Scraping Engine:** Efficient background sync using `since_id` pagination and image-presence heuristics to minimize API overhead and costs.
-- **Historical Backfilling:** Automatically fetches and analyzes the last 100 posts for any newly tracked profile to provide immediate performance history.
-- **Retroactive Analysis:** Intelligent detection of post-settlement bets with visual "Retroactive" badges and tooltips for transparency.
+### 💼 Your Bets
+- Add **single bets** and **accumulators (parlays)** with stake, odds, and bookmaker.
+- See **total odds and potential winnings** calculated automatically.
+- **Import a bet from a screenshot** — paste or upload a slip and let the app read the event, pick, and odds.
+- **Attach a slip photo** as proof when entering a bet manually.
+- **Settle bets** as won, lost, or void and see profit/loss update immediately.
+- **Edit bet details** after placing without re-entering the whole coupon.
 
-### 📈 Professional Analytics Dashboard
-- **Live +EV Feed:** Expandable, deduplicated feed of currently available positive Expected Value opportunities filtered by user-defined profitability threshold (default >2%).
-- **Equity Curve:** Interactive line chart visualizing cumulative profit over time (Lifetime Performance).
-- **Profit by Sport:** Breakdown of net profit across different sports disciplines to identify strengths.
-- **Key Metrics:** Real-time calculation of **ROI (Return on Investment)** and **Yield**.
-- **Activity Heatmap:** Calendar view of trading activity and daily P/L.
+### 📡 Social Betting Radar
+- **Search X (Twitter) profiles** from the app and see a quick preview before you follow someone.
+- **Track public tipsters** and sync their new posts in the background.
+- **Extract picks from tweets and images** — singles, parlays, and combined (bet builder) coupons.
+- When you start tracking someone, the app can **load their recent history** so you are not starting from zero.
+- Open a **public profile page** with win rate, yield, streaks, and full bet history — including slips with **proof images**.
+- See when a pick was **posted retroactively** (already settled when it was imported).
 
-### 💼 Portfolio Management
-- **Bet Tracking:** Support for **Single** and **Parlay** (Accumulator) bets.
-- **Auto-Calculation:** Automatic potential winnings and parlay odds aggregation.
-- **Settlement Engine:** Streamlined workflow for settling bets (WON/LOST/VOID) with instant balance updates and safeguards against duplicate or invalid settlements.
+### ⚖️ Automatic Settlement
+- **Settle pending bets against real match results** without checking every leg yourself.
+- Works for **singles, parlays, and multi-leg builders** — each leg is resolved on its own.
+- Runs **in the background on a schedule**; you can also **trigger a run manually** when needed.
+- Handles tricky cases: **void legs** in a parlay, tennis doubles, national teams, player props after the match.
 
-### 📡 External Integrations & EV Engine
-- **Automated EV Scanner:** Background engine running 24/7 that cross-references traditional bookmaker odds against predictive markets (**Polymarket**, **Kalshi**) to find mathematically profitable (+EV) bets.
-- **Predictive Probability:** Integration with **Polymarket Gamma API** and **Kalshi** to calculate "True Probability" based on market liquidity and wisdom of the crowd.
-- **Live Odds:** Real-time sports data and market odds powered by **TheOddsAPI** integration.
+### 📈 Analytics & Edge
+- **Dashboard** with ROI, yield, net profit, and open positions.
+- **Equity curve** — how your bankroll evolved over time.
+- **Profit breakdown by sport** — see where you perform best.
+- **Advanced stats** — win rate, streaks, Sharpe ratio, rolling performance.
+- **Activity heatmap** — which days you won or lost.
+- **Live +EV feed** — spots where bookmaker odds look mispriced vs. prediction markets; filter by your minimum edge.
+- **EV calculator** — check expected value for a pick before you place it.
 
+### 🔐 Account
+- **Register and log in** securely.
+- **Reset password** via email if you forget it.
+- Adjust **+EV alert threshold** to match how selective you want to be.
 
-### 🔐 Security & Architecture
-- **User Authentication:** Secure registration and login system based on **JWT**.
-- **Password Recovery:** Comprehensive email-based password reset flow with anti-enumeration protection and Thymeleaf HTML templates.
-- **API Documentation:** Interactive **Swagger UI (OpenAPI 3.0)** integration with Bearer Auth support.
-- **Global Error Handling:** Unified JSON error responses driven by a centralized `GlobalExceptionHandler` and strict DTO validation rules.
-- **Containerization & CI/CD:** Fully containerized environment using **Docker** and automated testing pipelines via **GitHub Actions**.
+---
+
+## 🗺️ Application Screens
+
+| Route | Description |
+|-------|-------------|
+| `/dashboard` | Main analytics hub, +EV feed, quick actions |
+| `/add-bet` | Manual bet form + AI screenshot import |
+| `/bets` | Full bet list with settlement controls |
+| `/live-odds` | Browse live markets from TheOddsAPI |
+| `/social` | Social Betting Radar — search & track X profiles |
+| `/profile/:username` | Public betting profile & statistics |
+| `/profile` | Account settings (email, password reset, snapshot stats) |
+| `/ev-calculator` | Standalone EV calculator |
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Language:** Java 21
-- **Framework:** Spring Boot 3.3.6
-- **Database:** MySQL 8.0
-- **AI/ML:** Google Gemini API (Vision Pro)
-- **Data Providers:** SocialData (X API), TheOddsAPI, Polymarket, Kalshi
-- **Security:** Spring Security + JWT
-- **Templating:** Thymeleaf (Email templates)
-- **Documentation:** Springdoc OpenAPI (Swagger)
-- **CI/CD:** GitHub Actions
-- **Containerization:** Docker, Docker Compose
+- Java 21, Spring Boot 3.3.6, Spring Data JPA, Spring Security (JWT)
+- MySQL 8.0
+- Google Gemini API, SocialData (X), TheOddsAPI, Apify SofaScore actor
+- Thymeleaf (email templates), Springdoc OpenAPI
 
 ### Frontend
-- **Framework:** React 19
-- **Build Tool:** Vite
-- **Styling:** Tailwind CSS v4
-- **Visualization:** Recharts
-- **Web Server:** Nginx (in Docker)
+- React 19, Vite, Tailwind CSS v4, Recharts, Axios
+- Nginx (production Docker image)
+
+### Infrastructure
+- Docker & Docker Compose
+- GitHub Actions CI
 
 ---
 
-## ⚙️ Getting Started (Docker - Recommended)
-
-The easiest and recommended way to run the application is using Docker. This ensures a consistent environment matching the production setup.
+## ⚙️ Getting Started (Docker — Recommended)
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- SSL Keystore (`sportsbetting.p12`) generated and placed in the project root.
+- Docker and Docker Compose
+- SSL keystore `sportsbetting.p12` in the project root
 
-### 1. Environment Setup
-Create a `.env` file in the root directory based on the following template:
+### 1. Environment setup
+
+Create `.env` in the project root (never commit it):
 
 ```env
-# Database Credentials
+# Database
 DB_USERNAME=user
 DB_PASSWORD=your_db_password
 DB_ROOTPASSWORD=your_db_root_password
 
-# Application Secrets
+# Application secrets
 JWT_SECRET=YourSuperSecretKeyForJwtTokens
 KEYSTORE_PASSWORD=your_p12_certificate_password
 
@@ -95,44 +110,86 @@ KEYSTORE_PASSWORD=your_p12_certificate_password
 ODDS_API_KEY=your_the_odds_api_key
 SOCIALDATA_API_KEY=your_socialdata_tools_key
 GEMINI_API_KEY=your_google_gemini_key
+APIFY_API_TOKEN=your_apify_token
 
-# Email Configuration (Mailtrap - for testing password reset)
-SMTP_MAILTRAP_USER=your_mailtrap_user
-SMTP_MAILTRAP_PASSWORD=your_mailtrap_password
+# Email (Mailtrap for local dev)
+MAILTRAP_SMTP_USERNAME=your_mailtrap_user
+MAILTRAP_SMTP_PASSWORD=your_mailtrap_password
+
+# Optional
+GEMINI_SYSTEM_PROMPT=
+FRONTEND_URL=http://localhost:3000
 ```
 
-### 2. Build and Run
-Run the following command to build the multi-stage images and start the containers (Database, Backend, Frontend):
+### 2. Build and run
 
 ```bash
 docker compose up --build -d
 ```
 
-### 3. Access the Application
-- **Frontend App:** [http://localhost:3000](http://localhost:3000)
-- **Backend API:** `https://localhost:8443`
-- **Swagger UI (API Docs):** [https://localhost:8443/swagger-ui/index.html](https://localhost:8443/swagger-ui/index.html)
+### 3. Access
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | https://localhost:8443 |
+| Swagger UI | https://localhost:8443/swagger-ui/index.html |
+
+Bet slip proof images are served from `uploads/profiles/` (mounted in the backend container).
 
 ---
 
 ## 🛠️ Local Development (Without Docker)
 
-If you prefer to run the application locally for active development:
+### Prerequisites
+- **JDK 21** (Maven enforcer rejects other versions)
+- Maven 3.8+
+- MySQL 8 with database `sportsbetting`
+- Node.js 18+ for the frontend
+- `sportsbetting.p12` in the project root
 
-### 1. Database
-Ensure you have a local MySQL instance running with a database named `sportsbetting`.
+### Backend
 
-### 2. Backend
-Set the required environment variables (matching the `.env` file) in your IDE or terminal, and run:
+Set environment variables (same names as `.env` above), then:
+
 ```bash
 mvn clean install
 mvn spring-boot:run
 ```
 
-### 3. Frontend
+### Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Local frontend will be available at `http://localhost:5173`.
+
+Frontend dev server: http://localhost:5173 (CORS configured for this origin).
+
+---
+
+## 🧪 Tests
+
+```bash
+mvn test
+```
+
+CI runs the full suite (~200 tests) on push/PR to `main` with Java 21 and a MySQL service container.
+
+---
+
+## 📁 Notable API Endpoints
+
+| Area | Examples |
+|------|----------|
+| Auth | `POST /api/auth/signin`, `/signup`, `/forgot-password` |
+| Bets | `POST /api/bets/add-bet`, `/add-bet-with-proof`, `GET /api/bets/dashboard-stats` |
+| Import | `POST /api/bets/import-from-image` |
+| Resolution | `POST /api/bets/run-auto-resolution` |
+| Social | `GET /api/profiles/preview`, `POST /api/profiles/track`, `GET /api/profiles/{user}/picks` |
+| EV | `GET /api/ev/opportunities`, `POST /api/ev/calculate` |
+| Odds | `GET /api/odds/sports`, `/markets/{sportKey}` |
+| User | `GET /api/user/profile`, `POST /api/user/settings` |
+
+Full interactive documentation: **Swagger UI**.
