@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { calculateExpectedValue } from '../api';
 
 const EvCalculator = () => {
@@ -31,63 +31,43 @@ const EvCalculator = () => {
                 <p className="text-body mt-2">Compare bookmaker odds against Kalshi/Polymarket true probabilities.</p>
             </header>
 
-            <div className="bg-surface-card p-10 rounded-lg border border-hairline">
+            <div className="surface-card">
                 <form onSubmit={handleCalculate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Event Search Query</label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="e.g. Real Madrid"
-                                className="input-field"
-                                value={eventQuery}
-                                onChange={(e) => setEventQuery(e.target.value)}
-                            />
+                            <label className="field-label">Event search query</label>
+                            <input type="text" required placeholder="e.g. Real Madrid" className="input-field" value={eventQuery} onChange={(e) => setEventQuery(e.target.value)} />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Bookmaker Odds (Decimal)</label>
-                            <input
-                                type="number"
-                                required
-                                step="0.01"
-                                placeholder="2.15"
-                                className="input-field"
-                                value={odds}
-                                onChange={(e) => setOdds(e.target.value)}
-                            />
+                            <label className="field-label">Bookmaker odds (decimal)</label>
+                            <input type="number" required step="0.01" placeholder="2.15" className="input-field font-numeric" value={odds} onChange={(e) => setOdds(e.target.value)} />
                         </div>
                     </div>
-                    
-                    <button type="submit" disabled={loading} className="button-primary !h-12 w-full uppercase tracking-widest font-black text-xs disabled:opacity-50">
-                        {loading ? 'Processing...' : 'Calculate Expected Value'}
-                    </button>
-                    {error && <p className="text-rose-500 text-sm mt-2 font-bold">{error}</p>}
+                    <button type="submit" disabled={loading} className="button-primary w-full">{loading ? 'Processing...' : 'Calculate expected value'}</button>
+                    {error && <p className="text-accent-rose body-sm mt-2">{error}</p>}
                 </form>
             </div>
 
             {result && (
-                <div className={`p-10 rounded-lg border flex flex-col items-center text-center ${result.positiveEv ? 'bg-primary/5 border-primary/50' : 'bg-rose-500/5 border-rose-500/50'}`}>
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-8">Arbitrage Analysis</h4>
-                    
+                <div className={`surface-card ${result.positiveEv ? 'border-primary' : 'border-accent-rose'}`}>
+                    <h4 className="caption-uppercase text-muted mb-8 text-center">Arbitrage analysis</h4>
                     <div className="grid grid-cols-3 gap-8 w-full mb-8 border-b border-hairline pb-8">
-                        <div>
-                            <p className="text-xs font-semibold text-muted mb-2">Bookmaker Odds</p>
-                            <p className="text-2xl font-bold text-on-dark font-numeric">{result.bookmakerOdds.toFixed(2)}</p>
+                        <div className="text-center">
+                            <p className="caption text-muted mb-2">Bookmaker odds</p>
+                            <p className="title-lg font-numeric">{result.bookmakerOdds.toFixed(2)}</p>
                         </div>
-                        <div>
-                            <p className="text-xs font-semibold text-muted mb-2">Market Probability</p>
-                            <p className="text-2xl font-bold text-on-dark font-numeric">{(result.trueProbability * 100).toFixed(1)}%</p>
+                        <div className="text-center">
+                            <p className="caption text-muted mb-2">Market probability</p>
+                            <p className="title-lg font-numeric">{(result.trueProbability * 100).toFixed(1)}%</p>
                         </div>
-                        <div>
-                            <p className="text-xs font-semibold text-muted mb-2">Fair Odds</p>
-                            <p className="text-2xl font-bold text-on-dark font-numeric">{(1 / result.trueProbability).toFixed(2)}</p>
+                        <div className="text-center">
+                            <p className="caption text-muted mb-2">Fair odds</p>
+                            <p className="title-lg font-numeric">{(1 / result.trueProbability).toFixed(2)}</p>
                         </div>
                     </div>
-
-                    <div className="flex flex-col items-center">
-                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-2">Expected Value (+EV)</p>
-                        <p className={`text-6xl font-black font-numeric ${result.positiveEv ? 'text-primary' : 'text-rose-500'}`}>
+                    <div className="text-center">
+                        <p className="caption-uppercase text-muted mb-2">Expected value (+EV)</p>
+                        <p className={`stat-display ${result.positiveEv ? '' : 'text-accent-rose'}`}>
                             {result.expectedValuePercentage > 0 ? '+' : ''}{result.expectedValuePercentage.toFixed(2)}%
                         </p>
                     </div>

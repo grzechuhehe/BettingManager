@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 import { toLocalDateTimeString } from '../utils/datetime';
@@ -53,8 +53,8 @@ const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-canvas/90 backdrop-blur-sm overflow-y-auto h-full w-full flex items-center justify-center z-50">
-            <div className="relative bg-surface-card rounded-lg border border-hairline p-10 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-canvas/90 overflow-y-auto h-full w-full flex items-center justify-center z-50 modal-backdrop">
+            <div className="relative bg-surface-card rounded-lg border border-hairline p-10 max-w-md w-full modal-panel">
                 <h3 className="display-sm mb-6">Edit Order</h3>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
@@ -100,11 +100,11 @@ const BetStatusBadge = ({ status }) => {
     const statusClasses = {
         PENDING: 'bg-primary/20 text-primary border-primary/30',
         WON: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
-        LOST: 'bg-rose-500/20 text-rose-500 border-rose-500/30',
+        LOST: 'bg-accent-rose/20 text-accent-rose border-accent-rose/30',
         VOID: 'bg-muted/20 text-muted border-muted/30',
         CASHED_OUT: 'bg-blue-500/20 text-blue-500 border-blue-500/30',
         HALF_WON: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-        HALF_LOST: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        HALF_LOST: 'bg-accent-rose/10 text-rose-400 border-accent-rose/20',
     };
 
     return (
@@ -114,19 +114,38 @@ const BetStatusBadge = ({ status }) => {
     );
 };
 
+const ParlayChevron = ({ expanded }) => (
+    <svg
+        className={`w-3 h-3 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+        viewBox="0 0 12 12"
+        fill="currentColor"
+        aria-hidden="true"
+    >
+        <path d="M4 2l4 4-4 4V2z" />
+    </svg>
+);
+
 const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayParent = false, isExpanded = false, onToggleParlay, legSummary }) => (
     <tr className={`${isChild ? 'bg-surface-soft/30' : 'bg-surface-card hover:bg-surface-elevated/50 transition-colors'} border-b border-hairline`}>
-        <td className={`px-6 py-5 whitespace-nowrap ${isChild ? 'pl-12' : ''}`}>
+        <td
+            className={`px-6 py-5 whitespace-nowrap ${isChild ? 'pl-12' : ''} ${isParlayParent ? 'cursor-pointer select-none' : ''}`}
+            onClick={isParlayParent ? onToggleParlay : undefined}
+            onKeyDown={isParlayParent ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onToggleParlay();
+                }
+            } : undefined}
+            tabIndex={isParlayParent ? 0 : undefined}
+            role={isParlayParent ? 'button' : undefined}
+            aria-expanded={isParlayParent ? isExpanded : undefined}
+            aria-label={isParlayParent ? (isExpanded ? 'Collapse parlay legs' : 'Expand parlay legs') : undefined}
+        >
             <div className="flex items-start gap-2">
                 {isParlayParent && (
-                    <button
-                        type="button"
-                        onClick={onToggleParlay}
-                        className="mt-0.5 text-muted hover:text-on-dark text-[10px]"
-                        aria-label={isExpanded ? 'Collapse parlay legs' : 'Expand parlay legs'}
-                    >
-                        {isExpanded ? '▼' : '▶'}
-                    </button>
+                    <span className="mt-0.5 text-muted" aria-hidden="true">
+                        <ParlayChevron expanded={isExpanded} />
+                    </span>
                 )}
                 <div>
                     <div className="font-bold text-on-dark text-sm">{bet.eventName}</div>
@@ -154,21 +173,21 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
                             title="Mark as Won"
                             className="w-10 h-10 flex items-center justify-center bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-md hover:bg-emerald-500 hover:text-white transition-all text-xs"
                         >
-                            ✅
+                            W
                         </button>
                         <button 
                             onClick={() => onSettle(bet.id, 'LOST')}
                             title="Mark as Lost"
-                            className="w-10 h-10 flex items-center justify-center bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-md hover:bg-rose-500 hover:text-white transition-all text-xs"
+                            className="w-10 h-10 flex items-center justify-center bg-accent-rose/10 text-accent-rose border border-accent-rose/20 rounded-md hover:bg-accent-rose hover:text-white transition-all text-xs font-black"
                         >
-                            ❌
+                            L
                         </button>
                         <button 
                             onClick={() => onSettle(bet.id, 'VOID')}
                             title="Mark as Void"
-                            className="w-10 h-10 flex items-center justify-center bg-surface-elevated text-muted border border-hairline rounded-md hover:bg-on-dark hover:text-canvas transition-all text-xs"
+                            className="w-10 h-10 flex items-center justify-center bg-surface-elevated text-muted border border-hairline rounded-md hover:bg-on-dark hover:text-canvas transition-all text-xs font-black"
                         >
-                            🔄
+                            V
                         </button>
                     </div>
                 )}
@@ -176,13 +195,13 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
         </td>
         <td className="px-6 py-5 whitespace-nowrap text-sm font-black font-numeric">
             {bet.status !== 'PENDING' ? (
-                <span className={bet.finalProfit > 0 ? 'text-emerald-500' : bet.finalProfit < 0 ? 'text-rose-500' : 'text-muted'}>
+                <span className={bet.finalProfit > 0 ? 'text-emerald-500' : bet.finalProfit < 0 ? 'text-accent-rose' : 'text-muted'}>
                     {bet.finalProfit !== null ? (bet.finalProfit >= 0 ? `+$${bet.finalProfit.toFixed(2)}` : `-$${Math.abs(bet.finalProfit).toFixed(2)}`) : 'N/A'}
                 </span>
             ) : (
                 <div className="flex space-x-3">
                     <button onClick={() => onEdit(bet)} className="text-[10px] font-black uppercase tracking-widest text-muted hover:text-on-dark transition-colors">Edit</button>
-                    <button onClick={() => onDelete(bet.id)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 transition-colors">Delete</button>
+                    <button onClick={() => onDelete(bet.id)} className="text-[10px] font-black uppercase tracking-widest text-accent-rose  transition-colors">Delete</button>
                 </div>
             )}
         </td>
@@ -290,7 +309,7 @@ const BetList = () => {
     const handleRunAutoResolution = async () => {
         if (resolutionCooldownMs > 0) {
             const minutes = Math.ceil(resolutionCooldownMs / 60_000);
-            alert(`Auto-rozliczanie było uruchomione niedawno. Spróbuj za ok. ${minutes} min.`);
+            alert(`Auto-resolution was run recently. Try again in about ${minutes} min.`);
             return;
         }
         try {
@@ -300,16 +319,16 @@ const BetList = () => {
             localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
             localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_MS_KEY, String(cooldownMin * 60_000));
             setResolutionCooldownMs(cooldownMin * 60_000);
-            alert('Rozliczanie uruchomione w tle (Apify ~2–5 min). Lista odświeży się automatycznie.');
+            alert('Resolution started in the background (Apify ~2–5 min). The list will refresh automatically.');
             window.setTimeout(() => fetchBets(), 120_000);
             window.setTimeout(() => fetchBets(), 300_000);
         } catch (err) {
             const status = err.response?.status;
             const msg = status === 409
-                ? 'Rozliczanie już trwa — poczekaj kilka minut.'
+                ? 'Resolution is already in progress — wait a few minutes.'
                 : status === 429
-                    ? (err.response?.data?.message || 'Auto-rozliczanie było uruchomione niedawno — poczekaj przed kolejną próbą.')
-                    : 'Nie udało się uruchomić auto-rozliczania.';
+                    ? (err.response?.data?.message || 'Auto-resolution was run recently — wait before trying again.')
+                    : 'Failed to start auto-resolution.';
             if (status === 429) {
                 const retryMin = Number(err.response?.data?.retryAfterMinutes);
                 if (retryMin > 0) {
@@ -358,8 +377,8 @@ const BetList = () => {
 
     if (error) {
         return (
-            <div className="bg-rose-500/10 border border-rose-500/50 p-6 rounded-lg text-center">
-                <p className="text-rose-500 font-bold uppercase tracking-wider">{error}</p>
+            <div className="bg-accent-rose/10 border border-accent-rose/50 p-6 rounded-lg text-center">
+                <p className="text-accent-rose font-bold uppercase tracking-wider">{error}</p>
             </div>
         );
     }
@@ -388,7 +407,7 @@ const BetList = () => {
 
             {flashMessage && (
                 <div className="bg-primary/10 border border-primary/50 p-4 rounded-lg flex items-center gap-3">
-                    <span className="text-xl">✅</span>
+                    <span className="text-xl" aria-hidden="true">✓</span>
                     <p className="font-bold text-sm text-primary uppercase tracking-wider">{flashMessage}</p>
                 </div>
             )}

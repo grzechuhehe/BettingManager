@@ -1,22 +1,31 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardStats, getEvOpportunities, getUserProfile, updateUserSettings } from '../api';
 import AdvancedAnalytics from './AdvancedAnalytics';
 import AdvancedStats from './AdvancedStats';
 import BettingHeatmap from './BettingHeatmap';
+import AnimatedNumber from './AnimatedNumber';
 
-const StatCard = ({ title, value, subtext, colorClass = "text-primary" }) => (
-    <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col transition-all duration-300">
-        <h3 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">{title}</h3>
-        <p className={`stat-display ${colorClass}`}>{value}</p>
-        {subtext && <p className="text-sm text-muted mt-2">{subtext}</p>}
+const StatCard = ({ title, value, subtext, colorClass = "text-primary", animateValue, formatValue }) => (
+    <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col">
+        <h3 className="table-header mb-4">{title}</h3>
+        {animateValue != null ? (
+            <AnimatedNumber
+                value={animateValue}
+                className={`stat-display ${colorClass}`}
+                format={formatValue}
+            />
+        ) : (
+            <p className={`stat-display ${colorClass}`}>{value}</p>
+        )}
+        {subtext && <p className="body-sm text-muted mt-2">{subtext}</p>}
     </div>
 );
 
 const ActionCard = ({ to, title, description, icon }) => (
-    <Link to={to} className="flex flex-col p-8 bg-surface-card border border-hairline rounded-lg hover:border-primary/50 transition-all duration-300 group">
-        <div className="text-3xl mb-6 group-hover:scale-110 transition-transform">{icon}</div>
+    <Link to={to} className="flex flex-col p-8 bg-surface-card border border-hairline rounded-lg ">
+        <div className="text-3xl mb-6 ">{icon}</div>
         <h5 className="mb-2 text-xl font-bold tracking-tight text-on-dark">{title}</h5>
         <p className="font-normal text-muted text-sm leading-relaxed">{description}</p>
     </Link>
@@ -116,7 +125,7 @@ const Dashboard = () => {
 
     const getProfitColor = (val) => {
         if (!val) return "text-primary";
-        return val >= 0 ? "text-primary" : "text-rose-500";
+        return val >= 0 ? "text-primary" : "text-accent-rose";
     };
 
     return (
@@ -124,7 +133,7 @@ const Dashboard = () => {
             <header className="flex justify-between items-end pb-8 border-b border-hairline">
                 <div>
                     <h2 className="display-md">Dashboard</h2>
-                    <p className="text-body mt-2">Welcome back, <span className="text-primary font-bold">{user || 'Trader'}</span>! Here is your market overview.</p>
+                    <p className="text-body mt-2">Welcome back, <span className="text-body-strong font-semibold">{user || 'Trader'}</span>! Here is your market overview.</p>
                 </div>
                 <div className="text-right hidden sm:block">
                     <p className="text-xs font-semibold text-muted uppercase tracking-widest">Market Date</p>
@@ -134,13 +143,13 @@ const Dashboard = () => {
             
             <section>
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-40 bg-surface-card rounded-lg border border-hairline"></div>
+                            <div key={i} className="h-40 bg-surface-card rounded-lg border border-hairline animate-skeleton"></div>
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
                         <StatCard 
                             title="Total P/L" 
                             value={formatCurrency(stats?.totalProfitLoss)} 
@@ -148,11 +157,15 @@ const Dashboard = () => {
                         />
                         <StatCard 
                             title="Win Rate" 
-                            value={stats?.winRate ? `${stats.winRate.toFixed(1)}%` : "0%"} 
+                            value={stats?.winRate ? `${stats.winRate.toFixed(1)}%` : "0%"}
+                            animateValue={stats?.winRate ?? 0}
+                            formatValue={(n) => `${n.toFixed(1)}%`}
                         />
                         <StatCard 
                             title="Active Bets" 
-                            value={stats?.activeBetsCount || 0} 
+                            value={stats?.activeBetsCount || 0}
+                            animateValue={stats?.activeBetsCount ?? 0}
+                            formatValue={(n) => String(Math.round(n))}
                             subtext="Open Positions"
                         />
                         <StatCard 
@@ -170,7 +183,7 @@ const Dashboard = () => {
                     <h3 className="text-xl font-bold text-on-dark">Market Analysis</h3>
                 </div>
                 {loading ? (
-                    <div className="h-80 bg-surface-card rounded-lg border border-hairline animate-pulse"></div>
+                    <div className="h-80 bg-surface-card rounded-lg border border-hairline animate-skeleton"></div>
                 ) : (
                     <div className="space-y-12">
                         <AdvancedStats />
@@ -220,7 +233,7 @@ const Dashboard = () => {
                                                     value={minEdge}
                                                     onChange={(e) => setMinEdge(e.target.value)}
                                                 />
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-surface-elevated border border-hairline rounded text-[10px] text-muted opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-2xl z-20 leading-relaxed">
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-surface-elevated border border-hairline rounded text-[10px] text-muted opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20 leading-relaxed">
                                                     Filter results. Table updates automatically <span className="text-primary font-bold">800ms</span> after your last change.
                                                 </div>
                                             </div>
@@ -252,7 +265,7 @@ const Dashboard = () => {
                                                     <span className="truncate">{eventName}</span>
                                                     {(bestOpp.marketLiquidity === null || bestOpp.marketLiquidity < 20000) && (
                                                         <span 
-                                                            className="text-amber-500 cursor-help shrink-0" 
+                                                            className="text-warning cursor-help shrink-0" 
                                                             title={`Low liquidity ($${bestOpp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}). True probability might be inaccurate.`}
                                                         >
                                                             ⚠️
@@ -288,7 +301,7 @@ const Dashboard = () => {
                                                         ↳ Alternative
                                                         {(opp.marketLiquidity === null || opp.marketLiquidity < 20000) && (
                                                             <span 
-                                                                className="text-amber-500 cursor-help" 
+                                                                className="text-warning cursor-help" 
                                                                 title={`Low liquidity ($${opp.marketLiquidity?.toLocaleString('en-US', {maximumFractionDigits: 0}) || 0}). True probability might be inaccurate.`}
                                                             >
                                                                 ⚠️
@@ -328,9 +341,9 @@ const Dashboard = () => {
                 </div>
             </section>
 
-            <section className="bg-surface-soft p-12 rounded-xl border border-hairline">
+            <section className="feature-card-dark bg-surface-soft">
                 <h3 className="text-xl font-bold text-on-dark mb-10">Quick Execution</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
                     <ActionCard 
                         to="/add-bet"
                         title="Place Order"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTrackedProfilePicks, getTrackedProfileStats, getTrackedProfileAdvancedStats } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -63,7 +63,7 @@ export default function TrackedProfileView() {
     if (error) {
         return (
             <div className="max-w-7xl mx-auto p-6 text-center">
-                <div className="p-4 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl inline-block">
+                <div className="p-4 bg-accent-rose/10 text-accent-rose border border-accent-rose/20 rounded-lg inline-block">
                     {error}
                 </div>
                 <div className="mt-4">
@@ -83,7 +83,7 @@ export default function TrackedProfileView() {
                     <p className="text-body mt-2">Public Betting Profile & Statistics</p>
                 </div>
                 <div className="flex gap-4">
-                    <div className="flex bg-surface-card border border-hairline rounded-xl p-1">
+                    <div className="flex bg-surface-card border border-hairline rounded-lg p-1">
                         <button 
                             onClick={() => setDisplayMode('units')}
                             className={`px-4 py-1.5 text-xs font-bold rounded-lg uppercase tracking-widest transition-colors ${displayMode === 'units' ? 'bg-primary text-canvas' : 'text-muted hover:text-on-dark'}`}
@@ -99,7 +99,7 @@ export default function TrackedProfileView() {
                     </div>
                     <button 
                         onClick={backToSocialSearch}
-                        className="px-6 py-2 bg-surface-soft hover:bg-surface-elevated text-on-dark rounded-xl transition-colors border border-hairline"
+                        className="px-6 py-2 bg-surface-soft hover:bg-surface-elevated text-on-dark rounded-lg transition-colors border border-hairline"
                     >
                         &larr; Back to Search
                     </button>
@@ -108,15 +108,15 @@ export default function TrackedProfileView() {
 
             {/* Top Stats Section (Like Dashboard) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Total Positions</p>
                     <p className="text-3xl font-black text-on-dark font-numeric">{stats?.totalBets || 0}</p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Win Rate</p>
                     <p className="text-3xl font-black text-primary font-numeric">{stats?.winRate?.toFixed(1) || 0}%</p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Total Staked {displayMode === 'units' ? '(u)' : '(PLN)'}</p>
                     <p className="text-3xl font-black text-on-dark font-numeric">
                         {displayMode === 'units' 
@@ -125,9 +125,9 @@ export default function TrackedProfileView() {
                         }
                     </p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Net Profit {displayMode === 'units' ? '(u)' : '(PLN)'}</p>
-                    <p className={`text-3xl font-black font-numeric ${(stats?.totalProfitLoss || 0) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                    <p className={`text-3xl font-black font-numeric ${(stats?.totalProfitLoss || 0) >= 0 ? 'text-primary' : 'text-accent-rose'}`}>
                         {(stats?.totalProfitLoss || 0) > 0 ? '+' : ''}
                         {displayMode === 'units'
                             ? (stats?.totalProfitLoss ? (stats.totalProfitLoss / 10).toFixed(2) : '0.00')
@@ -139,21 +139,21 @@ export default function TrackedProfileView() {
 
             {/* Advanced Stats Section */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Yield</p>
-                    <p className={`text-3xl font-black font-numeric ${(stats?.yield || 0) >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                    <p className={`text-3xl font-black font-numeric ${(stats?.yield || 0) >= 0 ? 'text-primary' : 'text-accent-rose'}`}>
                         {stats?.yield?.toFixed(2) || '0.00'}%
                     </p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Efficiency</p>
                     <p className="text-3xl font-black text-on-dark font-numeric">{advancedStats?.efficiency?.toFixed(1) || '0.0'}%</p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Sharpe Ratio</p>
                     <p className="text-3xl font-black text-on-dark font-numeric">{advancedStats?.sharpeRatio?.toFixed(2) || '0.00'}</p>
                 </div>
-                <div className="bg-surface-card p-8 rounded-xl border border-hairline text-center flex flex-col justify-center">
+                <div className="bg-surface-card p-8 rounded-lg border border-hairline text-center flex flex-col justify-center">
                     <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Streak Analysis</p>
                     <div className="font-mono text-xs font-bold text-primary flex flex-col gap-1 uppercase tracking-wider">
                         {advancedStats?.currentStreak ? (
@@ -170,7 +170,7 @@ export default function TrackedProfileView() {
             </div>
 
             {/* Bottom Picks Section */}
-            <section className="bg-surface-card border border-hairline rounded-xl p-8">
+            <section className="bg-surface-card border border-hairline rounded-lg p-8">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-on-dark">Bet History</h3>
                 </div>

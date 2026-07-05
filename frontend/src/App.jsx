@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Register from './components/Register';
 import Login from './components/Login';
@@ -15,13 +15,12 @@ import SocialBettingDashboard from './components/social/SocialBettingDashboard';
 import TrackedProfileView from './components/social/TrackedProfileView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-// Komponent do ochrony ścieżek
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="text-center p-4">Loading...</div>;
+    return <div className="text-center p-4 text-body animate-fade-in">Loading...</div>;
   }
 
   if (!isAuthenticated) {
@@ -31,7 +30,6 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Komponent nawigacji
 const Navigation = () => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
@@ -41,132 +39,82 @@ const Navigation = () => {
     e.preventDefault();
     if (searchInput.trim()) {
       const cleanUsername = searchInput.replace('@', '').trim();
-      // Przejście z parametrem query w URL np: /social?q={username}
       navigate(`/social?q=${encodeURIComponent(cleanUsername)}`);
       setSearchInput('');
     }
   };
 
-  return (
-    <nav className="flex items-center space-x-6">
-      {isAuthenticated && (
-        <>
-          <Link to="/dashboard" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Dashboard</Link>
-          <Link to="/add-bet" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Add Bet</Link>
-          <Link to="/bets" className="text-sm text-body hover:text-on-dark font-medium transition-colors">My Bets</Link>
-          <Link to="/live-odds" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Open Odds</Link>
-          
-          {/* Global Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-            <input 
-              type="text" 
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search X profiles..." 
-              className="bg-gray-800 text-sm text-white placeholder-gray-400 border border-gray-700 rounded-full px-4 py-1.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 transition-all"
-            />
-          </form>
+  if (!isAuthenticated) {
+    return (
+      <nav className="flex items-center gap-4">
+        <Link to="/login" className="button-text-link">Sign In</Link>
+        <Link to="/register" className="button-primary">Get Started</Link>
+      </nav>
+    );
+  }
 
-          <Link to="/profile" className="text-sm text-body hover:text-on-dark font-medium transition-colors">Profile</Link>
-          <button onClick={logout} className="button-primary text-sm">Logout</button>
-        </>
-      )}
+  return (
+    <nav className="flex items-center gap-6">
+      <Link to="/dashboard" className="nav-link">Dashboard</Link>
+      <Link to="/add-bet" className="nav-link">Add Bet</Link>
+      <Link to="/bets" className="nav-link">My Bets</Link>
+      <Link to="/live-odds" className="nav-link">Open Odds</Link>
+      <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search X profiles..."
+          className="input-field w-48"
+        />
+      </form>
+      <Link to="/profile" className="nav-link">Profile</Link>
+      <button type="button" onClick={logout} className="button-primary">Logout</button>
     </nav>
   );
 };
 
-// Główny layout aplikacji
 const AppLayout = () => {
-  const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
   return (
     <div className="min-h-screen w-full bg-canvas flex flex-col items-center">
-      <header className="w-full h-16 border-b border-hairline bg-canvas/80 backdrop-blur-md flex justify-center sticky top-0 z-50">
-        <div className="w-full max-w-7xl px-6 flex justify-between items-center">
+      <header className="top-nav flex justify-center">
+        <div className="w-full max-w-7xl px-6 flex justify-between items-center h-16">
           <Link to="/" className="text-xl font-bold tracking-tight text-on-dark flex items-center">
-             <span className="text-primary mr-2">●</span> SportsBettingManager
+            <span className="text-primary mr-2">●</span> SportsBettingManager
           </Link>
           <Navigation />
         </div>
       </header>
-      <main className="w-full max-w-7xl px-6 py-24">
-
-        <Routes>
-          <Route path="/" element={!isAuthenticated ? <Home /> : <Navigate to="/dashboard" />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route 
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/add-bet"
-            element={
-              <ProtectedRoute>
-                <AddBetForm />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/bets"
-            element={
-              <ProtectedRoute>
-                <BetList />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <UserProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/live-odds"
-            element={
-              <ProtectedRoute>
-                <LiveMarkets />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/ev-calculator"
-            element={
-              <ProtectedRoute>
-                <EvCalculator />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/social"
-            element={
-              <ProtectedRoute>
-                <SocialBettingDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="/profile/:username"
-            element={
-              <ProtectedRoute>
-                <TrackedProfileView />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+      <main className="w-full max-w-7xl px-6 py-section">
+        <div key={location.pathname} className="animate-page-enter">
+          <Routes>
+            <Route path="/" element={<HomeOrDashboard />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/add-bet" element={<ProtectedRoute><AddBetForm /></ProtectedRoute>} />
+            <Route path="/bets" element={<ProtectedRoute><BetList /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+            <Route path="/live-odds" element={<ProtectedRoute><LiveMarkets /></ProtectedRoute>} />
+            <Route path="/ev-calculator" element={<ProtectedRoute><EvCalculator /></ProtectedRoute>} />
+            <Route path="/social" element={<ProtectedRoute><SocialBettingDashboard /></ProtectedRoute>} />
+            <Route path="/profile/:username" element={<ProtectedRoute><TrackedProfileView /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
       </main>
     </div>
   );
-}
+};
+
+const HomeOrDashboard = () => {
+  const { isAuthenticated } = useAuth();
+  return !isAuthenticated ? <Home /> : <Navigate to="/dashboard" />;
+};
 
 function App() {
   return (

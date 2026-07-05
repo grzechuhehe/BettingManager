@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { getHeatmapData } from '../api';
 
 const BettingHeatmap = () => {
@@ -32,7 +32,7 @@ const BettingHeatmap = () => {
       return 'bg-emerald-600/40';
     } else if (profit < 0) {
       if (profit < -100) return 'bg-rose-400';
-      if (profit < -50) return 'bg-rose-500';
+      if (profit < -50) return 'bg-accent-rose';
       return 'bg-rose-600/40';
     }
     return 'bg-hairline/50';
@@ -55,7 +55,7 @@ const BettingHeatmap = () => {
           className={`w-3.5 h-3.5 rounded-[2px] ${getColor(profit)} cursor-crosshair transition-all duration-200 hover:scale-125 hover:z-10 relative`}
         >
           {hoveredDay?.date === dateStr && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-surface-elevated border border-hairline text-[10px] p-3 rounded-lg shadow-2xl z-50 pointer-events-none">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-surface-elevated border border-hairline text-[10px] p-3 rounded-lg z-50 pointer-events-none">
               <div className="font-black border-b border-hairline pb-2 mb-2 uppercase tracking-widest text-muted">{dateStr}</div>
               <div className={`text-xs font-bold ${profit > 0 ? 'text-emerald-400' : profit < 0 ? 'text-rose-400' : 'text-on-dark'}`}>
                 {profit !== undefined ? `${profit >= 0 ? 'PROFIT: +' : 'LOSS: -'}$${Math.abs(profit).toFixed(2)}` : 'IDLE SESSION'}
@@ -77,7 +77,7 @@ const BettingHeatmap = () => {
         {renderHeatmap()}
       </div>
       <div className="mt-8 flex items-center gap-6 text-[10px] font-bold text-muted uppercase tracking-widest">
-        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-rose-500 rounded-[2px]"></div> Negative Yield</div>
+        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-accent-rose rounded-[2px]"></div> Negative Yield</div>
         <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-hairline rounded-[2px]"></div> No Session</div>
         <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-[2px]"></div> Positive Yield</div>
       </div>

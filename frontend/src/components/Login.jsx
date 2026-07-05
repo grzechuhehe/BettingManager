@@ -16,11 +16,7 @@ const Login = () => {
         setMessage('');
 
         try {
-            const response = await apiLogin({
-                username,
-                password
-            });
-
+            const response = await apiLogin({ username, password });
             if (response.data.token) {
                 login(response.data);
                 setMessage('Login successful!');
@@ -38,56 +34,29 @@ const Login = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center py-20">
-            <div className="surface-card w-full max-w-md shadow-2xl">
-                <div className="flex justify-center mb-8">
-                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-canvas text-2xl font-black">●</div>
-                </div>
-                <h2 className="display-sm text-center mb-10 uppercase tracking-tighter">Market Access</h2>
+        <div className="flex flex-col items-center justify-center py-section">
+            <div className="surface-card w-full max-w-md animate-scale-in">
+                <h2 className="display-sm text-center mb-4">Market Access</h2>
+                <p className="body-sm text-muted text-center mb-8">Sign in to your trading account.</p>
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div>
-                        <label htmlFor="username" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Identifier</label>
-                        <input
-                            type="text"
-                            id="username"
-                            placeholder="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            className="input-field"
-                        />
+                        <label htmlFor="username" className="field-label">Identifier</label>
+                        <input type="text" id="username" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="input-field" />
                     </div>
                     <div>
-                        <label htmlFor="password" className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Password</label>
-                        <input
-                            type="password"
-                            id="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="input-field"
-                        />
+                        <label htmlFor="password" className="field-label">Password</label>
+                        <input type="password" id="password" placeholder="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input-field" />
                     </div>
-                    <button
-                        type="submit"
-                        className="button-primary w-full !h-12 text-sm uppercase tracking-widest font-black mt-4"
-                    >
-                        Initialize Session
-                    </button>
+                    <button type="submit" className="button-primary w-full mt-2">Sign In</button>
                 </form>
                 <div className="mt-4 text-center">
-                    <Link to="/forgot-password" title="Forgot Password?" className="text-sm text-primary hover:underline">
-                        Forgot Password?
-                    </Link>
+                    <Link to="/forgot-password" className="text-link body-sm">Forgot Password?</Link>
                 </div>
                 {message && (
-                    <div className={`mt-8 p-4 rounded-lg border text-center text-[10px] font-bold uppercase tracking-widest ${isError ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
-                        {message}
-                    </div>
+                    <div className={`mt-8 ${isError ? 'alert-error' : 'alert-success'}`}>{message}</div>
                 )}
-                <p className="mt-8 text-center text-xs text-muted">
-                    Don't have an account? <a href="/register" className="text-primary hover:underline font-bold">Register</a>
+                <p className="mt-8 text-center body-sm text-muted">
+                    Don&apos;t have an account? <Link to="/register" className="text-link">Register</Link>
                 </p>
             </div>
         </div>

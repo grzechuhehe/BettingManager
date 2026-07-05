@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine, Cell } from 'recharts';
 
 const AdvancedAnalytics = ({ stats }) => {
@@ -17,14 +17,14 @@ const AdvancedAnalytics = ({ stats }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col items-center justify-center">
                     <h3 className="text-muted uppercase text-xs font-bold tracking-widest mb-4">Return on Investment (ROI)</h3>
-                    <p className={`text-4xl font-bold font-numeric ${roi >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                    <p className={`text-4xl font-bold font-numeric ${roi >= 0 ? 'text-primary' : 'text-accent-rose'}`}>
                         {roi ? `${roi.toFixed(2)}%` : '0.00%'}
                     </p>
                     <p className="text-xs text-muted mt-3 font-medium">Net Profit / Total Investment</p>
                 </div>
                 <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col items-center justify-center">
                     <h3 className="text-muted uppercase text-xs font-bold tracking-widest mb-4">Yield</h3>
-                    <p className={`text-4xl font-bold font-numeric ${yieldVal >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                    <p className={`text-4xl font-bold font-numeric ${yieldVal >= 0 ? 'text-primary' : 'text-accent-rose'}`}>
                         {yieldVal ? `${yieldVal.toFixed(2)}%` : '0.00%'}
                     </p>
                     <p className="text-xs text-muted mt-3 font-medium">Net Profit / Total Turnover</p>

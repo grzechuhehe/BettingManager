@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getProfilePreview, getTrackedProfiles, trackNewProfile, triggerManualScan } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -169,20 +169,20 @@ export default function SocialBettingDashboard() {
             </header>
 
             {message && (
-                <div className="p-4 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center gap-3">
+                <div className="p-4 bg-primary/10 text-primary border border-primary/20 rounded-lg flex items-center gap-3">
                     <span className="text-lg">✓</span>
                     <span className="text-sm font-medium">{message}</span>
                 </div>
             )}
             {error && (
-                <div className="p-4 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl flex items-center gap-3">
+                <div className="p-4 bg-accent-rose/10 text-accent-rose border border-accent-rose/20 rounded-lg flex items-center gap-3">
                     <span className="text-lg">⚠</span>
                     <span className="text-sm font-medium">{error}</span>
                 </div>
             )}
 
             {searchQuery ? (
-                <section className="bg-surface-card border border-hairline rounded-xl p-6 sm:p-8">
+                <section className="bg-surface-card border border-hairline rounded-lg p-6 sm:p-8">
                     <ProfilePreviewCard
                         username={searchQuery}
                         preview={preview}
@@ -195,7 +195,7 @@ export default function SocialBettingDashboard() {
                     />
                 </section>
             ) : (
-                <section className="bg-surface-card border border-hairline border-dashed rounded-xl py-20 text-center">
+                <section className="bg-surface-card border border-hairline border-dashed rounded-lg py-20 text-center">
                     <div className="text-5xl mb-4 opacity-20">🔍</div>
                     <h3 className="text-lg font-semibold text-on-dark">Ready to track a new guru?</h3>
                     <p className="text-muted mt-2 text-sm">

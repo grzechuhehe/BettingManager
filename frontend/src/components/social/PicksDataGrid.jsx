@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 const formatPostedAt = (placedAt) => {
     if (!placedAt) return '-';
@@ -10,7 +10,7 @@ const formatPostedAt = (placedAt) => {
 const getStatusColor = (status) => {
     switch (status) {
         case 'WON': return 'text-green-500 bg-green-500/10 border-green-500/20';
-        case 'LOST': return 'text-red-500 bg-red-500/10 border-red-500/20';
+        case 'LOST': return 'text-red-500 bg-accent-rose/10 border-accent-rose/20';
         case 'VOID': return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
         case 'PENDING': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
         default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';

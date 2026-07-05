@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { getProfilePicks } from '../../api';
 
 export default function ProfilePicksView({ xUsername, onBack }) {

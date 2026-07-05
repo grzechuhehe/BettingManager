@@ -39,27 +39,19 @@ const LiveMarkets = () => {
         <div className="space-y-10">
             <header className="flex justify-between items-center mb-10 pb-8 border-b border-hairline">
                 <div>
-                    <h1 className="display-sm flex items-center gap-4">
-                        <span className="text-primary">●</span> Live Markets
-                    </h1>
+                    <h1 className="display-sm">Live Markets</h1>
                     <p className="text-body mt-2">Real-time market synchronization with global sportsbooks.</p>
                 </div>
-                <div className="text-[10px] font-black text-muted bg-surface-card px-3 py-1 rounded-full border border-hairline uppercase tracking-widest">
-                    Source: The-Odds-API
-                </div>
+                <div className="badge-pill">Source: The-Odds-API</div>
             </header>
 
-            {/* Wybór ligi */}
-            <div className="flex gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide border-b border-hairline/50">
+            <div className="flex gap-2 mb-10 overflow-x-auto pb-4 border-b border-hairline scrollbar-hide">
                 {FOOTBALL_LEAGUES.map((league) => (
                     <button
                         key={league.key}
+                        type="button"
                         onClick={() => setSelectedLeague(league.key)}
-                        className={`px-5 py-2.5 rounded-md font-bold transition-all duration-200 whitespace-nowrap text-[10px] uppercase tracking-widest border ${
-                            selectedLeague === league.key 
-                            ? 'bg-primary border-primary text-canvas' 
-                            : 'bg-surface-card border-hairline text-muted hover:text-on-dark hover:border-hairline-strong'
-                        }`}
+                        className={`shrink-0 whitespace-nowrap ${selectedLeague === league.key ? 'category-tab-active' : 'category-tab'}`}
                     >
                         {league.title}
                     </button>
@@ -68,90 +60,67 @@ const LiveMarkets = () => {
 
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-40 gap-6">
-                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-muted font-bold uppercase tracking-[0.2em] animate-pulse">Scanning Markets...</p>
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="body-sm text-muted">Scanning markets...</p>
                 </div>
             ) : error ? (
-                <div className="bg-rose-500/10 border border-rose-500/50 text-rose-500 p-8 rounded-lg flex items-center gap-6">
-                    <span className="text-3xl">⚠️</span>
-                    <div>
-                        <p className="font-bold uppercase tracking-wider">Sync Error</p>
-                        <p className="text-sm opacity-80 mt-1">{error}</p>
+                <div className="flex justify-center py-32">
+                    <div className="alert-error max-w-xl w-full">
+                        <p className="font-semibold">Sync error</p>
+                        <p className="body-sm mt-2 normal-case tracking-normal font-normal">{error}</p>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 stagger-children">
                     {odds.map((match) => (
-                        <div key={match.id} className="bg-surface-card p-8 rounded-lg border border-hairline hover:border-primary/50 transition-all duration-300 shadow-sm">
+                        <div key={match.id} className="feature-card-dark p-8">
                             <div className="flex justify-between items-center mb-8">
-                                <span className="text-muted text-[10px] font-bold uppercase tracking-widest bg-surface-elevated px-2 py-1 rounded border border-hairline">
+                                <span className="badge-pill">
                                     {new Date(match.commence_time).toLocaleString('en-US', {
-                                        day: '2-digit',
-                                        month: 'short',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: false
+                                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false
                                     })}
                                 </span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Open</span>
-                                </div>
+                                <span className="badge-yellow">Open</span>
                             </div>
-                            
-                            <div className="flex flex-col gap-6 mb-10">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex flex-col">
-                                        <span className="text-lg font-bold text-on-dark truncate max-w-[150px]">{match.home_team}</span>
-                                        <span className="text-[10px] font-bold text-muted uppercase tracking-tighter mt-1">Home</span>
-                                    </div>
-                                    <span className="text-hairline-strong text-[10px] font-black px-4">VS</span>
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-lg font-bold text-on-dark text-right truncate max-w-[150px]">{match.away_team}</span>
-                                        <span className="text-[10px] font-bold text-muted uppercase tracking-tighter mt-1">Away</span>
-                                    </div>
+
+                            <div className="flex justify-between items-center mb-10">
+                                <div>
+                                    <p className="title-sm truncate max-w-[150px]">{match.home_team}</p>
+                                    <p className="caption text-muted mt-1">Home</p>
+                                </div>
+                                <span className="caption-uppercase text-muted-soft px-4">VS</span>
+                                <div className="text-right">
+                                    <p className="title-sm truncate max-w-[150px]">{match.away_team}</p>
+                                    <p className="caption text-muted mt-1">Away</p>
                                 </div>
                             </div>
 
-                            {/* Wyświetlanie kursów */}
                             <div className="grid grid-cols-3 gap-4">
-                                {match.bookmakers && match.bookmakers.length > 0 ? (
-                                    match.bookmakers[0].markets[0].outcomes.map((outcome) => (
-                                        <button 
-                                            key={outcome.name} 
-                                            className="bg-surface-elevated/50 hover:bg-primary group p-4 rounded border border-hairline hover:border-primary transition-all duration-200 min-h-[64px]"
-                                        >
-                                            <div className="text-[10px] text-muted group-hover:text-canvas uppercase font-black mb-2 truncate tracking-widest">
-                                                {outcome.name}
-                                            </div>
-                                            <div className="text-xl font-bold text-primary group-hover:text-canvas font-numeric">
-                                                {outcome.price.toFixed(2)}
-                                            </div>
-                                        </button>
-                                    ))
-                                ) : (
-                                    <div className="col-span-3 py-6 text-center text-muted text-[10px] font-bold uppercase tracking-widest bg-surface-elevated/30 rounded border border-dashed border-hairline">
+                                {match.bookmakers?.[0]?.markets?.[0]?.outcomes?.map((outcome) => (
+                                    <div key={outcome.name} className="bg-surface-elevated border border-hairline rounded-md p-4 min-h-[64px]">
+                                        <p className="caption text-muted mb-2 truncate">{outcome.name}</p>
+                                        <p className="text-xl font-bold text-primary font-numeric">{outcome.price.toFixed(2)}</p>
+                                    </div>
+                                )) || (
+                                    <div className="col-span-3 py-6 text-center caption text-muted bg-surface-soft rounded-md border border-dashed border-hairline">
                                         No active market metrics
                                     </div>
                                 )}
                             </div>
-                            
+
                             <div className="mt-8 pt-6 border-t border-hairline flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-muted uppercase tracking-widest font-bold">Best Execution:</span>
-                                    <span className="text-[10px] font-black text-on-dark uppercase tracking-widest">{match.bookmakers?.[0]?.title || 'N/A'}</span>
-                                </div>
-                                <button className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-on-dark transition-colors">
-                                    Market Analysis →
-                                </button>
+                                <p className="caption text-muted">
+                                    Best execution: <span className="text-on-dark">{match.bookmakers?.[0]?.title || 'N/A'}</span>
+                                </p>
+                                <button type="button" className="text-link caption">Market analysis</button>
                             </div>
                         </div>
                     ))}
-                    
-                    {odds.length === 0 && !loading && (
-                        <div className="col-span-full flex flex-col items-center justify-center py-32 surface-card border-dashed">
-                            <span className="text-4xl mb-6 opacity-30">📅</span>
-                            <p className="text-on-dark font-bold uppercase tracking-widest text-lg">No sessions scheduled.</p>
-                            <p className="text-muted text-xs mt-2 uppercase tracking-widest font-bold">Check alternative market endpoints or return later.</p>
+
+                    {odds.length === 0 && (
+                        <div className="col-span-full surface-card border-dashed text-center py-32">
+                            <p className="title-md mb-2">No sessions scheduled</p>
+                            <p className="body-sm text-muted">Check alternative market endpoints or return later.</p>
                         </div>
                     )}
                 </div>

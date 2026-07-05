@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { getUserProfile, getDashboardStats, forgotPassword, updateUserSettings } from '../api';
 
 const UserProfile = () => {
@@ -56,9 +56,9 @@ const UserProfile = () => {
 
         try {
             const response = await forgotPassword(resetEmail);
-            setMessage({ text: response.data.message || "Wysłano e-mail z linkiem do resetowania hasła.", type: 'success' });
+            setMessage({ text: response.data.message || 'Password reset email sent.', type: 'success' });
         } catch (error) {
-            setMessage({ text: error.response?.data?.error || "Nie udało się wysłać linku resetującego.", type: 'error' });
+            setMessage({ text: error.response?.data?.error || 'Failed to send reset link.', type: 'error' });
         } finally {
             setIsResetting(false);
         }
@@ -74,7 +74,7 @@ const UserProfile = () => {
     if (loading) return (
         <div className="flex flex-col items-center justify-center py-40 gap-6">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-muted font-bold uppercase tracking-[0.2em] animate-pulse">Syncing User Data...</p>
+            <p className="text-muted font-bold uppercase tracking-[0.2em] ">Syncing User Data...</p>
         </div>
     );
 
@@ -89,8 +89,8 @@ const UserProfile = () => {
                 {/* Left Column: User Info & Stats */}
                 <div className="md:col-span-1 space-y-8">
                     {/* Profile Card */}
-                    <div className="bg-surface-card p-10 rounded-lg border border-hairline text-center shadow-sm">
-                        <div className="w-24 h-24 bg-primary text-canvas rounded-full mx-auto flex items-center justify-center text-4xl font-black mb-6">
+                    <div className="bg-surface-card p-10 rounded-lg border border-hairline text-center">
+                        <div className="w-24 h-24 bg-primary text-on-primary rounded-full mx-auto flex items-center justify-center text-4xl font-black mb-6">
                             {profile?.username?.charAt(0).toUpperCase()}
                         </div>
                         <h3 className="text-2xl font-bold text-on-dark mb-1">{profile?.username}</h3>
@@ -105,7 +105,7 @@ const UserProfile = () => {
                                 <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Authorization</p>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {profile?.roles?.map(role => (
-                                        <span key={role} className="inline-block bg-primary/10 text-primary border border-primary/30 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                        <span key={role} className="badge-pill">
                                             {role}
                                         </span>
                                     )) || <span className="bg-hairline text-muted text-[10px] px-2 py-0.5 rounded">User</span>}
@@ -128,7 +128,7 @@ const UserProfile = () => {
                             </div>
                             <div className="flex justify-between items-end">
                                 <span className="text-xs font-bold text-muted uppercase tracking-widest">Net Yield</span>
-                                <span className={`text-xl font-bold leading-none font-numeric ${stats?.totalProfitLoss >= 0 ? 'text-primary' : 'text-rose-500'}`}>
+                                <span className={`text-xl font-bold leading-none font-numeric ${stats?.totalProfitLoss >= 0 ? 'text-primary' : 'text-accent-rose'}`}>
                                     ${stats?.totalProfitLoss?.toFixed(2) || '0.00'}
                                 </span>
                             </div>
@@ -161,10 +161,10 @@ const UserProfile = () => {
                                 <form onSubmit={handlePasswordResetRequest} className="space-y-8 max-w-2xl">
                                     <div>
                                         <p className="text-sm text-body mb-6">
-                                            Ze względów bezpieczeństwa, zmiana hasła wymaga weryfikacji. 
-                                            Podaj swój adres e-mail, a wyślemy Ci link umożliwiający bezpieczną zmianę hasła.
+                                            For security, changing your password requires verification.
+                                            Enter your email address and we will send you a link to reset it safely.
                                         </p>
-                                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Adres E-mail</label>
+                                        <label className="field-label">Email address</label>
                                         <input
                                             type="email"
                                             required
@@ -175,7 +175,7 @@ const UserProfile = () => {
                                     </div>
 
                                     {message.text && (
-                                        <div className={`p-4 rounded-lg border text-[10px] font-bold uppercase tracking-widest ${message.type === 'error' ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
+                                        <div className={`p-4 rounded-lg border text-[10px] font-bold uppercase tracking-widest ${message.type === 'error' ? 'bg-accent-rose/10 border-accent-rose/50 text-accent-rose' : 'bg-accent-emerald/10 border-accent-emerald/50 text-accent-emerald'}`}>
                                             {message.text}
                                         </div>
                                     )}
@@ -184,9 +184,9 @@ const UserProfile = () => {
                                         <button
                                             type="submit"
                                             disabled={isResetting}
-                                            className="button-primary !h-12 !px-10 text-sm uppercase tracking-widest font-black disabled:opacity-50"
+                                            className="button-primary disabled:opacity-50"
                                         >
-                                            {isResetting ? 'Wysyłanie...' : 'Wyślij link resetujący'}
+                                            {isResetting ? 'Sending…' : 'Send reset link'}
                                         </button>
                                     </div>
                                 </form>

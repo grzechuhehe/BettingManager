@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { getAdvancedStats } from '../api';
 
 const StatCard = ({ title, value, subtext, color = "text-primary" }) => (
