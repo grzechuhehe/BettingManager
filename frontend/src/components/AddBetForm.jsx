@@ -1,7 +1,8 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addBet } from '../api';
 import ImportBetFromImage from './ImportBetFromImage';
+import EventDateTimeField from './ui/EventDateTimeField';
 
 let nextId = 1;
 const createInitialLeg = () => ({
@@ -16,191 +17,8 @@ const createInitialLeg = () => ({
 });
 
 const marketTypes = ['MONEYLINE_1X2', 'MONEYLINE_12', 'TOTALS_OVER_UNDER', 'HANDICAP', 'ASIAN_HANDICAP', 'CORRECT_SCORE', 'PLAYER_PROPS', 'BOTH_TEAMS_TO_SCORE', 'OUTRIGHT', 'OTHER'];
-const marketLabels = {
-    MONEYLINE_1X2: '1X2 (Match Result)',
-    MONEYLINE_12: '1/2 (No Draw)',
-    TOTALS_OVER_UNDER: 'Over / Under',
-    HANDICAP: 'Handicap',
-    ASIAN_HANDICAP: 'Asian Handicap',
-    CORRECT_SCORE: 'Correct Score',
-    PLAYER_PROPS: 'Player Props',
-    BOTH_TEAMS_TO_SCORE: 'Both Teams to Score',
-    OUTRIGHT: 'Outright',
-    OTHER: 'Other',
-};
 const bookmakers = ['STS', 'Fortuna', 'Betclic', 'Superbet', 'forBET', 'eTOTO', 'LVBET', 'Totalbet', 'Betfan', 'Fuksiarz', 'Betters', 'GoBet'];
 const sports = ['Football', 'Basketball', 'Tennis', 'Ice Hockey', 'MMA', 'Boxing', 'F1', 'CS:GO', 'LoL', 'Valorant', 'Other'];
-
-const FormField = ({ label, htmlFor, children, className = '' }) => (
-    <div className={className}>
-        <label htmlFor={htmlFor} className="field-label">{label}</label>
-        {children}
-    </div>
-);
-
-const SectionDivider = ({ label }) => (
-    <div className="relative py-2">
-        <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-hairline" />
-        </div>
-        <div className="relative flex justify-center">
-            <span className="bg-surface-card px-4 caption-uppercase text-muted">{label}</span>
-        </div>
-    </div>
-);
-
-const LegFormField = ({ label, htmlFor, children, className = '' }) => (
-    <div className={className}>
-        <label htmlFor={htmlFor} className="field-label !text-[10px] !mb-2 opacity-70">{label}</label>
-        {children}
-    </div>
-);
-
-const LegSection = ({ step, title, children }) => (
-    <div className="space-y-4">
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-primary tabular-nums">{step}</span>
-            <span className="field-label !text-[10px] !mb-0">{title}</span>
-        </div>
-        {children}
-    </div>
-);
-
-const BetLegCard = ({ leg, index, totalLegs, onChange, onRemove }) => (
-    <article className="relative overflow-hidden rounded-lg border border-hairline bg-surface-card">
-        <div className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
-
-        <div className="space-y-6 p-6 pl-7 md:space-y-8 md:p-8">
-            <header className="flex items-start justify-between gap-4">
-                <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-primary tabular-nums">
-                            Leg {index + 1}
-                        </span>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-on-dark">Market parameters</h3>
-                        {totalLegs > 1 && (
-                            <span className="caption-uppercase text-muted">Parlay leg</span>
-                        )}
-                    </div>
-                    <p className="text-xs text-muted">Event, bookmaker and your pick for this leg.</p>
-                </div>
-                {totalLegs > 1 && (
-                    <button
-                        type="button"
-                        onClick={() => onRemove(leg.id)}
-                        className="shrink-0 rounded-md border border-accent-rose/30 bg-accent-rose/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-accent-rose transition-colors hover:bg-accent-rose hover:text-white"
-                    >
-                        Remove
-                    </button>
-                )}
-            </header>
-
-            <LegSection step={1} title="Event">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <LegFormField label="Event name" htmlFor={`eventName-${leg.id}`}>
-                        <input
-                            id={`eventName-${leg.id}`}
-                            type="text"
-                            name="eventName"
-                            placeholder="e.g. Real Madrid vs Barcelona"
-                            value={leg.eventName}
-                            onChange={(e) => onChange(leg.id, e)}
-                            required
-                            className="input-field !h-auto py-2.5 text-sm"
-                        />
-                    </LegFormField>
-                    <LegFormField label="Kick-off time" htmlFor={`eventDate-${leg.id}`}>
-                        <input
-                            id={`eventDate-${leg.id}`}
-                            type="datetime-local"
-                            name="eventDate"
-                            value={leg.eventDate}
-                            onChange={(e) => onChange(leg.id, e)}
-                            required
-                            className="input-field !h-auto py-2.5 text-sm [color-scheme:dark]"
-                        />
-                    </LegFormField>
-                </div>
-            </LegSection>
-
-            <LegSection step={2} title="Source">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <LegFormField label="Bookmaker" htmlFor={`bookmaker-${leg.id}`}>
-                        <select
-                            id={`bookmaker-${leg.id}`}
-                            name="bookmaker"
-                            value={leg.bookmaker}
-                            onChange={(e) => onChange(leg.id, e)}
-                            className="input-field !h-auto py-2.5 text-sm"
-                        >
-                            {bookmakers.map((b) => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                    </LegFormField>
-                    <LegFormField label="Sport" htmlFor={`sport-${leg.id}`}>
-                        <select
-                            id={`sport-${leg.id}`}
-                            name="sport"
-                            value={leg.sport}
-                            onChange={(e) => onChange(leg.id, e)}
-                            className="input-field !h-auto py-2.5 text-sm"
-                        >
-                            {sports.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </LegFormField>
-                </div>
-            </LegSection>
-
-            <LegSection step={3} title="Your pick">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <LegFormField label="Market type" htmlFor={`marketType-${leg.id}`}>
-                        <select
-                            id={`marketType-${leg.id}`}
-                            name="marketType"
-                            value={leg.marketType}
-                            onChange={(e) => onChange(leg.id, e)}
-                            className="input-field !h-auto py-2.5 text-sm"
-                        >
-                            {marketTypes.map((mt) => (
-                                <option key={mt} value={mt}>{marketLabels[mt] || mt}</option>
-                            ))}
-                        </select>
-                    </LegFormField>
-                    <LegFormField label="Selection" htmlFor={`selection-${leg.id}`}>
-                        <input
-                            id={`selection-${leg.id}`}
-                            type="text"
-                            name="selection"
-                            placeholder="e.g. Real Madrid to win"
-                            value={leg.selection}
-                            onChange={(e) => onChange(leg.id, e)}
-                            required
-                            className="input-field !h-auto py-2.5 text-sm"
-                        />
-                    </LegFormField>
-                    <LegFormField label="Odds" htmlFor={`odds-${leg.id}`}>
-                        <div className="relative">
-                            <input
-                                id={`odds-${leg.id}`}
-                                type="number"
-                                name="odds"
-                                placeholder="1.85"
-                                step="0.01"
-                                min="1.01"
-                                value={leg.odds}
-                                onChange={(e) => onChange(leg.id, e)}
-                                required
-                                className="input-field !h-auto py-2.5 pr-10 text-sm font-numeric font-bold text-primary"
-                            />
-                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-semibold uppercase tracking-wider text-muted">
-                                Dec
-                            </span>
-                        </div>
-                    </LegFormField>
-                </div>
-            </LegSection>
-        </div>
-    </article>
-);
 
 const AddBetForm = () => {
     const navigate = useNavigate();
@@ -216,23 +34,28 @@ const AddBetForm = () => {
         ));
     };
 
+    const handleLegDateChange = (id, eventDate) => {
+        setLegs(legs.map(leg =>
+            leg.id === id ? { ...leg, eventDate } : leg
+        ));
+    };
+
     const addLeg = () => {
         setLegs([...legs, createInitialLeg()]);
     };
 
     const removeLeg = (id) => {
-        setLegs(legs.filter(leg => leg.id !== id));
+        const newLegs = legs.filter(leg => leg.id !== id);
+        setLegs(newLegs);
     };
 
     const { totalOdds, potentialWinnings } = useMemo(() => {
-        if (legs.length === 0 || !stake) {
-            return { totalOdds: '—', potentialWinnings: '—' };
-        }
+        if (legs.length === 0 || !stake) return { totalOdds: 0, potentialWinnings: 0 };
         const totalOddsValue = legs.reduce((acc, leg) => acc * (parseFloat(leg.odds) || 1), 1);
         const potentialWinningsValue = totalOddsValue * parseFloat(stake);
         return {
             totalOdds: totalOddsValue.toFixed(2),
-            potentialWinnings: potentialWinningsValue.toFixed(2),
+            potentialWinnings: potentialWinningsValue.toFixed(2)
         };
     }, [legs, stake]);
 
@@ -256,7 +79,7 @@ const AddBetForm = () => {
                 selection: leg.selection,
                 odds: parseFloat(leg.odds),
                 bookmaker: leg.bookmaker,
-                stake: parseFloat(stake),
+                stake: parseFloat(stake)
             }));
 
             await addBet({ bets: betRequests });
@@ -266,7 +89,10 @@ const AddBetForm = () => {
             setLegs([createInitialLeg()]);
             setStake('');
 
-            setTimeout(() => setMessage(''), 3000);
+            setTimeout(() => {
+                setMessage('');
+            }, 3000);
+
         } catch (error) {
             setIsError(true);
             const errorMsg = error.response?.data?.message || 'Failed to place bet. Please check the fields.';
@@ -284,92 +110,120 @@ const AddBetForm = () => {
     };
 
     return (
-        <div className="surface-card max-w-4xl mx-auto animate-page-enter">
-            <header className="mb-8 border-b border-hairline pb-6">
-                <h2 className="display-sm">Place a New Bet</h2>
-                <p className="body-sm text-muted mt-2">Import a slip from screenshot or fill in the details manually.</p>
-            </header>
+        <div className="surface-card max-w-4xl mx-auto">
+            <h2 className="display-sm mb-8 pb-4 border-b border-hairline">Place a New Bet</h2>
 
-            <section className="mb-10 rounded-lg border border-hairline bg-surface-soft/50 p-6 md:p-8 space-y-4">
-                <div>
-                    <h3 className="caption-uppercase text-on-dark">Import from screenshot</h3>
-                    <p className="body-sm text-muted mt-2">
-                        Paste a screenshot (Ctrl+V), drag an image, or choose a file — AI will read the event, pick, and odds.
-                    </p>
-                </div>
+            <div className="mb-12 p-8 border border-hairline rounded-lg bg-surface-soft/50 space-y-4">
+                <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest">Import from Screenshot</h3>
+                <p className="text-sm text-muted">
+                    Paste a screenshot (Ctrl+V), drag an image, or pick a file — AI will read the event, selection, and odds.
+                </p>
                 <ImportBetFromImage onImported={handleImported} />
-            </section>
+            </div>
 
-            <SectionDivider label="or enter manually" />
-
-            <form onSubmit={handleSubmit} className="mt-8 space-y-6 stagger-children">
+            <form onSubmit={handleSubmit} className="space-y-8">
                 {legs.map((leg, index) => (
-                    <BetLegCard
-                        key={leg.id}
-                        leg={leg}
-                        index={index}
-                        totalLegs={legs.length}
-                        onChange={handleLegChange}
-                        onRemove={removeLeg}
-                    />
-                ))}
+                    <div key={leg.id} className="p-8 border border-hairline rounded-lg relative space-y-6 bg-surface-elevated/50">
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="w-6 h-6 bg-primary text-on-primary rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-tighter">Leg {index + 1}</span>
+                            <h3 className="text-sm font-bold text-on-dark uppercase tracking-widest">Market Parameters</h3>
+                        </div>
 
-                <button
-                    type="button"
-                    onClick={addLeg}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-hairline py-4 text-sm font-bold uppercase tracking-widest text-muted transition-all hover:border-primary/50 hover:bg-surface-soft hover:text-on-dark"
-                >
-                    <span className="text-lg leading-none text-primary">+</span>
-                    Add another leg (parlay)
-                </button>
-
-                <section className="space-y-4">
-                    <h3 className="field-label !mb-0">Order summary</h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-hairline bg-surface-card p-4">
-                            <label htmlFor="stake" className="field-label !mb-0 !text-[10px] text-center">Stake amount</label>
-                            <div className="relative w-full">
-                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
-                                <input
-                                    type="number"
-                                    id="stake"
-                                    value={stake}
-                                    onChange={(e) => setStake(e.target.value)}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Bookmaker</label>
+                                <select name="bookmaker" value={leg.bookmaker} onChange={e => handleLegChange(leg.id, e)} className="input-field">
+                                    {bookmakers.map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Sport</label>
+                                <select name="sport" value={leg.sport} onChange={e => handleLegChange(leg.id, e)} className="input-field">
+                                    {sports.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Event Name</label>
+                                <input type="text" name="eventName" placeholder="e.g., Real Madrid vs Barcelona" value={leg.eventName} onChange={e => handleLegChange(leg.id, e)} required className="input-field"/>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Event Date & Time</label>
+                                <EventDateTimeField
+                                    idPrefix={`leg-${leg.id}`}
+                                    value={leg.eventDate}
+                                    onChange={(eventDate) => handleLegDateChange(leg.id, eventDate)}
                                     required
-                                    min="0.01"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    className="input-field !h-auto w-full py-2 pl-7 text-center text-base font-bold text-primary font-numeric"
                                 />
                             </div>
                         </div>
-
-                        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-hairline bg-surface-card p-4">
-                            <p className="field-label !mb-0 !text-[10px]">Total odds</p>
-                            <p className="text-2xl font-bold text-on-dark font-numeric">{totalOdds}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Market</label>
+                                <select name="marketType" value={leg.marketType} onChange={e => handleLegChange(leg.id, e)} className="input-field">
+                                    {marketTypes.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Selection</label>
+                                <input type="text" name="selection" placeholder="e.g., Real Madrid to win" value={leg.selection} onChange={e => handleLegChange(leg.id, e)} required className="input-field"/>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Odds</label>
+                                <input type="number" name="odds" placeholder="1.85" step="0.01" min="1.01" value={leg.odds} onChange={e => handleLegChange(leg.id, e)} required className="input-field"/>
+                            </div>
                         </div>
 
-                        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-hairline bg-surface-card p-4">
-                            <p className="field-label !mb-0 !text-[10px]">Potential return</p>
-                            <p className="text-2xl font-bold text-primary font-numeric">
-                                {potentialWinnings === '—' ? '—' : `$${potentialWinnings}`}
-                            </p>
+                        {legs.length > 1 && (
+                            <button type="button" onClick={() => removeLeg(leg.id)} className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-md transition-all">
+                                &#x2715;
+                            </button>
+                        )}
+                    </div>
+                ))}
+
+                <button type="button" onClick={addLeg} className="w-full py-4 border-2 border-dashed border-hairline rounded-lg text-sm font-bold text-muted hover:text-on-dark hover:border-primary/50 hover:bg-surface-soft transition-all uppercase tracking-widest">
+                    + Add Another Leg (for Parlay)
+                </button>
+
+                <div className="p-8 border border-hairline rounded-lg bg-surface-soft/50 mt-12">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                        <div>
+                            <label htmlFor="stake" className="block text-xs font-bold text-muted uppercase tracking-[0.2em] mb-3">Stake Amount</label>
+                            <input
+                                type="number"
+                                id="stake"
+                                value={stake}
+                                onChange={(e) => setStake(e.target.value)}
+                                required
+                                min="0.01"
+                                step="0.01"
+                                placeholder="Total amount"
+                                className="input-field !text-2xl !h-14 font-bold text-primary font-numeric"
+                            />
+                        </div>
+                        <div className="text-center md:text-left md:pl-8 md:border-l border-hairline">
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">Total Odds</p>
+                            <p className="text-3xl font-black text-on-dark font-numeric">{totalOdds}</p>
+                        </div>
+                        <div className="text-center md:text-left md:pl-8 md:border-l border-hairline">
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">Potential P/L</p>
+                            <p className="text-3xl font-black text-primary font-numeric">${potentialWinnings}</p>
                         </div>
                     </div>
-                </section>
+                </div>
 
                 <button
                     type="submit"
                     className="button-primary w-full !h-14 text-lg"
                 >
-                    {legs.length > 1 ? 'Place parlay order' : 'Place single order'}
+                    {legs.length > 1 ? 'Place Parlay Order' : 'Place Single Order'}
                 </button>
             </form>
 
             {message && (
-                <div className={`mt-8 flex items-center gap-3 rounded-lg border p-4 ${isError ? 'border-accent-rose/50 bg-accent-rose/10 text-accent-rose' : 'border-primary/50 bg-primary/10 text-primary'}`}>
-                    <span className="text-xl" aria-hidden="true">{isError ? '!' : '✓'}</span>
-                    <p className="text-sm font-bold uppercase tracking-wider">{message}</p>
+                <div className={`mt-8 p-4 rounded-lg border flex items-center gap-3 ${isError ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
+                    <span className="text-xl">{isError ? '⚠️' : '✅'}</span>
+                    <p className="font-bold text-sm uppercase tracking-wider">{message}</p>
                 </div>
             )}
         </div>

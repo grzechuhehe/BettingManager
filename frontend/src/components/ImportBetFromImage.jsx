@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { importBetFromImage } from '../api';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
@@ -170,7 +170,7 @@ export default function ImportBetFromImage({ onImported }) {
               <button
                 type="button"
                 onClick={clearFile}
-                className="text-sm font-bold uppercase tracking-wider text-accent-rose hover:text-rose-400"
+                className="text-sm font-bold uppercase tracking-wider text-rose-500 hover:text-rose-400"
               >
                 Remove
               </button>
@@ -179,7 +179,7 @@ export default function ImportBetFromImage({ onImported }) {
         ) : (
           <div className="space-y-3 text-center">
             <p className="text-sm font-bold text-on-dark">
-              Paste screenshot from clipboard
+              Paste a screenshot from clipboard
             </p>
             <p className="text-xs text-muted">
               Click here and use <kbd className="rounded border border-hairline px-1.5 py-0.5 font-mono text-[11px]">Ctrl+V</kbd>
@@ -204,9 +204,9 @@ export default function ImportBetFromImage({ onImported }) {
         className="input-field w-full"
       />
       <button type="submit" disabled={loading || !file} className="button-primary w-full">
-        {loading ? 'Analyzing…' : 'Import bet from image'}
+        {loading ? 'Analyzing...' : 'Import bet from image'}
       </button>
-      {error && <p className="text-accent-rose text-sm font-medium">{error}</p>}
+      {error && <p className="text-rose-500 text-sm font-medium">{error}</p>}
       {success && <p className="text-primary text-sm font-medium">{success}</p>}
     </form>
   );

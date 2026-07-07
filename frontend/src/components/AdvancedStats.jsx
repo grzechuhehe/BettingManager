@@ -1,15 +1,21 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { getAdvancedStats } from '../api';
+import InfoTooltip from './ui/InfoTooltip';
+import { useT } from '../i18n/translations';
 
-const StatCard = ({ title, value, subtext, color = "text-primary" }) => (
+const StatCard = ({ title, value, subtext, color = "text-primary", tooltip }) => (
   <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col items-center text-center transition-all duration-300">
-    <h4 className="text-muted text-[10px] font-black uppercase tracking-[0.2em] mb-4">{title}</h4>
+    <div className="flex items-center gap-2 mb-4">
+      <h4 className="text-muted text-[10px] font-black uppercase tracking-[0.2em]">{title}</h4>
+      {tooltip && <InfoTooltip text={tooltip} />}
+    </div>
     <div className={`stat-display ${color}`}>{value}</div>
     {subtext && <p className="text-[10px] font-bold text-muted mt-3 uppercase tracking-widest">{subtext}</p>}
   </div>
 );
 
 const AdvancedStats = () => {
+  const translate = useT();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,9 +44,10 @@ const AdvancedStats = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
       <StatCard 
-        title="Sharpe Ratio" 
+        title={translate('sharpe.title')}
         value={stats.sharpeRatio ? stats.sharpeRatio.toFixed(2) : '0.00'}
         subtext="Risk-adjusted return"
+        tooltip={translate('sharpe.tooltip')}
       />
       <StatCard 
         title="Efficiency" 

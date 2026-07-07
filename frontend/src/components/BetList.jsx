@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 import { toLocalDateTimeString } from '../utils/datetime';
+import { useT } from '../i18n/translations';
 
 const AUTO_RESOLUTION_COOLDOWN_KEY = 'autoResolutionLastFinishedAt';
 const AUTO_RESOLUTION_COOLDOWN_MS_KEY = 'autoResolutionCooldownMs';
@@ -53,8 +54,8 @@ const EditBetModal = ({ bet, isOpen, onClose, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-canvas/90 overflow-y-auto h-full w-full flex items-center justify-center z-50 modal-backdrop">
-            <div className="relative bg-surface-card rounded-lg border border-hairline p-10 max-w-md w-full modal-panel">
+        <div className="fixed inset-0 bg-canvas/90 backdrop-blur-sm overflow-y-auto h-full w-full flex items-center justify-center z-50">
+            <div className="relative bg-surface-card rounded-lg border border-hairline p-10 max-w-md w-full shadow-2xl">
                 <h3 className="display-sm mb-6">Edit Order</h3>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
@@ -100,11 +101,11 @@ const BetStatusBadge = ({ status }) => {
     const statusClasses = {
         PENDING: 'bg-primary/20 text-primary border-primary/30',
         WON: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30',
-        LOST: 'bg-accent-rose/20 text-accent-rose border-accent-rose/30',
+        LOST: 'bg-rose-500/20 text-rose-500 border-rose-500/30',
         VOID: 'bg-muted/20 text-muted border-muted/30',
         CASHED_OUT: 'bg-blue-500/20 text-blue-500 border-blue-500/30',
         HALF_WON: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-        HALF_LOST: 'bg-accent-rose/10 text-rose-400 border-accent-rose/20',
+        HALF_LOST: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
     };
 
     return (
@@ -114,37 +115,45 @@ const BetStatusBadge = ({ status }) => {
     );
 };
 
-const ParlayChevron = ({ expanded }) => (
-    <svg
-        className={`w-3 h-3 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
-        viewBox="0 0 12 12"
-        fill="currentColor"
-        aria-hidden="true"
-    >
-        <path d="M4 2l4 4-4 4V2z" />
-    </svg>
-);
+const formatBetSelection = (bet) => {
+    const selection = bet.selection || '';
+    if (selection.trim().toLowerCase() === 'bet builder' || selection.trim().toLowerCase() === 'betbuilder') {
+        if (bet.childBets?.length) {
+            return bet.childBets.map((leg) => leg.selection).filter(Boolean).join(' · ');
+        }
+        return selection.toLowerCase().startsWith('betbuilder:')
+            ? selection.replace(/^betbuilder:\s*/i, '')
+            : 'Bet Builder — expand to view conditions';
+    }
+    return selection;
+};
 
-const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayParent = false, isExpanded = false, onToggleParlay, legSummary }) => (
-    <tr className={`${isChild ? 'bg-surface-soft/30' : 'bg-surface-card hover:bg-surface-elevated/50 transition-colors'} border-b border-hairline`}>
-        <td
-            className={`px-6 py-5 whitespace-nowrap ${isChild ? 'pl-12' : ''} ${isParlayParent ? 'cursor-pointer select-none' : ''}`}
-            onClick={isParlayParent ? onToggleParlay : undefined}
-            onKeyDown={isParlayParent ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onToggleParlay();
-                }
-            } : undefined}
-            tabIndex={isParlayParent ? 0 : undefined}
-            role={isParlayParent ? 'button' : undefined}
-            aria-expanded={isParlayParent ? isExpanded : undefined}
-            aria-label={isParlayParent ? (isExpanded ? 'Collapse parlay legs' : 'Expand parlay legs') : undefined}
-        >
+const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayParent = false, isExpanded = false, onToggleParlay, legSummary }) => {
+    const stopIfInteractive = (e) => {
+        if (e.target.closest('button, a, input, select, textarea')) {
+            e.stopPropagation();
+        }
+    };
+
+    const handleRowClick = () => {
+        if (isParlayParent && onToggleParlay) {
+            onToggleParlay();
+        }
+    };
+
+    return (
+    <tr
+        className={`${isChild ? 'bg-surface-soft/30' : 'bg-surface-card hover:bg-surface-elevated/50 transition-colors'} border-b border-hairline ${isParlayParent ? 'cursor-pointer' : ''}`}
+        onClick={isParlayParent ? handleRowClick : undefined}
+    >
+        <td className={`px-6 py-5 whitespace-nowrap ${isChild ? 'pl-12' : ''}`} onClick={stopIfInteractive}>
             <div className="flex items-start gap-2">
                 {isParlayParent && (
-                    <span className="mt-0.5 text-muted" aria-hidden="true">
-                        <ParlayChevron expanded={isExpanded} />
+                    <span
+                        className="mt-0.5 text-muted text-[10px] w-4 shrink-0"
+                        aria-hidden="true"
+                    >
+                        {isExpanded ? '▼' : '▶'}
                     </span>
                 )}
                 <div>
@@ -153,17 +162,17 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
                         <div className="text-[10px] font-bold text-muted uppercase tracking-wider mt-1">{legSummary}</div>
                     )}
                     <div className="text-muted text-[10px] font-bold uppercase tracking-wider mt-0.5">{bet.sport} · {bet.marketType}</div>
-                    <div className="text-primary font-bold text-xs mt-1">{bet.selection}</div>
+                    <div className="text-primary font-bold text-xs mt-1">{formatBetSelection(bet)}</div>
                 </div>
             </div>
         </td>
-        <td className="px-6 py-5 whitespace-nowrap text-xs font-bold text-body uppercase tracking-wider">{bet.bookmaker}</td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric">{bet.stake ? `$${bet.stake.toFixed(2)}` : ''}</td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric">{bet.odds ? bet.odds.toFixed(2) : ''}</td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-primary font-numeric">
+        <td className="px-6 py-5 whitespace-nowrap text-xs font-bold text-body uppercase tracking-wider" onClick={stopIfInteractive}>{bet.bookmaker}</td>
+        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric" onClick={stopIfInteractive}>{bet.stake ? `$${bet.stake.toFixed(2)}` : ''}</td>
+        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric" onClick={stopIfInteractive}>{bet.odds ? bet.odds.toFixed(2) : ''}</td>
+        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-primary font-numeric" onClick={stopIfInteractive}>
             {bet.potentialWinnings ? `$${bet.potentialWinnings.toFixed(2)}` : ''}
         </td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm">
+        <td className="px-6 py-5 whitespace-nowrap text-sm" onClick={stopIfInteractive}>
             <div className="flex flex-col space-y-2">
                 <BetStatusBadge status={bet.status} />
                 {!isChild && bet.status === 'PENDING' && (
@@ -173,44 +182,46 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
                             title="Mark as Won"
                             className="w-10 h-10 flex items-center justify-center bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-md hover:bg-emerald-500 hover:text-white transition-all text-xs"
                         >
-                            W
+                            ✅
                         </button>
                         <button 
                             onClick={() => onSettle(bet.id, 'LOST')}
                             title="Mark as Lost"
-                            className="w-10 h-10 flex items-center justify-center bg-accent-rose/10 text-accent-rose border border-accent-rose/20 rounded-md hover:bg-accent-rose hover:text-white transition-all text-xs font-black"
+                            className="w-10 h-10 flex items-center justify-center bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-md hover:bg-rose-500 hover:text-white transition-all text-xs"
                         >
-                            L
+                            ❌
                         </button>
                         <button 
                             onClick={() => onSettle(bet.id, 'VOID')}
                             title="Mark as Void"
-                            className="w-10 h-10 flex items-center justify-center bg-surface-elevated text-muted border border-hairline rounded-md hover:bg-on-dark hover:text-canvas transition-all text-xs font-black"
+                            className="w-10 h-10 flex items-center justify-center bg-surface-elevated text-muted border border-hairline rounded-md hover:bg-on-dark hover:text-canvas transition-all text-xs"
                         >
-                            V
+                            🔄
                         </button>
                     </div>
                 )}
             </div>
         </td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm font-black font-numeric">
+        <td className="px-6 py-5 whitespace-nowrap text-sm font-black font-numeric" onClick={stopIfInteractive}>
             {bet.status !== 'PENDING' ? (
-                <span className={bet.finalProfit > 0 ? 'text-emerald-500' : bet.finalProfit < 0 ? 'text-accent-rose' : 'text-muted'}>
+                <span className={bet.finalProfit > 0 ? 'text-emerald-500' : bet.finalProfit < 0 ? 'text-rose-500' : 'text-muted'}>
                     {bet.finalProfit !== null ? (bet.finalProfit >= 0 ? `+$${bet.finalProfit.toFixed(2)}` : `-$${Math.abs(bet.finalProfit).toFixed(2)}`) : 'N/A'}
                 </span>
             ) : (
                 <div className="flex space-x-3">
                     <button onClick={() => onEdit(bet)} className="text-[10px] font-black uppercase tracking-widest text-muted hover:text-on-dark transition-colors">Edit</button>
-                    <button onClick={() => onDelete(bet.id)} className="text-[10px] font-black uppercase tracking-widest text-accent-rose  transition-colors">Delete</button>
+                    <button onClick={() => onDelete(bet.id)} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 transition-colors">Delete</button>
                 </div>
             )}
         </td>
     </tr>
-);
+    );
+};
 
 
 const BetList = () => {
     const location = useLocation();
+    const translate = useT();
     const [bets, setBets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -309,7 +320,7 @@ const BetList = () => {
     const handleRunAutoResolution = async () => {
         if (resolutionCooldownMs > 0) {
             const minutes = Math.ceil(resolutionCooldownMs / 60_000);
-            alert(`Auto-resolution was run recently. Try again in about ${minutes} min.`);
+            alert(`Auto-rozliczanie było uruchomione niedawno. Spróbuj za ok. ${minutes} min.`);
             return;
         }
         try {
@@ -319,16 +330,16 @@ const BetList = () => {
             localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_KEY, String(Date.now()));
             localStorage.setItem(AUTO_RESOLUTION_COOLDOWN_MS_KEY, String(cooldownMin * 60_000));
             setResolutionCooldownMs(cooldownMin * 60_000);
-            alert('Resolution started in the background (Apify ~2–5 min). The list will refresh automatically.');
+            alert('Rozliczanie uruchomione w tle (Apify ~2–5 min). Lista odświeży się automatycznie.');
             window.setTimeout(() => fetchBets(), 120_000);
             window.setTimeout(() => fetchBets(), 300_000);
         } catch (err) {
             const status = err.response?.status;
             const msg = status === 409
-                ? 'Resolution is already in progress — wait a few minutes.'
+                ? 'Rozliczanie już trwa — poczekaj kilka minut.'
                 : status === 429
-                    ? (err.response?.data?.message || 'Auto-resolution was run recently — wait before trying again.')
-                    : 'Failed to start auto-resolution.';
+                    ? (err.response?.data?.message || 'Auto-rozliczanie było uruchomione niedawno — poczekaj przed kolejną próbą.')
+                    : 'Nie udało się uruchomić auto-rozliczania.';
             if (status === 429) {
                 const retryMin = Number(err.response?.data?.retryAfterMinutes);
                 if (retryMin > 0) {
@@ -377,8 +388,8 @@ const BetList = () => {
 
     if (error) {
         return (
-            <div className="bg-accent-rose/10 border border-accent-rose/50 p-6 rounded-lg text-center">
-                <p className="text-accent-rose font-bold uppercase tracking-wider">{error}</p>
+            <div className="bg-rose-500/10 border border-rose-500/50 p-6 rounded-lg text-center">
+                <p className="text-rose-500 font-bold uppercase tracking-wider">{error}</p>
             </div>
         );
     }
@@ -386,9 +397,9 @@ const BetList = () => {
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center mb-2">
-                 <h2 className="display-sm">Market Ledger</h2>
+                 <h2 className="display-sm">{translate('bets.title')}</h2>
                  <div className="flex items-center gap-4">
-                    <p className="text-xs font-bold text-muted uppercase tracking-widest">{topLevelBets.length} Registered Positions</p>
+                    <p className="text-xs font-bold text-muted uppercase tracking-widest">{topLevelBets.length} {translate('bets.positions')}</p>
                     <button
                         type="button"
                         onClick={handleRunAutoResolution}
@@ -407,7 +418,7 @@ const BetList = () => {
 
             {flashMessage && (
                 <div className="bg-primary/10 border border-primary/50 p-4 rounded-lg flex items-center gap-3">
-                    <span className="text-xl" aria-hidden="true">✓</span>
+                    <span className="text-xl">✅</span>
                     <p className="font-bold text-sm text-primary uppercase tracking-wider">{flashMessage}</p>
                 </div>
             )}

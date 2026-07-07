@@ -136,8 +136,13 @@ const Dashboard = () => {
                     <p className="text-body mt-2">Welcome back, <span className="text-body-strong font-semibold">{user || 'Trader'}</span>! Here is your market overview.</p>
                 </div>
                 <div className="text-right hidden sm:block">
-                    <p className="text-xs font-semibold text-muted uppercase tracking-widest">Market Date</p>
-                    <p className="font-mono text-on-dark mt-1 font-numeric">{new Date().toLocaleDateString()}</p>
+                    <p className="text-lg font-mono text-on-dark font-numeric tracking-tight">
+                        {new Date().toLocaleDateString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                        })}
+                    </p>
                 </div>
             </header>
             
