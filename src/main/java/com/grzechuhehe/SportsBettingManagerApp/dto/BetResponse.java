@@ -16,6 +16,7 @@ public class BetResponse {
     private BetType betType;
     private BetStatus status;
     private BigDecimal stake;
+    private String currency;
     private BigDecimal odds;
     private OddsType oddsType;
     private BigDecimal potentialWinnings;

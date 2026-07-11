@@ -8,5 +8,6 @@ public record UserProfileDTO(
     String email,
     LocalDateTime joinedAt,
     List<String> roles,
-    Integer evEdgeThreshold
+    Integer evEdgeThreshold,
+    String displayCurrency
 ) {}

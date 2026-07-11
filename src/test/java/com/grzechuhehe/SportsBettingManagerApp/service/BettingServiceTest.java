@@ -16,7 +16,6 @@ import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -46,16 +45,24 @@ class BettingServiceTest {
     @Mock
     private Validator validator;
 
-    @InjectMocks
+    private CurrencyConversionService currencyConversionService;
     private BettingService bettingService;
 
     private User testUser;
 
     @BeforeEach
     void setUp() {
+        currencyConversionService = CurrencyConversionService.forRates(Map.of(
+                "PLN", BigDecimal.ONE,
+                "USD", new BigDecimal("4.00"),
+                "EUR", new BigDecimal("4.30"),
+                "GBP", new BigDecimal("5.10")
+        ));
+        bettingService = new BettingService(betRepository, userRepository, validator, currencyConversionService);
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
+        testUser.setDisplayCurrency("PLN");
     }
 
     @Test
@@ -349,12 +356,37 @@ class BettingServiceTest {
         when(betRepository.findByUser(testUser)).thenReturn(Arrays.asList(bet1, bet2, bet3));
 
         // When
-        Map<String, BigDecimal> heatmap = bettingService.getHeatmapData(testUser);
+        var heatmap = bettingService.getHeatmapData(testUser);
 
-        // Then
-        assertThat(heatmap).hasSize(2);
-        assertThat(heatmap.get("2023-01-01")).isEqualByComparingTo("150.00");
-        assertThat(heatmap.get("2023-01-02")).isEqualByComparingTo("-20.00");
+        assertThat(heatmap.dailyProfit()).hasSize(2);
+        assertThat(heatmap.dailyProfit().get("2023-01-01")).isEqualByComparingTo("150.00");
+        assertThat(heatmap.dailyProfit().get("2023-01-02")).isEqualByComparingTo("-20.00");
+        assertThat(heatmap.displayCurrency()).isEqualTo("PLN");
+    }
+
+    @Test
+    void getDashboardStats_convertsMixedCurrenciesToDisplayCurrency() {
+        Bet plnBet = new Bet();
+        plnBet.setStatus(BetStatus.WON);
+        plnBet.setStake(new BigDecimal("100"));
+        plnBet.setFinalProfit(new BigDecimal("50"));
+        plnBet.setCurrency("PLN");
+        plnBet.setSettledAt(LocalDateTime.now());
+
+        Bet usdBet = new Bet();
+        usdBet.setStatus(BetStatus.WON);
+        usdBet.setStake(new BigDecimal("50"));
+        usdBet.setFinalProfit(new BigDecimal("25"));
+        usdBet.setCurrency("USD");
+        usdBet.setSettledAt(LocalDateTime.now());
+
+        when(betRepository.findByUser(testUser)).thenReturn(List.of(plnBet, usdBet));
+
+        DashboardStatsDTO stats = bettingService.getDashboardStats(testUser);
+
+        assertThat(stats.displayCurrency()).isEqualTo("PLN");
+        assertThat(stats.totalProfitLoss()).isEqualByComparingTo("150.00");
+        assertThat(stats.totalStaked()).isEqualByComparingTo("300.00");
     }
 
     @Test

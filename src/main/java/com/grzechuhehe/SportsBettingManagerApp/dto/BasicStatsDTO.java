@@ -9,5 +9,6 @@ public record BasicStatsDTO(
     BigDecimal totalStake,
     BigDecimal profitLoss,
     BigDecimal roi,
-    List<BetResponse> recentBets
+    List<BetResponse> recentBets,
+    String displayCurrency
 ) {}

@@ -37,7 +37,8 @@ public class UserController {
                 user.getEmail(),
                 user.getJoinedAt(),
                 user.getRoles(),
-                user.getEvEdgeThreshold()
+                user.getEvEdgeThreshold(),
+                user.getDisplayCurrency()
         ));
     }
 
@@ -47,6 +48,9 @@ public class UserController {
         User user = getCurrentUser();
         if (request.getEvEdgeThreshold() != null) {
             user.setEvEdgeThreshold(request.getEvEdgeThreshold());
+        }
+        if (request.getDisplayCurrency() != null && !request.getDisplayCurrency().isBlank()) {
+            user.setDisplayCurrency(request.getDisplayCurrency().trim().toUpperCase());
         }
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "Settings updated successfully"));

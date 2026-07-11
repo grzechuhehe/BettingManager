@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.grzechuhehe.SportsBettingManagerApp.service.ImageStorageService;
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
+import com.grzechuhehe.SportsBettingManagerApp.dto.HeatmapResponse;
 import com.grzechuhehe.SportsBettingManagerApp.dto.BetRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -151,7 +152,8 @@ public class BetController {
             (BigDecimal) rawStats.get("totalStake"),
             (BigDecimal) rawStats.get("profitLoss"),
             (BigDecimal) rawStats.get("roi"),
-            recentBets
+            recentBets,
+            (String) rawStats.get("displayCurrency")
         );
         
         return ResponseEntity.ok(statsDTO);
@@ -168,7 +170,7 @@ public class BetController {
 
     @GetMapping("/heatmap")
     @Operation(summary = "Get heatmap data", description = "Retrieves daily profit/loss data for generating a betting heatmap")
-    public ResponseEntity<Map<String, BigDecimal>> getHeatmapData() {
+    public ResponseEntity<HeatmapResponse> getHeatmapData() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -293,6 +295,7 @@ public class BetController {
         dto.setBetType(bet.getBetType());
         dto.setStatus(bet.getStatus());
         dto.setStake(bet.getStake());
+        dto.setCurrency(bet.getCurrency() != null ? bet.getCurrency() : "PLN");
         dto.setOdds(bet.getOdds());
         dto.setOddsType(bet.getOddsType());
         dto.setPotentialWinnings(bet.getPotentialWinnings());

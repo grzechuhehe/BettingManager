@@ -21,6 +21,7 @@ public class BetStatistics {
     private String currentStreak;
     private BigDecimal sharpeRatio;
     private BigDecimal efficiency;
+    private String displayCurrency;
 
     public BetStatistics(int totalBets, int successfulBets, BigDecimal profitLoss, BigDecimal roiPercentage,
                          Map<String, BigDecimal> winRatesByType, BigDecimal rollingAverage30d, String currentStreak) {

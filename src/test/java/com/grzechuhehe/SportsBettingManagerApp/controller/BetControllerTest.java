@@ -147,8 +147,9 @@ class BetControllerTest {
                 new BigDecimal("15.5"),   // roi
                 new BigDecimal("15.5"),   // yield
                 new BigDecimal("1000.00"),// totalStaked
-                Collections.emptyMap(), // profitBySport
-                Collections.emptyList() // equityCurve
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                "PLN"
         );
 
         Mockito.when(bettingService.getDashboardStats(any(User.class))).thenReturn(stats);

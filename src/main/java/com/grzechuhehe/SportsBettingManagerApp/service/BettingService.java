@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 import com.grzechuhehe.SportsBettingManagerApp.dto.DashboardStatsDTO;
 import com.grzechuhehe.SportsBettingManagerApp.dto.EquityCurvePoint;
+import com.grzechuhehe.SportsBettingManagerApp.dto.HeatmapResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -35,25 +36,26 @@ public class BettingService {
     private final BetRepository betRepository;
     private final UserRepository userRepository;
     private final Validator validator;
+    private final CurrencyConversionService currencyConversionService;
 
 
     public DashboardStatsDTO getDashboardStats(User user) {
         log.info("Calculating dashboard stats for user: {} (ID: {})", user.getUsername(), user.getId());
-        
+        String displayCurrency = currencyConversionService.resolveDisplayCurrency(user.getDisplayCurrency());
+
         List<Bet> allBets = betRepository.findByUser(user).stream()
-                .filter(b -> b.getParentBet() == null) // Tylko zakłady nadrzędne
+                .filter(b -> b.getParentBet() == null)
                 .collect(Collectors.toList());
-        
+
         log.info("Found {} root bets for user ID: {}", allBets.size(), user.getId());
 
-        // Podstawowe statystyki
         BigDecimal totalProfitLoss = allBets.stream()
                 .filter(b -> b.getStatus() != BetStatus.PENDING)
-                .map(b -> b.getFinalProfit() != null ? b.getFinalProfit() : BigDecimal.ZERO)
+                .map(b -> convertBetProfit(b, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         int totalBets = allBets.size();
-        
+
         int activeBetsCount = (int) allBets.stream()
                 .filter(b -> b.getStatus() == BetStatus.PENDING)
                 .count();
@@ -69,10 +71,8 @@ public class BettingService {
                     .multiply(BigDecimal.valueOf(100));
         }
 
-        // Zaawansowane statystyki (Bloomberg style)
         BigDecimal totalStaked = allBets.stream()
-                .map(Bet::getStake)
-                .filter(Objects::nonNull)
+                .map(b -> convertBetStake(b, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal roi = BigDecimal.ZERO;
@@ -80,22 +80,19 @@ public class BettingService {
 
         if (totalStaked.compareTo(BigDecimal.ZERO) > 0) {
             roi = totalProfitLoss.divide(totalStaked, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
-            // Yield w bukmacherce to często to samo co ROI (zysk/obrót), ale czasem liczone inaczej. Przyjmijmy definicję Zysk Netto / Obrót.
-            yield = roi; 
+            yield = roi;
         }
 
-        // Profit by Sport
         Map<String, BigDecimal> profitBySport = allBets.stream()
                 .filter(b -> b.getStatus() != BetStatus.PENDING && b.getSport() != null)
                 .collect(Collectors.groupingBy(
                         Bet::getSport,
                         Collectors.mapping(
-                                b -> Optional.ofNullable(b.getFinalProfit()).orElse(BigDecimal.ZERO),
+                                b -> convertBetProfit(b, displayCurrency),
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
 
-        // Equity Curve (Skumulowany zysk w czasie)
         List<Bet> sortedSettledBets = allBets.stream()
                 .filter(b -> b.getStatus() != BetStatus.PENDING && b.getSettledAt() != null)
                 .sorted(Comparator.comparing(Bet::getSettledAt))
@@ -104,15 +101,11 @@ public class BettingService {
         List<EquityCurvePoint> equityCurve = new ArrayList<>();
         BigDecimal currentEquity = BigDecimal.ZERO;
 
-        // Dodajemy punkt startowy (0, 0) - opcjonalne, ale ładnie wygląda na wykresie
-        // equityCurve.add(new EquityCurvePoint(LocalDate.now(), BigDecimal.ZERO)); 
-
-        // Grupowanie dzienne dla czytelności wykresu
-        Map<LocalDate, BigDecimal> dailyProfits = new TreeMap<>(); // TreeMap trzyma kolejność dat
+        Map<LocalDate, BigDecimal> dailyProfits = new TreeMap<>();
 
         for (Bet bet : sortedSettledBets) {
             LocalDate date = bet.getSettledAt().toLocalDate();
-            BigDecimal profit = Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO);
+            BigDecimal profit = convertBetProfit(bet, displayCurrency);
             dailyProfits.merge(date, profit, BigDecimal::add);
         }
 
@@ -122,15 +115,16 @@ public class BettingService {
         }
 
         return new DashboardStatsDTO(
-                totalProfitLoss, 
-                totalBets, 
-                winRate, 
+                totalProfitLoss,
+                totalBets,
+                winRate,
                 activeBetsCount,
                 roi,
                 yield,
                 totalStaked,
                 profitBySport,
-                equityCurve
+                equityCurve,
+                displayCurrency
         );
     }
 
@@ -148,8 +142,20 @@ public class BettingService {
                     .multiply(BigDecimal.valueOf(100));
         }
 
-        BigDecimal profit = betRepository.sumSettledRootProfitByUser(user, BetStatus.PENDING);
-        BigDecimal staked = betRepository.sumRootStakeByUser(user);
+        String displayCurrency = currencyConversionService.resolveDisplayCurrency(user.getDisplayCurrency());
+        List<Bet> rootBets = betRepository.findByUser(user).stream()
+                .filter(b -> b.getParentBet() == null)
+                .toList();
+
+        BigDecimal profit = rootBets.stream()
+                .filter(b -> b.getStatus() != BetStatus.PENDING)
+                .map(b -> convertBetProfit(b, displayCurrency))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal staked = rootBets.stream()
+                .map(b -> convertBetStake(b, displayCurrency))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         BigDecimal yield = BigDecimal.ZERO;
         if (staked.compareTo(BigDecimal.ZERO) > 0) {
             yield = profit.divide(staked, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
@@ -245,6 +251,7 @@ public class BettingService {
                 .betType(betType)
                 .status(BetStatus.PENDING)
                 .stake(stake)
+                .currency("PLN")
                 .units(stake != null ? stake.divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP) : BigDecimal.ONE)
                 .odds(betRequest.getOdds())
                 .oddsType(betRequest.getOddsType() != null ? betRequest.getOddsType() : com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType.DECIMAL)
@@ -278,57 +285,60 @@ public class BettingService {
     }
 
     public Map<String, Object> getStatistics(User user) {
+        String displayCurrency = currencyConversionService.resolveDisplayCurrency(user.getDisplayCurrency());
         List<Bet> bets = betRepository.findByUser(user).stream()
-                .filter(b -> b.getParentBet() == null) // Statystyki tylko dla zakładów nadrzędnych
+                .filter(b -> b.getParentBet() == null)
                 .collect(Collectors.toList());
 
         BigDecimal totalStake = bets.stream()
-                .map(Bet::getStake)
+                .map(b -> convertBetStake(b, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal profitLoss = calculateNetProfit(bets);
+        BigDecimal profitLoss = calculateNetProfit(bets, displayCurrency);
         BigDecimal roi = calculateROI(profitLoss, totalStake);
 
         List<Bet> recentBets = bets.stream()
                 .sorted(Comparator.comparing(Bet::getPlacedAt).reversed())
                 .limit(5)
                 .collect(Collectors.toList());
-return Map.of(
-        "totalBets", bets.size(),
-        "wonBets", betRepository.countByUserAndStatus(user, BetStatus.WON),
-        "totalStake", totalStake,
-        "profitLoss", profitLoss,
-        "roi", roi,
-        "recentBets", recentBets
-);
-}
+        return Map.of(
+                "totalBets", bets.size(),
+                "wonBets", betRepository.countByUserAndStatus(user, BetStatus.WON),
+                "totalStake", totalStake,
+                "profitLoss", profitLoss,
+                "roi", roi,
+                "recentBets", recentBets,
+                "displayCurrency", displayCurrency
+        );
+    }
 
-public BetStatistics getAdvancedStatistics(User user) {
-List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
-        .filter(b -> b.getParentBet() == null) // Statystyki tylko dla zakładów nadrzędnych
-        .collect(Collectors.toList());
-
+    public BetStatistics getAdvancedStatistics(User user) {
+        String displayCurrency = currencyConversionService.resolveDisplayCurrency(user.getDisplayCurrency());
+        List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
+                .filter(b -> b.getParentBet() == null)
+                .collect(Collectors.toList());
 
         BigDecimal totalInvestment = bets.stream()
-                .map(Bet::getStake)
-                .filter(Objects::nonNull)
+                .map(b -> convertBetStake(b, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal profit = calculateNetProfit(bets);
+        BigDecimal profit = calculateNetProfit(bets, displayCurrency);
         BigDecimal roi = calculateROI(profit, totalInvestment);
         BigDecimal efficiency = calculateLegEfficiency(bets);
 
-        return new BetStatistics(
+        BetStatistics stats = new BetStatistics(
                 bets.size(),
                 countSuccessfulBets(bets),
                 profit,
                 roi,
                 calculateWinRatesByType(bets),
-                calculateRollingAverage(bets, 30),
+                calculateRollingAverage(bets, 30, displayCurrency),
                 analyzeStreaks(bets),
-                calculateSharpeRatio(bets),
-                efficiency
+                calculateSharpeRatio(bets, displayCurrency),
+                efficiency,
+                displayCurrency
         );
+        return stats;
     }
 
     private BigDecimal calculateLegEfficiency(List<Bet> parentBets) {
@@ -357,10 +367,10 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
                 .multiply(BigDecimal.valueOf(100));
     }
 
-    private BigDecimal calculateSharpeRatio(List<Bet> bets) {
+    private BigDecimal calculateSharpeRatio(List<Bet> bets, String displayCurrency) {
         List<BigDecimal> profits = bets.stream()
                 .filter(b -> b.getStatus() != BetStatus.PENDING && b.getFinalProfit() != null)
-                .map(Bet::getFinalProfit)
+                .map(b -> convertBetProfit(b, displayCurrency))
                 .collect(Collectors.toList());
 
         if (profits.size() < 2) return BigDecimal.ZERO;
@@ -393,10 +403,10 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
                 .count();
     }
 
-    private BigDecimal calculateNetProfit(List<Bet> bets) {
+    private BigDecimal calculateNetProfit(List<Bet> bets, String displayCurrency) {
         return bets.stream()
                 .filter(bet -> bet.getStatus() != BetStatus.PENDING)
-                .map(bet -> Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO))
+                .map(bet -> convertBetProfit(bet, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -428,16 +438,30 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
                 ));
     }
 
-    private BigDecimal calculateRollingAverage(List<Bet> bets, int days) {
+    private BigDecimal calculateRollingAverage(List<Bet> bets, int days, String displayCurrency) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
 
         BigDecimal periodProfit = bets.stream()
                 .filter(b -> b.getPlacedAt().isAfter(cutoff))
                 .filter(bet -> bet.getStatus() != BetStatus.PENDING)
-                .map(bet -> Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO))
+                .map(bet -> convertBetProfit(bet, displayCurrency))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return periodProfit.divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal convertBetProfit(Bet bet, String displayCurrency) {
+        return currencyConversionService.convert(
+                Optional.ofNullable(bet.getFinalProfit()).orElse(BigDecimal.ZERO),
+                bet.getCurrency(),
+                displayCurrency);
+    }
+
+    private BigDecimal convertBetStake(Bet bet, String displayCurrency) {
+        return currencyConversionService.convert(
+                Optional.ofNullable(bet.getStake()).orElse(BigDecimal.ZERO),
+                bet.getCurrency(),
+                displayCurrency);
     }
 
     private String analyzeStreaks(List<Bet> bets) {
@@ -489,24 +513,23 @@ List<Bet> bets = betRepository.findByUserOrderByPlacedAtAsc(user).stream()
                 currentStreakCount, currentStreakType, maxWinStreak, maxLossStreak);
     }
 
-    // Zmieniona sygnatura i logika: Data (String YYYY-MM-DD) -> Zysk (BigDecimal)
-    public Map<String, BigDecimal> getHeatmapData(User user) {
+    public HeatmapResponse getHeatmapData(User user) {
+        String displayCurrency = currencyConversionService.resolveDisplayCurrency(user.getDisplayCurrency());
         List<Bet> bets = betRepository.findByUser(user).stream()
                 .filter(b -> b.getParentBet() == null)
-                .filter(b -> b.getStatus() != BetStatus.PENDING) // Tylko rozliczone
+                .filter(b -> b.getStatus() != BetStatus.PENDING)
                 .collect(Collectors.toList());
 
-        // Grupujemy po dacie rozliczenia (SettledAt) lub postawienia (PlacedAt). 
-        // Dla heatmapy zysków lepiej użyć daty rozliczenia (kiedy zysk faktycznie powstał).
-        return bets.stream()
+        Map<String, BigDecimal> dailyProfit = bets.stream()
                 .filter(b -> b.getSettledAt() != null)
                 .collect(Collectors.groupingBy(
                         b -> b.getSettledAt().toLocalDate().toString(),
                         Collectors.mapping(
-                                b -> Optional.ofNullable(b.getFinalProfit()).orElse(BigDecimal.ZERO),
+                                b -> convertBetProfit(b, displayCurrency),
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
+        return new HeatmapResponse(displayCurrency, dailyProfit);
     }
 
     @Transactional

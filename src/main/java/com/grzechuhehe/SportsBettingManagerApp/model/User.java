@@ -45,8 +45,15 @@ public class User implements UserDetails {
 
     private Integer evEdgeThreshold = 2; // Default 2%
 
+    @Column(length = 3)
+    private String displayCurrency = "PLN";
+
     public Integer getEvEdgeThreshold() {
         return evEdgeThreshold != null ? evEdgeThreshold : 2;
+    }
+
+    public String getDisplayCurrency() {
+        return displayCurrency != null && !displayCurrency.isBlank() ? displayCurrency : "PLN";
     }
 
     private String xUsername;

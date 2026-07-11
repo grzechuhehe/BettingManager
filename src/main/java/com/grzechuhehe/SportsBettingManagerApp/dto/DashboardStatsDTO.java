@@ -13,5 +13,6 @@ public record DashboardStatsDTO(
     BigDecimal yield,
     BigDecimal totalStaked,
     Map<String, BigDecimal> profitBySport,
-    List<EquityCurvePoint> equityCurve
+    List<EquityCurvePoint> equityCurve,
+    String displayCurrency
 ) {}
