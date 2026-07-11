@@ -1,8 +1,10 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { getHeatmapData } from '../api';
+import { formatSignedMoney } from '../utils/currency';
 
 const BettingHeatmap = () => {
   const [heatmapData, setHeatmapData] = useState({});
+  const [displayCurrency, setDisplayCurrency] = useState('PLN');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,7 +14,8 @@ const BettingHeatmap = () => {
   const fetchHeatmapData = async () => {
     try {
       const response = await getHeatmapData();
-      setHeatmapData(response.data); // Oczekujemy formatu: { "2023-10-01": 150.00, ... }
+      setHeatmapData(response.data?.dailyProfit || {});
+      setDisplayCurrency(response.data?.displayCurrency || 'PLN');
     } catch (error) {
       console.error("Failed to fetch heatmap data:", error);
     } finally {
@@ -58,7 +61,7 @@ const BettingHeatmap = () => {
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-surface-elevated border border-hairline text-[10px] p-3 rounded-lg z-50 pointer-events-none">
               <div className="font-black border-b border-hairline pb-2 mb-2 uppercase tracking-widest text-muted">{dateStr}</div>
               <div className={`text-xs font-bold ${profit > 0 ? 'text-emerald-400' : profit < 0 ? 'text-rose-400' : 'text-on-dark'}`}>
-                {profit !== undefined ? `${profit >= 0 ? 'PROFIT: +' : 'LOSS: -'}$${Math.abs(profit).toFixed(2)}` : 'IDLE SESSION'}
+                {profit !== undefined ? formatSignedMoney(profit, displayCurrency) : 'IDLE SESSION'}
               </div>
               <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-surface-elevated"></div>
             </div>

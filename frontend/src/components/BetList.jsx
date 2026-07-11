@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getBets, settleBet, deleteBet, updateBet, runAutoResolution } from '../api';
 import { toLocalDateTimeString } from '../utils/datetime';
+import { formatMoney, formatSignedMoney } from '../utils/currency';
 import { useT } from '../i18n/translations';
 
 const AUTO_RESOLUTION_COOLDOWN_KEY = 'autoResolutionLastFinishedAt';
@@ -167,10 +168,10 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
             </div>
         </td>
         <td className="px-6 py-5 whitespace-nowrap text-xs font-bold text-body uppercase tracking-wider" onClick={stopIfInteractive}>{bet.bookmaker}</td>
-        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric" onClick={stopIfInteractive}>{bet.stake ? `$${bet.stake.toFixed(2)}` : ''}</td>
+        <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric" onClick={stopIfInteractive}>{bet.stake != null ? formatMoney(bet.stake, bet.currency) : ''}</td>
         <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-on-dark font-numeric" onClick={stopIfInteractive}>{bet.odds ? bet.odds.toFixed(2) : ''}</td>
         <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-primary font-numeric" onClick={stopIfInteractive}>
-            {bet.potentialWinnings ? `$${bet.potentialWinnings.toFixed(2)}` : ''}
+            {bet.potentialWinnings != null ? formatMoney(bet.potentialWinnings, bet.currency) : ''}
         </td>
         <td className="px-6 py-5 whitespace-nowrap text-sm" onClick={stopIfInteractive}>
             <div className="flex flex-col space-y-2">
@@ -205,7 +206,7 @@ const BetRow = ({ bet, onSettle, onDelete, onEdit, isChild = false, isParlayPare
         <td className="px-6 py-5 whitespace-nowrap text-sm font-black font-numeric" onClick={stopIfInteractive}>
             {bet.status !== 'PENDING' ? (
                 <span className={bet.finalProfit > 0 ? 'text-emerald-500' : bet.finalProfit < 0 ? 'text-rose-500' : 'text-muted'}>
-                    {bet.finalProfit !== null ? (bet.finalProfit >= 0 ? `+$${bet.finalProfit.toFixed(2)}` : `-$${Math.abs(bet.finalProfit).toFixed(2)}`) : 'N/A'}
+                    {bet.finalProfit !== null ? formatSignedMoney(bet.finalProfit, bet.currency) : 'N/A'}
                 </span>
             ) : (
                 <div className="flex space-x-3">

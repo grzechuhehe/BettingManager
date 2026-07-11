@@ -6,6 +6,7 @@ import AdvancedAnalytics from './AdvancedAnalytics';
 import AdvancedStats from './AdvancedStats';
 import BettingHeatmap from './BettingHeatmap';
 import AnimatedNumber from './AnimatedNumber';
+import { formatMoney, formatSignedMoney } from '../utils/currency';
 
 const StatCard = ({ title, value, subtext, colorClass = "text-primary", animateValue, formatValue }) => (
     <div className="bg-surface-card p-8 rounded-lg border border-hairline flex flex-col">
@@ -115,12 +116,11 @@ const Dashboard = () => {
         return maxEvB - maxEvA;
     });
 
+    const displayCurrency = stats?.displayCurrency || 'PLN';
+
     const formatCurrency = (val) => {
-        if (val === null || val === undefined) return "$0.00";
-        const num = parseFloat(val);
-        return num < 0 
-            ? `-$${Math.abs(num).toFixed(2)}` 
-            : `+$${Math.abs(num).toFixed(2)}`;
+        if (val === null || val === undefined) return formatMoney(0, displayCurrency);
+        return formatSignedMoney(val, displayCurrency);
     };
 
     const getProfitColor = (val) => {
@@ -175,7 +175,7 @@ const Dashboard = () => {
                         />
                         <StatCard 
                             title="Total Volume" 
-                            value={formatCurrency(stats?.totalStaked || 0).replace('+', '')}
+                            value={formatMoney(stats?.totalStaked || 0, displayCurrency)}
                             subtext={`${stats?.totalBets || 0} Trades`}
                         />
                     </div>
@@ -192,7 +192,7 @@ const Dashboard = () => {
                 ) : (
                     <div className="space-y-12">
                         <AdvancedStats />
-                        <AdvancedAnalytics stats={stats} />
+                        <AdvancedAnalytics stats={stats} displayCurrency={displayCurrency} />
                         <div className="bg-surface-card border border-hairline rounded-lg p-10">
                             <h4 className="text-lg font-bold text-on-dark mb-8">Activity Heatmap</h4>
                             <BettingHeatmap />

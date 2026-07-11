@@ -11,6 +11,8 @@ const translations = {
         'settings.trading': 'Trading preferences',
         'settings.evThreshold': '+EV threshold (%)',
         'settings.evHint': 'Minimum expected value edge shown in the dashboard +EV table.',
+        'settings.displayCurrency': 'Display currency',
+        'settings.displayCurrencyHint': 'Dashboard totals and charts are converted to this currency using fixed rates from server config.',
         'settings.save': 'Save changes',
         'settings.saved': 'Settings saved.',
         'settings.saveFailed': 'Failed to save settings.',

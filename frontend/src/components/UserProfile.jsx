@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getUserProfile, getDashboardStats, forgotPassword, updateUserSettings } from '../api';
+import { formatSignedMoney } from '../utils/currency';
 import { useUISettings } from '../context/UISettingsContext';
 import { useT } from '../i18n/translations';
 import ThemeToggle from './ui/ThemeToggle';
@@ -17,6 +18,7 @@ const UserProfile = () => {
     const [isPasswordExpanded, setIsPasswordExpanded] = useState(false);
 
     const [evThreshold, setEvThreshold] = useState(2);
+    const [displayCurrency, setDisplayCurrency] = useState('PLN');
     const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
     const [settingsMessage, setSettingsMessage] = useState({ text: '', type: '' });
 
@@ -34,6 +36,7 @@ const UserProfile = () => {
             setStats(statsRes.data);
             setResetEmail(profileRes.data.email || '');
             setEvThreshold(profileRes.data.evEdgeThreshold || 2);
+            setDisplayCurrency(profileRes.data.displayCurrency || 'PLN');
         } catch (error) {
             console.error("Error fetching profile data", error);
         } finally {
@@ -46,7 +49,10 @@ const UserProfile = () => {
         setSettingsMessage({ text: '', type: '' });
         setIsUpdatingSettings(true);
         try {
-            await updateUserSettings({ evEdgeThreshold: parseInt(evThreshold, 10) });
+            await updateUserSettings({
+                evEdgeThreshold: parseInt(evThreshold, 10),
+                displayCurrency,
+            });
             setSettingsMessage({ text: translate('settings.saved'), type: 'success' });
         } catch (error) {
             setSettingsMessage({ text: translate('settings.saveFailed'), type: 'error' });
@@ -132,7 +138,7 @@ const UserProfile = () => {
                             <div className="flex justify-between items-end">
                                 <span className="text-xs font-bold text-muted uppercase tracking-widest">Net Yield</span>
                                 <span className={`text-xl font-bold leading-none font-numeric ${stats?.totalProfitLoss >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-                                    ${stats?.totalProfitLoss?.toFixed(2) || '0.00'}
+                                    {formatSignedMoney(stats?.totalProfitLoss || 0, stats?.displayCurrency || displayCurrency)}
                                 </span>
                             </div>
                         </div>
@@ -184,6 +190,20 @@ const UserProfile = () => {
                                 className="input-field max-w-xs"
                             />
                             <p className="text-xs text-muted">{translate('settings.evHint')}</p>
+                            <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 mt-6">
+                                {translate('settings.displayCurrency')}
+                            </label>
+                            <select
+                                value={displayCurrency}
+                                onChange={(e) => setDisplayCurrency(e.target.value)}
+                                className="input-field max-w-xs"
+                            >
+                                <option value="PLN">PLN</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                            </select>
+                            <p className="text-xs text-muted">{translate('settings.displayCurrencyHint')}</p>
                             {settingsMessage.text && (
                                 <div className={`p-4 rounded-lg border text-[10px] font-bold uppercase tracking-widest ${settingsMessage.type === 'error' ? 'bg-rose-500/10 border-rose-500/50 text-rose-500' : 'bg-primary/10 border-primary/50 text-primary'}`}>
                                     {settingsMessage.text}

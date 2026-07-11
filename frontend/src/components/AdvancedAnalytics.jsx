@@ -1,7 +1,8 @@
 ﻿import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine, Cell } from 'recharts';
+import { formatMoney } from '../utils/currency';
 
-const AdvancedAnalytics = ({ stats }) => {
+const AdvancedAnalytics = ({ stats, displayCurrency = 'PLN' }) => {
     if (!stats) return null;
 
     const { equityCurve, profitBySport, roi, yield: yieldVal } = stats;
@@ -10,7 +11,7 @@ const AdvancedAnalytics = ({ stats }) => {
         ? Object.entries(profitBySport).map(([sport, profit]) => ({ name: sport, profit }))
         : [];
 
-    const currencyFormatter = (value) => `$${value.toFixed(2)}`;
+    const currencyFormatter = (value) => formatMoney(value, displayCurrency);
 
     return (
         <div className="space-y-8">
@@ -48,7 +49,7 @@ const AdvancedAnalytics = ({ stats }) => {
                         />
                         <YAxis 
                             tick={{fontSize: 11, fill: '#888888'}} 
-                            tickFormatter={(value) => `$${value}`}
+                            tickFormatter={(value) => formatMoney(value, displayCurrency)}
                             axisLine={{ stroke: '#2a2a2a' }}
                         />
                         <Tooltip 
@@ -75,7 +76,7 @@ const AdvancedAnalytics = ({ stats }) => {
                 <ResponsiveContainer width="100%" height="80%">
                     <BarChart data={sportData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#2a2a2a" />
-                        <XAxis type="number" tick={{fontSize: 11, fill: '#888888'}} axisLine={{ stroke: '#2a2a2a' }} tickFormatter={(value) => `$${value}`} />
+                        <XAxis type="number" tick={{fontSize: 11, fill: '#888888'}} axisLine={{ stroke: '#2a2a2a' }} tickFormatter={(value) => formatMoney(value, displayCurrency)} />
                         <YAxis dataKey="name" type="category" tick={{fontSize: 11, fill: '#e6e6e6', fontWeight: 500}} width={100} axisLine={{ stroke: '#2a2a2a' }} />
                         <Tooltip 
                             cursor={{fill: '#121212'}} 

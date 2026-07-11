@@ -207,7 +207,7 @@ const AddBetForm = () => {
                         </div>
                         <div className="text-center md:text-left md:pl-8 md:border-l border-hairline">
                             <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">Potential P/L</p>
-                            <p className="text-3xl font-black text-primary font-numeric">${potentialWinnings}</p>
+                            <p className="text-3xl font-black text-primary font-numeric">{potentialWinnings.toFixed(2)} PLN</p>
                         </div>
                     </div>
                 </div>

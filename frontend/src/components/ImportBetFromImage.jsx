@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { importBetFromImage } from '../api';
+import { formatMoney } from '../utils/currency';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
 
@@ -97,7 +98,9 @@ export default function ImportBetFromImage({ onImported }) {
       const { data } = await importBetFromImage(file, note);
       clearFile();
       setNote('');
-      setSuccess(`Imported: ${data.eventName} (${data.selection})`);
+      const stakeLabel = data.stake != null ? formatMoney(data.stake, data.currency) : null;
+      const stakeSuffix = stakeLabel ? ` — ${stakeLabel}` : '';
+      setSuccess(`Imported: ${data.eventName} (${data.selection})${stakeSuffix}`);
       if (onImported) onImported(data);
     } catch (err) {
       const status = err?.response?.status;
