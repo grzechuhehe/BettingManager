@@ -47,10 +47,13 @@ public class GeminiVisionClient {
                 "CRITICAL EXTRACTION RULES:\n" +
                 "1. Identify if this is a REAL PLACED BET. If it's an ad, promotion, or just a list of scores, set 'isPlacedBet' to false.\n" +
                 "2. STAKE vs UNITS: 'stake' is the CURRENCY amount (e.g., 50.0 for 50 PLN). 'units' is the relative size (e.g., 1.0 or 5.0).\n" +
-                "   - If you see a currency symbol (zł, PLN, $), that is the STAKE.\n" +
-                "   - If you see 'u' or 'jednostki', that is the UNITS.\n" +
+                "   - If you see a currency symbol (zł, PLN, $, USD, €, EUR), set stakeCurrency accordingly and put the numeric amount in stake.\n" +
+                "   - $ or USD means stakeCurrency=USD — never assume PLN when a dollar symbol is visible.\n" +
+                "   - If you see 'u' or 'jednostki', that is the UNITS field only.\n" +
                 "   - DO NOT multiply units by 10 yourself. Just extract what you see.\n" +
-                "3. STAKE vs WINNINGS: Ensure 'stake' is the amount gambled, NOT the 'to win' or 'payout' amount.\n" +
+                "3. STAKE vs WINNINGS: 'stake' is the amount gambled (labels: Stawka, Zakład, Obstawiono, Stake, Wager).\n" +
+                "   Put payout labels (Możliwa wygrana, Wygrana, Wypłata, To win, Potential win) in potentialWin — NOT in stake.\n" +
+                "   On Polish slips, potentialWin is often NET after ~12% gambling tax.\n" +
                 "4. If multiple bets are visible, extract the main one.\n" +
                 "5. Recognized Polish bookmakers: STS, Fortuna, Superbet, Betclic, TOTALbet, Forbet, Etoto, LV BET, PZBuk, Betfan.\n" +
                 "6. marketType MUST be one of: MONEYLINE_1X2, MONEYLINE_12, MATCH_ODDS, TOTALS_OVER_UNDER, OVER_UNDER, " +
@@ -108,6 +111,9 @@ public class GeminiVisionClient {
             Map<String, Object> odds = new HashMap<>(); odds.put("type", "NUMBER"); odds.put("description", "Total odds of the bet.");
             Map<String, Object> bookmaker = new HashMap<>(); bookmaker.put("type", "STRING"); bookmaker.put("description", "Name of the bookmaker.");
             Map<String, Object> stake = new HashMap<>(); stake.put("type", "NUMBER"); stake.put("description", "Stake amount in currency. Null if not visible.");
+            Map<String, Object> stakeCurrency = new HashMap<>(); stakeCurrency.put("type", "STRING"); stakeCurrency.put("description", "Currency of stake: PLN, USD, EUR, GBP, or OTHER. Null if not visible.");
+            Map<String, Object> potentialWin = new HashMap<>(); potentialWin.put("type", "NUMBER"); potentialWin.put("description", "Potential payout shown on slip (To win / Możliwa wygrana). NOT the stake.");
+            Map<String, Object> potentialWinCurrency = new HashMap<>(); potentialWinCurrency.put("type", "STRING"); potentialWinCurrency.put("description", "Currency of potentialWin if different from stake.");
             Map<String, Object> units = new HashMap<>(); units.put("type", "NUMBER"); units.put("description", "Stake in units (e.g., 1.5). Default to 1.0 if not specified.");
             Map<String, Object> sport = new HashMap<>(); sport.put("type", "STRING"); sport.put("description", "Sport category (e.g., Football, Basketball).");
             Map<String, Object> marketType = new HashMap<>(); marketType.put("type", "STRING"); marketType.put("description", "Market type (e.g., MATCH_ODDS, OVER_UNDER).");
@@ -150,6 +156,9 @@ public class GeminiVisionClient {
             betProperties.put("odds", odds);
             betProperties.put("bookmaker", bookmaker);
             betProperties.put("stake", stake);
+            betProperties.put("stakeCurrency", stakeCurrency);
+            betProperties.put("potentialWin", potentialWin);
+            betProperties.put("potentialWinCurrency", potentialWinCurrency);
             betProperties.put("units", units);
             betProperties.put("sport", sport);
             betProperties.put("marketType", marketType);

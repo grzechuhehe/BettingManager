@@ -11,6 +11,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.MarketType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetStakeExtractionNormalizer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.MarketTypeInferrer;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.market.CompositeSelectionParser;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.ResolutionNameTranslator;
@@ -50,9 +51,10 @@ class ProfileAnalysisOrchestratorImportTest {
                 new CompositeSelectionParser(),
                 objectMapper,
                 new MarketTypeInferrer(nameTranslator));
+        BetStakeExtractionNormalizer stakeNormalizer = new BetStakeExtractionNormalizer(new BigDecimal("0.88"));
         orchestrator = new ProfileAnalysisOrchestrator(
                 userRepository, betRepository, socialDataClient,
-                geminiVisionClient, imageStorageService, objectMapper, enricher);
+                geminiVisionClient, imageStorageService, objectMapper, enricher, stakeNormalizer);
     }
 
     @Test
@@ -183,5 +185,39 @@ class ProfileAnalysisOrchestratorImportTest {
         assertEquals(0, new java.math.BigDecimal("3.25").compareTo(bet.getOdds()));
         assertEquals(0, new java.math.BigDecimal("10").compareTo(bet.getStake()));
         assertEquals(0, BigDecimal.ONE.compareTo(bet.getUnits()));
+    }
+
+    @Test
+    void importUsdStake_preservesCurrency() {
+        String json = "{\"isPlacedBet\":true,\"eventName\":\"Lakers - Celtics\","
+                + "\"selection\":\"Lakers\",\"odds\":1.90,\"stake\":50,\"stakeCurrency\":\"USD\","
+                + "\"sport\":\"Basketball\",\"marketType\":\"MATCH_ODDS\",\"status\":\"PENDING\"}";
+        when(geminiVisionClient.analyzeBet(any(), anyList())).thenReturn(json);
+        when(betRepository.save(any(Bet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Bet> result = orchestrator.importBetFromImages(
+                new User(), List.of("/images/profiles/manual/john/usd.png"), null);
+
+        assertTrue(result.isPresent());
+        Bet bet = result.get();
+        assertEquals(0, new BigDecimal("50").compareTo(bet.getStake()));
+        assertEquals("USD", bet.getCurrency());
+        assertEquals(0, new BigDecimal("5.00").compareTo(bet.getUnits()));
+    }
+
+    @Test
+    void importConfusedStakeWithPotentialWin_derivesCorrectStake() {
+        String json = "{\"isPlacedBet\":true,\"eventName\":\"Team A - Team B\","
+                + "\"selection\":\"1\",\"odds\":2.40,\"stake\":120,\"potentialWin\":120,"
+                + "\"stakeCurrency\":\"PLN\",\"bookmaker\":\"STS\",\"status\":\"PENDING\"}";
+        when(geminiVisionClient.analyzeBet(any(), anyList())).thenReturn(json);
+        when(betRepository.save(any(Bet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Bet> result = orchestrator.importBetFromImages(
+                new User(), List.of("/images/profiles/manual/john/fix.png"), null);
+
+        assertTrue(result.isPresent());
+        assertEquals(0, new BigDecimal("50.00").compareTo(result.get().getStake()));
+        assertEquals("PLN", result.get().getCurrency());
     }
 }

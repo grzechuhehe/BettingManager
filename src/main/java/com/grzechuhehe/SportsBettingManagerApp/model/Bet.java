@@ -43,6 +43,9 @@ public class Bet {
     @Column(precision = 10, scale = 2)
     private BigDecimal units; // Stawka w jednostkach [u]
 
+    @Column(length = 3)
+    private String currency; // Waluta stawki (PLN, USD, EUR, ...)
+
     @NotNull
     @DecimalMin(value = "1.01", message = "Odds must be greater than 1.00")
     @Column(precision = 10, scale = 2)

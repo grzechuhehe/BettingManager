@@ -6,6 +6,7 @@ import com.grzechuhehe.SportsBettingManagerApp.model.User;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetStakeExtractionNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -31,6 +32,8 @@ class ProfileAnalysisOrchestratorTest {
     private BetRepository betRepository;
     @Mock
     private BetImportResolutionEnricher betImportResolutionEnricher;
+    @Mock
+    private BetStakeExtractionNormalizer betStakeExtractionNormalizer;
 
     @InjectMocks
     private ProfileAnalysisOrchestrator orchestrator;

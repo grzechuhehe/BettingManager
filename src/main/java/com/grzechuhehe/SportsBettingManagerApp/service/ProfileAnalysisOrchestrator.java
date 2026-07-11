@@ -13,6 +13,8 @@ import com.grzechuhehe.SportsBettingManagerApp.model.enum_model.OddsType;
 import com.grzechuhehe.SportsBettingManagerApp.repository.BetRepository;
 import com.grzechuhehe.SportsBettingManagerApp.repository.UserRepository;
 import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetImportResolutionEnricher;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetStakeExtractionNormalizer;
+import com.grzechuhehe.SportsBettingManagerApp.service.resolution.importing.BetStakeNormalizationResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -42,6 +44,7 @@ public class ProfileAnalysisOrchestrator {
     private final ImageStorageService imageStorageService;
     private final ObjectMapper objectMapper;
     private final BetImportResolutionEnricher betImportResolutionEnricher;
+    private final BetStakeExtractionNormalizer betStakeExtractionNormalizer;
 
     // Uruchamia się co 15 minut
     @Scheduled(fixedRate = 900000)
@@ -345,6 +348,9 @@ public class ProfileAnalysisOrchestrator {
         if (bet.getSport() == null || bet.getSport().isBlank()) {
             bet.setSport("Other");
         }
+        if (bet.getCurrency() == null || bet.getCurrency().isBlank()) {
+            bet.setCurrency("PLN");
+        }
     }
 
     private void updateBetDataFromAI(Bet bet, String text, List<String> imagePaths, String threadContext) {
@@ -444,19 +450,22 @@ public class ProfileAnalysisOrchestrator {
                 
                 BigDecimal extractedUnits = jsonNode.has("units") && !jsonNode.get("units").isNull() ? new BigDecimal(jsonNode.get("units").asText()) : null;
                 BigDecimal extractedStake = jsonNode.has("stake") && !jsonNode.get("stake").isNull() ? new BigDecimal(jsonNode.get("stake").asText()) : null;
+                String stakeCurrency = jsonNode.has("stakeCurrency") && !jsonNode.get("stakeCurrency").isNull()
+                        ? sanitizeAiString(jsonNode.get("stakeCurrency")) : null;
+                BigDecimal potentialWin = jsonNode.has("potentialWin") && !jsonNode.get("potentialWin").isNull()
+                        ? new BigDecimal(jsonNode.get("potentialWin").asText()) : null;
 
-                if (extractedStake != null && extractedStake.compareTo(BigDecimal.ZERO) > 0) {
-                    bet.setStake(extractedStake);
-                    // Zawsze synchronizujemy jednostki: 10 PLN = 1u
-                    bet.setUnits(extractedStake.divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP));
-                } else if (extractedUnits != null && extractedUnits.compareTo(BigDecimal.ZERO) > 0) {
-                    bet.setUnits(extractedUnits);
-                    // Jeśli mamy tylko jednostki, przeliczamy na PLN: 1u = 10 PLN
-                    bet.setStake(extractedUnits.multiply(new BigDecimal("10")));
-                } else {
-                    bet.setUnits(BigDecimal.ONE);
-                    bet.setStake(new BigDecimal("10"));
-                }
+                BetStakeNormalizationResult normalizedStake = betStakeExtractionNormalizer.normalize(
+                        extractedStake,
+                        extractedUnits,
+                        stakeCurrency,
+                        potentialWin,
+                        bet.getBookmaker(),
+                        bet.getOdds());
+
+                bet.setStake(normalizedStake.stake());
+                bet.setUnits(normalizedStake.units());
+                bet.setCurrency(normalizedStake.currency());
                 
                 bet.calculatePotentialWinnings();
 
